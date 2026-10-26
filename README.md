@@ -193,6 +193,9 @@ npm run dev:mobile   # 앱 개발 서버
 - 브랜치: `main` ← `develop` ← `feature/FR-번호-설명`
 - 커밋: `feat(quiz): 퀴즈 결과 화면 추가 (FR-58)`
 - PR은 리뷰 1명 + 린트·테스트 통과 후 병합합니다.
+  - **CI**: 모든 커밋과 PR마다 `.github/workflows/ci.yml`이 lint · typecheck · build · test를 돌립니다. `CI 결과`가 통과해야 병합할 수 있습니다.
+  - **승인**: `develop` · `main` 병합에는 최완우(`Choiwanwoo-03`) 또는 최한결(`cchangyeol`) 중 최소 한 명의 Approve가 필요합니다(`.github/CODEOWNERS`). 새 커밋을 올리면 이전 승인은 사라지니 다시 받아야 합니다.
+  - **Codex 리뷰**: `develop`으로 가는 PR은 리뷰어가 `scripts/codex-review.sh <PR번호>`로 Codex 리뷰를 돌려 PR에 코멘트로 남깁니다. 지적을 고쳐 커밋을 올리면 같은 명령으로 재리뷰합니다(이전 지적 해결 여부 확인).
 
 ### 버전 · 보안
 

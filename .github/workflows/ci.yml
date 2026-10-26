@@ -1,4 +1,5 @@
 # 모든 브랜치의 커밋과 develop · main으로 가는 PR마다 lint · typecheck · build · test를 돌립니다.
+# scripts/ 의 셸 스크립트는 bats 테스트(scripts/tests)로 검사합니다.
 # 아직 package.json / requirements-dev.txt가 없는 앱은 건너뜁니다(건너뛴 것도 통과로 봅니다).
 name: CI
 
@@ -76,17 +77,34 @@ jobs:
         # 테스트 파일이 아직 없으면 pytest가 5를 돌려주므로 통과로 처리
         run: pytest || [ $? -eq 5 ]
 
+  scripts:
+    name: Scripts (bats)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: 문법 검사
+        run: for f in scripts/*.sh; do bash -n "$f"; done
+      - name: Test
+        # jq 필터 테스트까지 돌도록 jq 확인 (ubuntu 러너에 기본 설치)
+        run: |
+          jq --version
+          npx --yes bats@1.13.0 scripts/tests
+
   # 브랜치 규칙의 필수 검사는 이 job 하나만 봅니다.
   ci:
     name: CI 결과
-    needs: [detect, node, python]
+    needs: [detect, node, python, scripts]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: 결과 확인
         run: |
-          echo "detect=${{ needs.detect.result }} node=${{ needs.node.result }} python=${{ needs.python.result }}"
+          echo "detect=${{ needs.detect.result }} node=${{ needs.node.result }} python=${{ needs.python.result }} scripts=${{ needs.scripts.result }}"
           [ "${{ needs.detect.result }}" = "success" ] || exit 1
+          [ "${{ needs.scripts.result }}" = "success" ] || exit 1
           for r in "${{ needs.node.result }}" "${{ needs.python.result }}"; do
             if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then exit 1; fi
           done

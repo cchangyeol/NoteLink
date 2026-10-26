@@ -1,0 +1,6 @@
+# 운영 의존성 (정확한 버전 고정, 세팅안 v2 1.5절). 기능을 만들 때 필요한 패키지를 추가합니다.
+fastapi[standard]==0.142.2
+uvicorn==0.54.0
+pydantic==2.13.5
+pydantic-settings==2.15.0
+httpx2==2.13.1

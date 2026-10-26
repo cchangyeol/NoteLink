@@ -77,30 +77,38 @@ else
   HEADING="### 🤖 Codex 재리뷰 (${ROUND}차) · PR #$PR"
 fi
 
-# ---------- CI 결과 확인 (pull_request 이벤트로 돈 CI 기준) ----------
-CHECKS="$WORK/checks.tsv"
-ci_checks() {
-  gh pr checks "$PR" --json name,bucket,event,link,workflow \
-    --jq '.[] | select(.workflow == "CI" and .event == "pull_request") | [.bucket, .name, .link] | @tsv' \
-    > "$CHECKS" 2>/dev/null || true
+# ---------- CI 결과 확인 (PR 최신 커밋에 pull_request 이벤트로 돈 "CI" 워크플로 기준) ----------
+# 체크 링크를 잘라 쓰지 않고 Actions API에서 실행 ID · job ID를 직접 받습니다.
+RUN_ID=""; RUN_STATUS=""
+ci_run() {
+  read -r RUN_ID RUN_STATUS < <(gh api "repos/$REPO/actions/runs?head_sha=$HEAD_SHA&event=pull_request" \
+    --jq '[.workflow_runs[] | select(.name == "CI")] | sort_by(.created_at) | last // empty | [.id, .status] | @tsv' \
+    2>/dev/null || true) || true
 }
-ci_checks
-if grep -q "^pending" "$CHECKS" || ! grep -q "CI 결과" "$CHECKS"; then
+ci_run
+if [ "$RUN_STATUS" != "completed" ]; then
   echo "▶ CI가 아직 실행 중입니다. 끝날 때까지 기다립니다..."
   for _ in $(seq 1 90); do
-    ci_checks
-    if grep -q "CI 결과" "$CHECKS" && ! grep -q "^pending" "$CHECKS"; then break; fi
     sleep 20
+    ci_run
+    [ "$RUN_STATUS" = "completed" ] && break
   done
 fi
-CI_RESULT=$(awk -F '\t' '$2 == "CI 결과" { print $1 }' "$CHECKS" | head -n 1)
-if [ -z "$CI_RESULT" ] || [ "$CI_RESULT" = "pending" ]; then
-  echo "CI 상태를 확인하지 못했습니다(${CI_RESULT:-'CI 결과' 체크 없음}). 댓글을 남기지 않고 멈춥니다." >&2
+if [ -z "$RUN_ID" ] || [ "$RUN_STATUS" != "completed" ]; then
+  echo "CI 상태를 확인하지 못했습니다(${RUN_STATUS:-CI 실행 없음}). 댓글을 남기지 않고 멈춥니다." >&2
   echo "PR 화면의 Checks 탭을 확인한 뒤 다시 실행하세요." >&2
   exit 1
 fi
+JOBS="$WORK/jobs.tsv"  # conclusion \t name \t job id \t url
+gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" \
+  --jq '.jobs[] | [(.conclusion // "none"), .name, .id, .html_url] | @tsv' > "$JOBS"
+CI_RESULT=$(awk -F '\t' '$2 == "CI 결과" { print $1 }' "$JOBS" | head -n 1)
+if [ -z "$CI_RESULT" ]; then
+  echo "CI 실행 $RUN_ID 에서 'CI 결과' job을 찾지 못했습니다. 댓글을 남기지 않고 멈춥니다." >&2
+  exit 1
+fi
 
-if [ "$CI_RESULT" != "pass" ]; then
+if [ "$CI_RESULT" != "success" ]; then
   echo "▶ CI 결과: ${CI_RESULT:-없음} — Codex 리뷰 대신 실패 내용을 남깁니다."
   BODY_FILE="$WORK/body.md"
   {
@@ -111,12 +119,11 @@ if [ "$CI_RESULT" != "pass" ]; then
     echo "---"
     echo
     echo "_자동 검증이 통과하지 않아 Codex 리뷰를 실행하지 않았습니다. 고친 뒤 다시 요청해 주세요._"
-    awk -F '\t' '$1 == "fail" || $1 == "cancel"' "$CHECKS" | while IFS=$'\t' read -r bucket name link; do
+    awk -F '\t' '$1 == "failure" || $1 == "cancelled" || $1 == "timed_out"' "$JOBS" | while IFS=$'\t' read -r conclusion name job_id link; do
       echo
-      echo "#### ❌ \`$name\` — $bucket · [로그 열기]($link)"
+      echo "#### ❌ \`$name\` — $conclusion · [로그 열기]($link)"
       [ "$name" = "CI 결과" ] && continue
-      JOB_ID="${link##*/}"
-      LOG=$(gh run view --job "$JOB_ID" --log-failed 2>/dev/null | cut -f 3- | sed 's/^[0-9T:.-]*Z //' | tail -n "$MAX_LOG_LINES" | sed "s/\`\`\`/'''/g")
+      LOG=$(gh run view --job "$job_id" -R "$REPO" --log-failed 2>/dev/null | cut -f 3- | sed 's/^[0-9T:.-]*Z //' | tail -n "$MAX_LOG_LINES" | sed "s/\`\`\`/'''/g")
       if [ -n "$LOG" ]; then
         echo
         echo "<details><summary>로그 끝부분 ${MAX_LOG_LINES}줄</summary>"
@@ -143,23 +150,37 @@ BASE_SHA=$(git merge-base "origin/$BASE" "$HEAD_SHA")
 EX=( ':(exclude).env' ':(exclude).env.*' ':(exclude)**/.env' ':(exclude)**/.env.*'
      ':(exclude)package-lock.json' ':(exclude)**/package-lock.json' )
 
-cut_diff() {  # $1 = 범위, $2 = 출력 파일
-  git -C "$WT" diff "$1" -- . "${EX[@]}" > "$2" || true
-  local total
-  total=$(wc -l < "$2" | tr -d ' ')
-  if [ "${total:-0}" -gt "$MAX_DIFF_LINES" ]; then
-    head -n "$MAX_DIFF_LINES" "$2" > "$2.cut"
-    printf '\n... (diff가 커서 상위 %s/%s 줄만 포함)\n' "$MAX_DIFF_LINES" "$total" >> "$2.cut"
-    mv "$2.cut" "$2"
-  fi
+# 파일 단위로 diff를 모읍니다. 줄 수 한도(MAX_DIFF_LINES)를 넘는 파일은 중간에 자르지 않고
+# 통째로 빼서 "$2.omitted"에 적고, Codex가 직접 열어 보도록 프롬프트에 목록으로 넘깁니다.
+build_diff() {  # $1 = 범위, $2 = 출력 파일
+  : > "$2"; : > "$2.omitted"
+  local used=0 f part n
+  while IFS= read -r -d '' f; do
+    part=$(git -C "$WT" diff "$1" -- "$f")
+    n=$(printf '%s\n' "$part" | wc -l | tr -d ' ')
+    if [ $(( used + n )) -le "$MAX_DIFF_LINES" ]; then
+      printf '%s\n' "$part" >> "$2"
+      used=$(( used + n ))
+    else
+      printf '%s\t%s\n' "$f" "$n" >> "$2.omitted"
+    fi
+  done < <(git -C "$WT" diff -z --name-only "$1" -- . "${EX[@]}")
+}
+omitted_note() {  # $1 = 범위, $2 = diff 파일
+  [ -s "$2.omitted" ] || return 0
+  echo
+  echo "**분량 때문에 위 디프에서 빠진 파일 — 반드시 아래 명령으로 직접 열어 리뷰하세요:**"
+  while IFS=$'\t' read -r f n; do
+    echo "- \`$f\` (${n}줄) → \`git diff $1 -- '$f'\`"
+  done < "$2.omitted"
 }
 git -C "$WT" diff --stat "$BASE_SHA...HEAD" -- . "${EX[@]}" > "$WORK/stat.txt" || true
-cut_diff "$BASE_SHA...HEAD" "$WORK/pr.diff"
+build_diff "$BASE_SHA...HEAD" "$WORK/pr.diff"
 
 INCREMENTAL=false
 if [ -n "$PREV_SHA" ] && git merge-base --is-ancestor "$PREV_SHA" "$HEAD_SHA" 2>/dev/null; then
   INCREMENTAL=true
-  cut_diff "$PREV_SHA..HEAD" "$WORK/new.diff"
+  build_diff "$PREV_SHA..HEAD" "$WORK/new.diff"
 fi
 
 # ---------- Codex 입력 ----------
@@ -170,7 +191,7 @@ PROMPT="$WORK/prompt.md"
 당신은 이 저장소(NoteLink)를 잘 아는 시니어 코드 리뷰어입니다. 아래 변경 디프를 근거로 이 PR을 한국어로 리뷰하세요.
 자동 검증(lint·typecheck·build·test)은 이미 통과한 상태이므로, 코드 품질·설계·보안·경계조건 위주로 봅니다.
 read-only 권한으로 저장소 파일을 열어 맥락을 확인해도 됩니다.
-디프가 길어 잘렸으면("상위 N/M 줄만 포함"), diff --stat에 있는 나머지 파일은 저장소에서 직접 열어 확인하세요.
+디프 아래에 "빠진 파일" 목록이 있으면, 적힌 git diff 명령으로 그 파일들을 모두 직접 열어 리뷰에 포함하세요.
 리뷰 기준은 저장소 루트 AGENTS.md의 "Code Review Rules"와 README.md 5장 "개발 규칙"입니다.
 
 # 출력 규칙 (반드시)
@@ -222,6 +243,7 @@ EOF
     if $INCREMENTAL; then
       echo "## 지난 리뷰 이후 새 변경 디프 (${PREV_SHA:0:7}..HEAD)"
       echo '```diff'; cat "$WORK/new.diff"; echo '```'
+      omitted_note "$PREV_SHA..HEAD" "$WORK/new.diff"
     else
       echo "_지난 리뷰 이후 히스토리가 바뀌었습니다(force push 등). 아래 PR 전체 디프로 확인하세요._"
     fi
@@ -232,6 +254,7 @@ EOF
   echo
   echo "## PR 전체 변경 디프 (base...HEAD)"
   echo '```diff'; cat "$WORK/pr.diff"; echo '```'
+  omitted_note "$BASE_SHA...HEAD" "$WORK/pr.diff"
 } > "$PROMPT"
 
 echo "▶ Codex 리뷰 중... ($( [ "$ROUND" -eq 1 ] && echo 1차 || echo "${ROUND}차 재리뷰" ))"

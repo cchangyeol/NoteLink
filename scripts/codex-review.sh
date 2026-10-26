@@ -39,7 +39,8 @@ BASE_SHA=$(git merge-base "origin/$BASE" "$HEAD_SHA")
 
 # 내가 남긴 마지막 Codex 리뷰 찾기 (본문 끝의 <!-- codex-review sha=... round=... --> 표시)
 PREV_ID=$(gh api --paginate "repos/$REPO/pulls/$PR/reviews" \
-  --jq ".[] | select(.user.login == \"$ME\" and (.body | contains(\"<!-- $MARKER \"))) | .id" | tail -n 1)
+  --jq ".[] | select(.user.login == \"$ME\" and (.body | contains(\"<!-- $MARKER \"))) | [.submitted_at, .id] | @tsv" \
+  | sort | tail -n 1 | cut -f 2)
 PREV_BODY=""; PREV_SHA=""; ROUND=1
 if [ -n "$PREV_ID" ]; then
   PREV_BODY=$(gh api "repos/$REPO/pulls/$PR/reviews/$PREV_ID" --jq .body)
@@ -101,7 +102,8 @@ echo "▶ Codex 리뷰 중... (${ROUND}차, 로그: $LOG)"
 
 # 결과에 찍힌 임시 폴더 경로를 저장소 기준 경로로 바꾸기
 strip_prefix() {
-  awk -v p="$1" 'p != "" { while ((i = index($0, p)) > 0) $0 = substr($0, 1, i - 1) substr($0, i + length(p)) } { print }'
+  # -v는 역슬래시를 이스케이프로 읽어 Windows 경로가 깨지므로 환경 변수로 넘김
+  P="$1" awk 'BEGIN { p = ENVIRON["P"] } p != "" { while ((i = index($0, p)) > 0) $0 = substr($0, 1, i - 1) substr($0, i + length(p)) } { print }'
 }
 WIN_WT=$(cygpath -w "$WT" 2>/dev/null || true)
 BODY_FILE="$WORK/body.md"

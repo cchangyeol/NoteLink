@@ -1,0 +1,17 @@
+# 도구 설정만 둡니다(패키지로 배포하지 않음). 세팅안 v2 5.3절: Ruff 줄 길이 100, mypy, 타입 힌트 필수.
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "N"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"

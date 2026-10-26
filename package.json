@@ -1,0 +1,39 @@
+{
+  "name": "notelink",
+  "private": true,
+  "workspaces": [
+    "packages/shared",
+    "apps/api",
+    "apps/mobile"
+  ],
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "dev:api": "npm run dev -w apps/api",
+    "dev:mobile": "npm run start -w apps/mobile",
+    "dev:ai": "cd apps/ai && python -m uvicorn app.main:app --reload --port 8000"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.12.0",
+    "prettier": "3.9.9",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.1"
+  },
+  "allowScripts": {
+    "@swc/core@1.16.13": true,
+    "unrs-resolver@1.12.2": true
+  },
+  "overrides": {
+    "multer": "2.5.0",
+    "react": "19.2.3",
+    "react-native": "0.86.3"
+  }
+}

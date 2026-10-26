@@ -94,6 +94,11 @@ if grep -q "^pending" "$CHECKS" || ! grep -q "CI 결과" "$CHECKS"; then
   done
 fi
 CI_RESULT=$(awk -F '\t' '$2 == "CI 결과" { print $1 }' "$CHECKS" | head -n 1)
+if [ -z "$CI_RESULT" ] || [ "$CI_RESULT" = "pending" ]; then
+  echo "CI 상태를 확인하지 못했습니다(${CI_RESULT:-'CI 결과' 체크 없음}). 댓글을 남기지 않고 멈춥니다." >&2
+  echo "PR 화면의 Checks 탭을 확인한 뒤 다시 실행하세요." >&2
+  exit 1
+fi
 
 if [ "$CI_RESULT" != "pass" ]; then
   echo "▶ CI 결과: ${CI_RESULT:-없음} — Codex 리뷰 대신 실패 내용을 남깁니다."
@@ -165,6 +170,7 @@ PROMPT="$WORK/prompt.md"
 당신은 이 저장소(NoteLink)를 잘 아는 시니어 코드 리뷰어입니다. 아래 변경 디프를 근거로 이 PR을 한국어로 리뷰하세요.
 자동 검증(lint·typecheck·build·test)은 이미 통과한 상태이므로, 코드 품질·설계·보안·경계조건 위주로 봅니다.
 read-only 권한으로 저장소 파일을 열어 맥락을 확인해도 됩니다.
+디프가 길어 잘렸으면("상위 N/M 줄만 포함"), diff --stat에 있는 나머지 파일은 저장소에서 직접 열어 확인하세요.
 리뷰 기준은 저장소 루트 AGENTS.md의 "Code Review Rules"와 README.md 5장 "개발 규칙"입니다.
 
 # 출력 규칙 (반드시)

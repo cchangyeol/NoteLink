@@ -93,6 +93,7 @@ def test_different_options_are_not_same_value(a: str, b: str) -> None:
         ("350,000 CFU/mL.", "3.5×10^5 CFU/mL"),  # 끝 마침표
         ("약3.5×10^5 CFU", "약350,000 CFU"),  # 한국어에 붙은 수
         ("0.5 mg", ".5 mg"),
+        ("1.5E3 cells", "1,500 cells"),  # 대문자 E 지수
     ],
 )
 def test_same_value_in_different_forms(a: str, b: str) -> None:

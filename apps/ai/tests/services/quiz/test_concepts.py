@@ -61,6 +61,18 @@ def test_tidy(name: str, expected: str) -> None:
         ("assemble의 의미", None),
         ("상태 vs 동작 동사 구분", None),  # 일부러 견주는 이름
         ("위상역전", None),
+        ("12쪽 정리", "쪽·문제 번호"),
+        ("12p 요약", "쪽·문제 번호"),
+        # 쪽 번호 · 시험 영역 규칙이 잘못 걸던 정상 이름
+        ("Mitosis 4 phases", None),
+        ("CoQ10 결핍", None),
+        ("간문맥 고혈압", None),
+        ("문맥에 맞는 어휘", "시험 영역·풀이 전략"),
+        ("문맥 고혈압", None),  # 의학 용어
+        ("문맥압 항진증", None),
+        ("q3 효소", None),
+        ("pp.12 어휘", "쪽·문제 번호"),
+        ("12page 표현", "쪽·문제 번호"),
     ],
 )
 def test_issue(name: str, expected: str | None) -> None:
@@ -147,6 +159,36 @@ def test_retag_picks_listed_name() -> None:
     assert c.retag(llm, q, ["stack의 의미", "appeal to의 용법"], "토익") == ("stack의 의미", None)
     # 문제와 낱말이 겹치는 이름이 앞에 옴
     assert "개념 목록: stack의 의미, appeal to의 용법" in llm.calls[0].user
+
+
+def test_malformed_check_items_are_skipped() -> None:
+    # 쓰다 만 JSON을 닫은 답: 글자 항목 · 이름 없는 항목은 넘기고 읽을 수 있는 것만 씀
+    items = ["a", {"verdict": "오타"}, {"name": "위성역전", "verdict": "오타"}]
+    llm = FakeLlm({"Names": [{"items": items}]})
+    assert c.llm_check(llm, ["위성역전"], "뇌파") == {"위성역전": "오타"}
+    assert c.llm_check(FakeLlm({"Names": [{"items": "문자열"}]}), ["x"], "뇌파") == {}
+
+
+def test_pick_lists_names_matching_the_answer_first() -> None:
+    llm = FakeLlm({"Concept": [{"concept": "stack의 의미"}]})
+    q = question("q1", "stack")
+    q["prompt"] = "install 문제와 같은 쪽의 문제"  # 문제 글은 install과 겹침
+    c.pick(llm, q, ["install의 의미", "stack의 의미"], set())
+    assert "개념 목록: stack의 의미, install의 의미" in llm.calls[0].user
+
+
+def test_pick_ranks_by_whole_question_for_sentence_answers() -> None:
+    llm = FakeLlm({"Concept": [{"concept": "무산소성 세균의 특징"}]})
+    q = question("q1", "산소 없이 증식한다")
+    q["passage"] = "무산소성 세균"
+    c.pick(llm, q, ["산소 요구성 분류", "증식 곡선", "무산소성 세균의 특징"], set())
+    assert "개념 목록: 무산소성 세균의 특징," in llm.calls[0].user
+
+
+def test_retag_does_not_make_names_when_check_fails() -> None:
+    llm = FakeLlm({"Concept": [LlmError("HTTP 503")]})
+    assert c.retag(llm, question("q1", "stack"), ["stack의 의미"], "토익") == (None, None)
+    assert len(llm.calls) == 1  # 새 이름 짓기를 부르지 않음
 
 
 def test_retag_makes_new_name_when_none_fits() -> None:

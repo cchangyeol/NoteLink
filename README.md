@@ -192,16 +192,20 @@ npm run dev:mobile   # 앱 개발 서버
 
 - 브랜치: `main` ← `develop` ← `feature/FR-번호-설명`
 - 커밋: `feat(quiz): 퀴즈 결과 화면 추가 (FR-58)`
+- 작업은 이슈부터 만듭니다(양식: 기능 · 개선 / 버그). PR 본문은 템플릿(`.github/pull_request_template.md`)을 채우고 `Closes #이슈`로 연결합니다. `develop`으로 가는 PR은 이슈가 자동으로 닫히지 않으니 병합 후 직접 닫습니다.
+- `develop` · `main`에는 직접 push하지 않고 PR로 병합합니다(저장소 관리자 외에는 막혀 있음). 강제 push와 브랜치 삭제는 누구도 할 수 없습니다.
 - PR은 리뷰 1명 + 린트·테스트 통과 후 병합합니다.
-  - **CI**: 모든 커밋과 PR마다 `.github/workflows/ci.yml`이 lint · typecheck · build · test를 돌립니다. `CI 결과`가 통과해야 병합할 수 있습니다.
+  - **CI**: `develop` · `main`으로 가는 PR과 두 브랜치에 들어온 커밋마다 `.github/workflows/ci.yml`이 lint · typecheck · build · test(Dockerfile · compose 파일이 있으면 hadolint · `docker compose config`도)를 돌립니다. `CI 결과`가 통과해야 병합할 수 있습니다. 기능 브랜치에 push만 해서는 CI가 돌지 않으니, 확인이 필요하면 PR(초안 PR도 됨)을 엽니다.
+  - **라벨**: 바뀐 경로를 보고 영역 라벨(프론트 · 백엔드 · AI서버 · 인프라 · 공용 · CI·설정 · 문서)이 자동으로 붙습니다(`.github/labeler.yml`). 작업 종류 라벨(`enhancement` / `bug`)은 직접 붙입니다.
   - **승인**: `develop` · `main` 병합에는 최완우(`Choiwanwoo-03`) 또는 최한결(`cchangyeol`) 중 최소 한 명의 Approve가 필요합니다(`.github/CODEOWNERS`). 새 커밋을 올리면 이전 승인은 사라지니 다시 받아야 합니다.
+  - **자동 병합**: PR에서 "Enable auto-merge"를 켜 두면 승인과 `CI 결과` 통과가 모두 되는 순간 병합됩니다. 병합된 브랜치는 자동으로 지워집니다.
   - **Codex 리뷰**: `develop`으로 가는 PR은 리뷰어가 `scripts/codex-review.sh <PR번호>`로 Codex 리뷰를 돌려 PR 댓글(치명적 문제 · 중요 · 제안 · 좋았던 점 · 권장 조치)로 남깁니다. CI가 실패한 상태면 리뷰 대신 실패 로그를 남깁니다. 지적을 고쳐 커밋을 올리면 같은 명령으로 재리뷰합니다(이전 지적 반영 여부를 먼저 확인). 리뷰 기준은 `AGENTS.md`의 Code Review Rules입니다.
 
 ### 버전 · 보안
 
 - 모든 패키지는 정확한 버전으로 고정하고, lock 파일은 커밋합니다.
 - Expo 패키지는 `npx expo install`로 설치합니다.
-- `.env`는 커밋하지 않습니다 (`.env.example`만 커밋).
+- `.env`는 커밋하지 않습니다 (`.env.example`만 커밋). API 키 같은 비밀값이 들어간 커밋은 GitHub push protection이 push 단계에서 막습니다.
 - 소셜 로그인 시크릿 같은 비밀값은 **서버에만** 두고 앱에는 넣지 않습니다.
 
 ---

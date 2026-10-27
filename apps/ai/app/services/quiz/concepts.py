@@ -32,9 +32,16 @@ GENERIC = {
     "나타내",  # 조사를 먼저 떼므로 '나타내는' → '나타내'
 }  # fmt: skip
 SECTION = re.compile(
-    r"(?i)\bpart\s*\d|파트\s*\d|문제\s*(풀이|유형)|풀이법|기출|빈출|문맥|소거법|오답\s*단서|문장\s*찾기"
+    r"(?i)\bpart\s*\d|파트\s*\d|문제\s*(풀이|유형)|풀이법|기출|빈출|소거법|오답\s*단서|문장\s*찾기"
+    # 풀이 전략인 '문맥 …'만: 문맥 고혈압 · 문맥압 · 간문맥(의학 용어)은 아님
+    r"|(?<![가-힣])문맥\s*(상|에|으로|별|속|파악|이해|추론|단서|어휘)"
 )
-LABEL = re.compile(r"\d+\s*[pP쪽]|[pP]\.\s*\d|Q\s*\.?\s*\d|오답\s*분석")
+# 쪽 · 문제 번호: 12p · 12pp · 12page · 12쪽 · p.12 · pp.12 · Q.3.
+# 낱말 안의 수와 글자('4 phases', 'CoQ10')는 아님
+LABEL = re.compile(
+    r"(?<![A-Za-z0-9])\d+\s*(?:(?i:pp?|page)|쪽)(?![A-Za-z])|(?<![A-Za-z])(?i:pp?)\.\s*\d"
+    r"|(?<![A-Za-z])Q\s*\.?\s*\d|오답\s*분석"
+)
 PARTICLE = re.compile(r"(에서|으로|에|의|와|과|을|를|은|는|로)$")
 # 영어 기능어: 'in', 'be'는 모든 쪽에 있어 이름이 어느 쪽 것인지 가리지 못함
 FUNC = {
@@ -94,6 +101,7 @@ def issue(name: str, subject: set[str] | frozenset[str] = frozenset()) -> str | 
         name.count("(") != name.count(")")
         or re.search(r"(및|,|/|&)$", name)
         or re.search(r"[A-Za-z)](의|와|과)$", name)
+        # 알려진 한계: '세포의 핵'처럼 한 글자 명사로 끝나도 잘림으로 봄(for_page가 다시 요청)
         or re.search(r"의\s[가-힣]$", name)
         or re.search(r"및[가-힣]", name)
     ):
@@ -151,7 +159,11 @@ def _words(name: str, subject: set[str] | frozenset[str]) -> list[str]:
 
 
 def score(name: str, text: str, subject: set[str] | frozenset[str] = frozenset()) -> float:
-    """이름의 낱말 중 글(쪽 또는 문제)에 있는 비율."""
+    """이름의 낱말 중 글(쪽 또는 문제)에 있는 비율.
+
+    알려진 한계: 영어는 낱말 앞부분만 맞으면 일치로 봐서 'art'가 'article'에서도 걸립니다.
+    어미 · 파생 꼴(stacked · delivery)을 함께 잡으려는 기준이라 그대로 둡니다(#10).
+    """
     ws, low, flat = _words(name, subject), text.lower(), norm(text)
     hits = [bool(re.search(rf"\b{re.escape(w)}", low)) if w.isascii() else w in flat for w in ws]
     return sum(hits) / len(ws) if ws else 0.0
@@ -240,11 +252,16 @@ def llm_check(llm: Llm, names: list[str], subject: str) -> dict[str, Verdict]:
     except LlmError:
         return {}
     out: dict[str, Verdict] = {}
-    for i in r.get("items") or []:
+    items = r.get("items")
+    # 쓰다 만 JSON을 닫은 답은 모양이 어긋날 수 있음: 읽을 수 없는 항목은 표시 없이 넘김
+    for i in items if isinstance(items, list) else []:
+        name = i.get("name") if isinstance(i, dict) else None
+        if not isinstance(name, str):
+            continue
         if i.get("verdict") == "오타":
-            out[i["name"]] = "오타"
+            out[name] = "오타"
         elif i.get("verdict") == "잘림":
-            out[i["name"]] = "잘림"
+            out[name] = "잘림"
     return out
 
 
@@ -333,14 +350,21 @@ def shown(q: Question) -> str:
 
 
 def pick(llm: Llm, q: Question, names: list[str], subject: set[str]) -> str | None:
-    """문제와 낱말이 가장 많이 겹치는 이름 8개(정답은 두 번 셈) 중에서 검사 모델이 고릅니다.
+    """짧은 정답이면 정답과 낱말이 겹치는 이름을 먼저, 그다음 문제 전체와 겹치는 순으로 8개를 골라
+    검사 모델이 그중에서 고릅니다. 고르지 못하면(호출 실패 · 목록 밖 답) None.
 
     짐작한 쪽의 이름을 먼저 보여 주면 'stack'이 'deadline, warranty, gratitude 어휘'로 갔습니다.
     """
-    text = " ".join(
-        [q["prompt"], q.get("passage") or "", *(q["choices"] or []), q["answer"], q["answer"]]
-    )
-    cand = sorted(names, key=lambda n: -score(n, text, subject))[:8]
+    text = " ".join([q["prompt"], q.get("passage") or "", *(q["choices"] or []), q["answer"]])
+    # 문장 정답('산소 없이 증식한다')은 낱말 하나만 우연히 겹쳐도 앞에 서므로 문제 전체로만 셈
+    by_answer = short_answer(q["answer"])
+    cand = sorted(
+        names,
+        key=lambda n: (
+            -score(n, q["answer"], subject) if by_answer else 0.0,
+            -score(n, text, subject),
+        ),
+    )[:8]
     try:
         r = llm.call(
             settings.quiz_check_model,
@@ -371,10 +395,16 @@ def name_for(llm: Llm, q: Question, title: str) -> str | None:
 
 
 def retag(llm: Llm, q: Question, names: list[str], title: str) -> tuple[str | None, str | None]:
-    """(붙일 이름, 새로 만든 이름 또는 None). 목록은 문제에 필요한 이름만큼 늘어납니다."""
+    """(붙일 이름, 새로 만든 이름 또는 None). 목록은 문제에 필요한 이름만큼 늘어납니다.
+
+    검사 모델이 고르지 못하면(None) 새 이름을 만들지 않고 (None, None)을 돌려줍니다.
+    장애 중에 맞는 이름이 있는데도 비슷한 새 이름이 늘어나지 않게 합니다.
+    """
     ss = subject_words(title)
     c = pick(llm, q, names, ss)
-    if c and c != NONE:
+    if c is None:
+        return None, None
+    if c != NONE:
         return c, None
     new = name_for(llm, q, title)
     if not new:

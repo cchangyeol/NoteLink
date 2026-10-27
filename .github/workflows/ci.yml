@@ -1,11 +1,14 @@
-# 모든 브랜치의 커밋과 develop · main으로 가는 PR마다 lint · typecheck · build · test를 돌립니다.
+# develop · main으로 가는 PR과 develop · main에 들어온 커밋마다 lint · typecheck · build · test를 돌립니다.
+# (기능 브랜치의 push에는 돌리지 않습니다. PR을 열면 PR에서 돌고, 커밋을 더 올리면 다시 돕니다.
+#  push와 PR 양쪽에서 같은 커밋을 두 번 검사하던 것을 없앴습니다.)
 # scripts/ 의 셸 스크립트는 bats 테스트(scripts/tests)로 검사합니다.
-# 아직 package.json / requirements-dev.txt가 없는 앱은 건너뜁니다(건너뛴 것도 통과로 봅니다).
+# Dockerfile · compose 파일은 hadolint와 docker compose config로 검사합니다.
+# 아직 package.json / requirements-dev.txt / Docker 파일이 없으면 건너뜁니다(건너뛴 것도 통과로 봅니다).
 name: CI
 
 on:
   push:
-    branches: ['**']
+    branches: [develop, main]
   pull_request:
     branches: [develop, main]
 
@@ -23,12 +26,14 @@ jobs:
     outputs:
       node: ${{ steps.check.outputs.node }}
       python: ${{ steps.check.outputs.python }}
+      infra: ${{ steps.check.outputs.infra }}
     steps:
       - uses: actions/checkout@v7
       - id: check
         run: |
           [ -f package.json ] && echo "node=true" >> "$GITHUB_OUTPUT" || echo "node=false" >> "$GITHUB_OUTPUT"
           [ -f apps/ai/requirements-dev.txt ] && echo "python=true" >> "$GITHUB_OUTPUT" || echo "python=false" >> "$GITHUB_OUTPUT"
+          [ -n "$(git ls-files '*Dockerfile*' '*compose*.yml' '*compose*.yaml')" ] && echo "infra=true" >> "$GITHUB_OUTPUT" || echo "infra=false" >> "$GITHUB_OUTPUT"
 
   node:
     name: Node (mobile · api · shared)
@@ -77,6 +82,27 @@ jobs:
         # 테스트 파일이 아직 없으면 pytest가 5를 돌려주므로 통과로 처리
         run: pytest || [ $? -eq 5 ]
 
+  infra:
+    name: Infra (Docker)
+    needs: detect
+    if: needs.detect.outputs.infra == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Dockerfile 검사 (hadolint)
+        run: |
+          git ls-files -z '*Dockerfile*' | while IFS= read -r -d '' f; do
+            echo "▶ $f"
+            docker run --rm -i hadolint/hadolint:v2.15.1 hadolint --failure-threshold warning - < "$f"
+          done
+      - name: compose 파일 검사
+        # 문법 · 구조만 봅니다. .env 값은 커밋되지 않으므로 변수 치환은 하지 않습니다.
+        run: |
+          git ls-files -z '*compose*.yml' '*compose*.yaml' | while IFS= read -r -d '' f; do
+            echo "▶ $f"
+            docker compose -f "$f" config --quiet --no-interpolate
+          done
+
   scripts:
     name: Scripts (bats)
     runs-on: ubuntu-latest
@@ -96,15 +122,15 @@ jobs:
   # 브랜치 규칙의 필수 검사는 이 job 하나만 봅니다.
   ci:
     name: CI 결과
-    needs: [detect, node, python, scripts]
+    needs: [detect, node, python, infra, scripts]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: 결과 확인
         run: |
-          echo "detect=${{ needs.detect.result }} node=${{ needs.node.result }} python=${{ needs.python.result }} scripts=${{ needs.scripts.result }}"
+          echo "detect=${{ needs.detect.result }} node=${{ needs.node.result }} python=${{ needs.python.result }} infra=${{ needs.infra.result }} scripts=${{ needs.scripts.result }}"
           [ "${{ needs.detect.result }}" = "success" ] || exit 1
           [ "${{ needs.scripts.result }}" = "success" ] || exit 1
-          for r in "${{ needs.node.result }}" "${{ needs.python.result }}"; do
+          for r in "${{ needs.node.result }}" "${{ needs.python.result }}" "${{ needs.infra.result }}"; do
             if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then exit 1; fi
           done

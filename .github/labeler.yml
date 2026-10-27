@@ -1,0 +1,30 @@
+# PR에서 바뀐 경로로 영역 라벨을 붙입니다 (.github/workflows/labeler.yml).
+# 여러 영역을 건드리면 라벨도 여러 개 붙습니다.
+프론트:
+  - changed-files:
+      - any-glob-to-any-file: 'apps/mobile/**'
+
+백엔드:
+  - changed-files:
+      - any-glob-to-any-file: 'apps/api/**'
+
+AI서버:
+  - changed-files:
+      - any-glob-to-any-file: 'apps/ai/**'
+
+인프라:
+  - changed-files:
+      - any-glob-to-any-file:
+          ['infra/**', '**/Dockerfile*', '**/*compose*.yml', '**/*compose*.yaml']
+
+공용:
+  - changed-files:
+      - any-glob-to-any-file: 'packages/shared/**'
+
+CI·설정:
+  - changed-files:
+      - any-glob-to-any-file: ['.github/**', 'scripts/**', '*.json', '*.mjs', '.*']
+
+문서:
+  - changed-files:
+      - any-glob-to-any-file: ['docs/**', '**/*.md']

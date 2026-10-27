@@ -1,0 +1,19 @@
+# PR에서 바뀐 경로를 보고 영역 라벨(.github/labeler.yml)을 붙입니다.
+# pull_request_target: 라벨을 붙일 권한이 필요해서 사용합니다. PR 코드는 받아 오거나 실행하지 않고
+# 바뀐 파일 목록만 봅니다. 설정은 대상 브랜치(develop · main)의 것을 씁니다.
+name: Labeler
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  label:
+    name: 영역 라벨
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/labeler@v7

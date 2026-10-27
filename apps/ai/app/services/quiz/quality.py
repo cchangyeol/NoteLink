@@ -17,11 +17,13 @@ from typing import TypedDict
 
 from app.clients.llm import JsonObject, Llm, LlmError
 from app.core.config import settings
+from app.services.quiz.checks import option_key
 from app.services.quiz.models import Draft
 from app.services.quiz.text import norm, same_item, short_answer
 
 # '='와 '#'는 유의어 묶음을 잇고, '-'는 보통 대비('installation - 설치' / 'instalment - 할부')라
-# 묶음에 넣지 않음. 대비 짝은 좋은 문제가 물어야 할 바로 그것
+# 묶음에 넣지 않음. 대비 짝은 좋은 문제가 물어야 할 바로 그것.
+# 알려진 한계: Markdown 제목('# Unit 3')도 앞 묶음에 붙습니다(#12)
 CONT = re.compile(r"^\s*[=#]")
 GLOSS = re.compile(r"^\s*([A-Za-z][A-Za-z\s\-']*?)\s+-\s+[가-힣]")
 _PHRASE = re.compile(
@@ -84,6 +86,7 @@ def contrasts(answer: str, page_text: str) -> list[str]:
 
     ('installation - 설치' / 'instalment - 할부'). 노트가 가르치는 짝이라 natural_options가
     버리면 안 됩니다(10/25-26에 버렸음).
+    알려진 한계: 단어장처럼 이런 줄이 이어진 쪽에서는 이웃 낱말도 짝으로 봅니다(#12).
     """
     lines = [ln for ln in page_text.split("\n") if ln.strip()]
     at = [
@@ -106,7 +109,11 @@ def group_conflict(answer: str, choices: list[str], page_text: str) -> list[str]
     for g in groups(page_text):
         if any(_has(ln, answer) for ln in g):
             for o in choices:
-                if o != answer and short_answer(o) and any(_has(ln, o) for ln in g):
+                if (
+                    option_key(o) != option_key(answer)
+                    and short_answer(o)
+                    and any(_has(ln, o) for ln in g)
+                ):
                     hits.add(o)
     return sorted(hits)
 
@@ -160,19 +167,41 @@ def _natural(llm: Llm, model: str, system: str, user: str) -> bool | None:
     return v if isinstance(v, bool) else None
 
 
-def natural_options(llm: Llm, item: _Item, model: str) -> list[str] | None:
-    """모델이 자연스럽다고 본 오답 보기. 이 검사를 하지 않는 유형(장면 · 규칙)이면 None."""
+# 탈락 이유: 재시도 지시에 그대로 들어가므로 검사한 방식에 맞는 말로
+_KO_REASON = {
+    "정의": "설명에 함께 해당하는 오답 보기",
+    "특징": "그 용어에 대해 사실인 오답 보기",
+    "분류": "용어가 함께 속하는 오답 분류",  # 보기가 분류, 제시문이 용어
+}
+BLANK_REASON = "빈칸에 넣어도 말이 되는 오답 보기"
+MEAN_REASON = "같은 뜻으로 쓰이는 오답 보기"
+
+
+def _mode(item: _Item) -> tuple[str, Callable[[str], str], str] | None:
+    """(검사 지시, 질문 만들기, 탈락 이유). 이 검사를 하지 않는 유형(장면 · 규칙)이면 None."""
     p = item["passage"].strip()
-    wrong = [o for o in item["choices"] if o != item["answer"]]
     ty = item["type"]
     if ty in KO_SYS:  # 한국어 용어 과목: 같은 생각을 일반 전공 지식으로
-        system, make = KO_SYS[ty], _ko_make(ty, p)
-    elif "____" in p or re.search(r"_{3,}", p):
-        system, make = BLANK_SYS, (lambda o: f"문장: {p}\n빈칸에 넣을 표현: {o}")
-    elif re.search(r"[가-힣]", p) and short_answer(item["answer"]) and ty == "어휘":
-        system, make = MEAN_SYS, (lambda o: f"한국어 뜻: {p}\n영어 표현: {o}")
-    else:
+        return KO_SYS[ty], _ko_make(ty, p), _KO_REASON[ty]
+    if "____" in p or re.search(r"_{3,}", p):
+        return BLANK_SYS, (lambda o: f"문장: {p}\n빈칸에 넣을 표현: {o}"), BLANK_REASON
+    if re.search(r"[가-힣]", p) and short_answer(item["answer"]) and ty == "어휘":
+        return MEAN_SYS, (lambda o: f"한국어 뜻: {p}\n영어 표현: {o}"), MEAN_REASON
+    return None
+
+
+def natural_options(
+    llm: Llm, item: _Item, model: str, mode: tuple[str, Callable[[str], str], str] | None
+) -> list[str] | None:
+    """모델이 자연스럽다고 본 오답 보기. 이 검사를 하지 않는 유형(mode가 None)이면 None.
+
+    정답 보기는 대소문자 · 공백만 달라도 빼고 봅니다(code_check와 같은 기준).
+    """
+    if mode is None:
         return None
+    system, make, _ = mode
+    answer_key = option_key(item["answer"])
+    wrong = [o for o in item["choices"] if option_key(o) != answer_key]
     return [o for o in wrong if _natural(llm, model, system, make(o)) is True]
 
 
@@ -201,14 +230,15 @@ def two_answers(
         why.append(f"노트에서 정답과 같은 묶음인 보기: {', '.join(g)}")
     pair = contrasts(d["answer"], page_text)
     item["choices"] = [o for o in item["choices"] if o.strip().lower() not in pair]
-    n = natural_options(llm, item, settings.quiz_check_model)
+    mode = _mode(item)
+    n = natural_options(llm, item, settings.quiz_check_model, mode)
     if n == [] and qtype not in KO_SYS:
         # 검사 모델 혼자서는 'extended'를 두 번 놓침. 생성 모델을 2차 판정으로:
         # 빈칸 39문제(10/22 채점) 나쁜 것 10/14 → 13/14, 좋은 것 버림 3/25 → 8/25
         # (좋은 초안을 버려도 재시도 한 번 비용)
-        n = natural_options(llm, item, settings.quiz_gen_model)
-    if n:
-        why.append(f"빈칸에 넣어도 말이 되는 오답 보기: {', '.join(n)}")
+        n = natural_options(llm, item, settings.quiz_gen_model, mode)
+    if n and mode:
+        why.append(f"{mode[2]}: {', '.join(n)}")
     if hits is not None:
         hits.extend(g + (n or []))
     p = item["passage"].strip()

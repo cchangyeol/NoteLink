@@ -5,8 +5,9 @@ from app.services.quiz.checks import (
     Target,
     code_check,
     form_giveaway,
-    number_value,
+    number_values,
     reversed_of,
+    same_value,
     seen_draft,
     seen_question,
     too_close,
@@ -62,8 +63,40 @@ def test_answer_must_be_exactly_one_option() -> None:
     [("350,000 CFU/mL", 350000.0), ("3.5×10^5", 350000.0), ("3.5x10^5", 350000.0)]
     + [("1.5e3", 1500.0), ("10", 10.0), ("없음", None)],
 )
-def test_number_value_reads_every_form(text: str, value: float | None) -> None:
-    assert number_value(text) == value
+def test_number_values_reads_every_form(text: str, value: float | None) -> None:
+    vals = number_values(text)[0]
+    assert (float(vals[0]) if vals else None) == value
+
+
+@pytest.mark.parametrize(
+    ("a", "b"),
+    [
+        ("3×10^-7 M", "4×10^-7 M"),  # 반올림하면 둘 다 0이던 작은 수
+        ("37℃에서 24시간", "37℃에서 48시간"),  # 첫 수만 같음
+        ("10x100", "10x40"),  # 배율
+        ("Two men are carrying 2 boxes.", "Two men are opening 2 boxes."),  # 문장 속 같은 수
+        ("-5℃", "5℃"),  # 부호
+        ("1/2", "1-2"),  # 기호
+        ("2×10^3 ~ 5 mL", "5 ~ 2×10^3 mL"),  # 순서
+        (".5 mg", "5 mg"),
+        ("1e-999", "1e999"),  # 넘침 없이 비교
+    ],
+)
+def test_different_options_are_not_same_value(a: str, b: str) -> None:
+    assert not same_value(a, b)
+
+
+@pytest.mark.parametrize(
+    ("a", "b"),
+    [
+        ("3.5 × 10^5 CFU/mL", "350,000 CFU/mL"),  # 띄어 쓴 지수
+        ("350,000 CFU/mL.", "3.5×10^5 CFU/mL"),  # 끝 마침표
+        ("약3.5×10^5 CFU", "약350,000 CFU"),  # 한국어에 붙은 수
+        ("0.5 mg", ".5 mg"),
+    ],
+)
+def test_same_value_in_different_forms(a: str, b: str) -> None:
+    assert same_value(a, b)
 
 
 def test_same_number_in_two_forms_fails() -> None:
@@ -147,6 +180,15 @@ def test_wrong_target_must_ask_the_same_word_again() -> None:
     assert not any("틀린 낱말" in r for r in why(draft(), t=t))
 
 
+def test_wrong_target_without_answer_does_not_reject_every_draft() -> None:
+    assert not any("틀린 낱말" in r for r in why(draft(), t=Target("wrong", concept="x")))
+
+
+def test_answer_with_different_case_is_not_counted_as_wrong_option() -> None:
+    opts = ["Organizing", "clothing", "adjust", "counter", "shelf"]
+    assert form_giveaway(draft(options=opts, answer="organizing"))
+
+
 def test_answer_used_in_the_set_fails() -> None:
     assert "세트 안에서 정답이 겹침" in why(draft(), t=Target("new", used_answers=["stack"]))
 
@@ -162,6 +204,14 @@ def test_too_close_to_existing_question() -> None:
     )
 
 
+def test_same_stem_with_different_short_passage_is_not_too_close() -> None:
+    # 로컬 DB에서 같은 문제로 보던 '쌓다' / '계약을 성공하다' (10/27 측정)
+    stem = "다음 한국어 뜻에 해당하는 영어 표현으로 가장 알맞은 것을 고르시오."
+    seen = [seen_draft(draft(stem=stem, passage="쌓다"))]
+    assert not too_close(draft(stem=stem, passage="계약을 성공하다"), seen)
+    assert too_close(draft(stem="다른 문제 글", passage="쌓다"), seen)
+
+
 def test_reversed_question_in_this_run_fails() -> None:
     made = draft(passage="무산소성 세균", answer="산소 없이 증식한다")
     reverse = draft(passage="산소 없이 증식하는 세균", answer="무산소성 세균")
@@ -172,3 +222,32 @@ def test_reversed_question_in_this_run_fails() -> None:
     )
     stored["passage"] = "무산소성세균"
     assert not reversed_of(reverse, [stored])
+
+
+def test_decimal_options_are_distinct() -> None:
+    opts = ["1.5 mL", "15 mL", "0.15 mL", "150 mL", "3 mL"]
+    d = draft(stem="알맞은 양은?", passage="", options=opts, answer="1.5 mL")
+    assert code_check(d, NEW, "1.5 mL", "규칙", [])[1] == 0
+    reasons = why(d, "규칙")
+    assert "보기 5개가 아니거나 겹침" not in reasons
+    assert "정답 글이 보기와 안 맞음" not in reasons
+
+
+def test_unreadable_exponent_is_kept_as_text() -> None:
+    long_exp = "1e" + "9" * 30
+    assert number_values(long_exp)[0] == []
+    assert not same_value(long_exp, "1e9")
+
+
+def test_option_key_keeps_sign_and_decimal_but_ignores_spacing() -> None:
+    opts = ["-20℃", "20℃", "4℃", "37℃", "-70℃"]
+    d = draft(stem="보관 온도는?", passage="", options=opts, answer="-20℃")
+    assert code_check(d, NEW, "-20℃", "규칙", [])[1] == 0
+    assert "보기 5개가 아니거나 겹침" not in why(d, "규칙")
+    opts = ["No.5", "No.6", "No.7", "No.8", "No.9"]
+    assert (
+        code_check(
+            draft(stem="번호는?", passage="", options=opts, answer="No. 5"), NEW, "No.5", "규칙", []
+        )[1]
+        == 0
+    )

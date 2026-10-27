@@ -94,6 +94,31 @@ def test_note_group_conflict_is_reported_with_llm_result() -> None:
     assert qa.two_answers(llm, d, PAGE, "빈칸") == ["노트에서 정답과 같은 묶음인 보기: stock"]
 
 
+def test_answer_option_with_different_case_is_not_a_wrong_option() -> None:
+    opts = ["Stacked", "stock", "folded", "painted", "cleared"]
+    assert qa.group_conflict("stacked", opts, PAGE) == ["stock"]
+    d = draft("The rope was ____ to the post.", ["Fastened", "tied", "a", "b", "c"], "fastened")
+    # 오답 4개 × 두 모델 = 8번, 마지막 1번은 정답이 빈칸에 맞는지 확인
+    llm = FakeLlm({"Natural": natural(*[False] * 8, True)})
+    assert qa.two_answers(llm, d, PAGE, "빈칸") == []
+    assert all("Fastened" not in c.user for c in llm.calls[:8])
+
+
+def test_reason_matches_the_check_type() -> None:
+    # 빈칸이 없는 정의 문제에 '빈칸에 넣어도…'라고 쓰면 재시도 지시가 엉뚱해짐
+    d = draft(
+        "산소 없이 증식하는 세균", ["무산소성 세균", "통성 세균", "a", "b", "c"], "무산소성 세균"
+    )
+    llm = FakeLlm({"Natural": natural(True, False, False, False)})
+    assert qa.two_answers(llm, d, PAGE, "정의") == ["설명에 함께 해당하는 오답 보기: 통성 세균"]
+    d = draft("쌓다", ["stack", "pile", "a", "b", "c"], "stack")
+    llm = FakeLlm({"Natural": natural(True, False, False, False)})
+    assert qa.two_answers(llm, d, "", "어휘") == ["같은 뜻으로 쓰이는 오답 보기: pile"]
+    d = draft("황색포도알균", ["그람양성균", "구균", "a", "b", "c"], "그람양성균")
+    llm = FakeLlm({"Natural": natural(True, False, False, False)})
+    assert qa.two_answers(llm, d, "", "분류") == ["용어가 함께 속하는 오답 분류: 구균"]
+
+
 def test_term_subject_checks_the_right_answer_too() -> None:
     d = draft(
         "항산성균",

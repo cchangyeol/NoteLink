@@ -61,6 +61,17 @@ def test_clean_pages_drops_uncertain_and_empty_lines() -> None:
     assert pages == {1: "stack - 쌓다\nfasten - 고정하다"}
 
 
+def test_clean_pages_leaves_out_pages_with_nothing_left() -> None:
+    pages = clean_pages(
+        [
+            {"pageNo": 1, "ocrText": "[?]a\n[?]b\n  "},  # 모든 줄이 [?]
+            {"pageNo": 2, "ocrText": ""},
+            {"pageNo": 3, "ocrText": "stack - 쌓다"},
+        ]
+    )
+    assert pages == {3: "stack - 쌓다"}
+
+
 # ---------- locate ----------
 
 NOTES: Notes = {
@@ -85,6 +96,11 @@ def test_locate_uses_concept_and_explanation_for_short_answers() -> None:
 def test_locate_breaks_ties_with_preferred_note() -> None:
     notes: Notes = {"a": {1: "같은 글"}, "b": {1: "같은 글"}}
     assert locate(question("없는말"), notes, prefer="b") == ("b", 1)
+
+
+def test_locate_handles_questions_without_choices() -> None:
+    # 단답형 · 서술형은 choices가 null
+    assert locate(question("install", choices=None), NOTES) == ("day2", 3)
 
 
 def test_locate_without_notes_raises() -> None:

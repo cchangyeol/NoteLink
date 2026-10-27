@@ -27,12 +27,16 @@ def terms(s: str | None) -> list[str]:
 
 
 def clean_pages(pages: list[Page]) -> dict[int, str]:
-    """{pageNo: 글}. 확실하지 않은 [?] 낱말이 있는 줄은 LLM에 보여 주지 않음."""
+    """{pageNo: 글}. 확실하지 않은 [?] 낱말이 있는 줄은 LLM에 보여 주지 않음.
+
+    남은 글이 없는 쪽은 넣지 않습니다(빈 쪽이 출처로 골라지지 않게).
+    """
     out: dict[int, str] = {}
     for p in pages:
-        if p["ocrText"]:
-            lines = p["ocrText"].split("\n")
-            out[p["pageNo"]] = "\n".join(ln for ln in lines if ln.strip() and "[?]" not in ln)
+        lines = (p["ocrText"] or "").split("\n")
+        text = "\n".join(ln for ln in lines if ln.strip() and "[?]" not in ln)
+        if text:
+            out[p["pageNo"]] = text
     return out
 
 
@@ -49,7 +53,7 @@ def locate(q: Question, notes: Notes, prefer: str | None = None) -> tuple[str, i
         raise ValueError("찾을 노트 글이 없음")
     a = norm(q["answer"])
     stem = re.sub(r"(ing|ed|es|s)$", "", a)
-    ts = terms(" ".join([q["answer"], *q["choices"]]))
+    ts = terms(" ".join([q["answer"], *(q["choices"] or [])]))
     ts += terms(" ".join([*(q.get("conceptTags") or [])[:1], q.get("explanation") or ""]))
 
     def score(key: tuple[str, int]) -> tuple[int, bool]:

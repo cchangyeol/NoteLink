@@ -30,7 +30,7 @@ class Question(TypedDict):
     type: NotRequired[str | None]
     prompt: str
     passage: NotRequired[str | None]
-    choices: list[str]
+    choices: list[str] | None  # 단답형 · 서술형은 null (DB 설계 검사 규칙 ['array', 'null'])
     answer: str
     explanation: NotRequired[str | None]
     conceptTags: NotRequired[list[str]]

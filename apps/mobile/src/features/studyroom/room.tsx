@@ -1,0 +1,733 @@
+import { useEffect, useRef, useState } from 'react';
+import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  ArrowLeft,
+  Camera,
+  CameraOff,
+  Lock,
+  Mic,
+  MicOff,
+  Plus,
+  Search as SearchIcon,
+  Send,
+  Settings,
+  Smile,
+  Volume2,
+  VolumeX,
+  X,
+} from 'lucide-react-native';
+import type { Message, RoomMember } from '@notelink/shared';
+import { api, ApiError } from '@/lib/api';
+import { socket } from '@/lib/socket';
+import { hms } from '@/lib/dates';
+import { useNow, useSocket } from '@/hooks';
+import { useMockFlags } from '@/lib/mock/flags';
+import { useSession } from '@/stores/session';
+import { toast } from '@/stores/toast';
+import {
+  Alert,
+  Badge,
+  Btn,
+  Card,
+  Chip,
+  Dialog,
+  Header,
+  Input,
+  Label,
+  Loading,
+  Screen,
+  Two,
+  cx,
+} from '@/components/ui';
+import { C } from '@/theme';
+import { useLiveRoom } from '@/lib/livekit';
+
+// p.75 스터디룸 입장 · 만들기 / p.76 진입 · 채팅 / p.77 카드 / p.100 연결 끊김
+
+export function RoomListScreen() {
+  const mine = useQuery({ queryKey: ['rooms', 'mine'], queryFn: api.rooms.mine });
+  const rec = useQuery({ queryKey: ['rooms', 'recommended'], queryFn: api.rooms.recommended });
+  const qc = useQueryClient();
+  const [q, setQ] = useState('');
+  const [code, setCode] = useState(false);
+  const [v, setV] = useState('');
+  const join = useMutation({
+    mutationFn: (c: string) => api.rooms.join(c),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ['rooms'] });
+      setCode(false);
+      setV('');
+      router.push({ pathname: '/room/[id]', params: { id: r._id } });
+    },
+    onError: (e) => toast(e instanceof ApiError ? e.message : '입장하지 못했어요'),
+  });
+  const joined = mine.data ?? [];
+  return (
+    <View className="flex-1 bg-white">
+      <Screen>
+        <Text className="pt-4 pb-3 text-[22px] font-bold text-ink">스터디룸</Text>
+        <View className="h-11 flex-row items-center rounded-xl bg-cream px-4">
+          <SearchIcon size={16} color={C.sub} />
+          <TextInput
+            value={q}
+            onChangeText={setQ}
+            placeholder="스터디룸 검색"
+            placeholderTextColor={C.sub}
+            className="ml-2 h-11 flex-1 text-[14px] text-ink"
+          />
+        </View>
+        {joined.length ? (
+          <>
+            <Label>참여 중인 스터디룸</Label>
+            {joined.map((r) => (
+              <Card
+                key={r._id}
+                tone="mint"
+                onPress={() => router.push({ pathname: '/room/[id]', params: { id: r._id } })}
+                className="mb-2 flex-row items-center gap-3 p-4"
+              >
+                <Text className="text-[20px]">👥</Text>
+                <View className="flex-1">
+                  <Text className="text-[15px] font-bold text-ink">{r.title}</Text>
+                  <Text className="text-[12px] text-sub">
+                    {r.memberCount}명 · 코드 {r.inviteCode}
+                  </Text>
+                </View>
+              </Card>
+            ))}
+            <View className="mt-1 flex-row gap-2">
+              <View className="flex-1">
+                <Btn small kind="outline" onPress={() => router.push('/(tabs)/studyroom/create')}>
+                  스터디룸 만들기
+                </Btn>
+              </View>
+              <View className="flex-1">
+                <Btn small kind="outline" onPress={() => setCode(true)}>
+                  코드로 참여하기
+                </Btn>
+              </View>
+            </View>
+          </>
+        ) : (
+          <View className="items-center py-10">
+            <View className="h-14 w-14 items-center justify-center rounded-full bg-mint">
+              <Text className="text-[24px]">👥</Text>
+            </View>
+            <Text className="mt-3 text-[15px] font-bold text-ink">참여 중인 스터디룸이 없어요</Text>
+            <Text className="text-[12px] text-sub">친구와 함께 모여 실시간으로 공부해보세요</Text>
+            <Btn
+              className="mt-5 w-48"
+              small
+              onPress={() => router.push('/(tabs)/studyroom/create')}
+            >
+              스터디룸 만들기
+            </Btn>
+            <Text className="mt-2 text-[11px] text-sub">또는</Text>
+            <Pressable
+              onPress={() => setCode(true)}
+              className="mt-1 rounded-full border border-brand/40 px-4 py-1.5"
+            >
+              <Text className="text-[13px] text-brand">코드로 참여하기</Text>
+            </Pressable>
+          </View>
+        )}
+        <Label>
+          <Text className="text-[13px] font-bold text-ink">추천 스터디룸</Text>
+        </Label>
+        <View className="gap-2">
+          {rec.data
+            ?.filter((r) => r.title.includes(q))
+            .map((r) => (
+              <Card
+                key={r._id}
+                tone="white"
+                onPress={() => join.mutate(r.inviteCode)}
+                className="p-4"
+              >
+                <View className="flex-row items-center justify-between">
+                  <Text className="text-[14px] font-bold text-ink">{r.title}</Text>
+                  <Badge>{`${r.memberCount}명 참여`}</Badge>
+                </View>
+                <View className="mt-1.5 flex-row gap-1">
+                  {r.tags?.map((t) => (
+                    <Badge key={t}>{t}</Badge>
+                  ))}
+                </View>
+                <Text className="mt-1.5 text-[12px] text-sub">{r.description}</Text>
+              </Card>
+            ))}
+        </View>
+      </Screen>
+      <Dialog open={code} onClose={() => setCode(false)}>
+        <View className="h-11 w-11 items-center justify-center rounded-full bg-mint">
+          <Lock size={18} color={C.brand} />
+        </View>
+        <Text className="mt-2 text-[16px] font-bold text-ink">코드 입력</Text>
+        <Text className="text-[12px] text-sub">코드를 입력해주세요</Text>
+        <TextInput
+          autoFocus
+          value={v}
+          onChangeText={(t) =>
+            setV(
+              t
+                .toUpperCase()
+                .replace(/[^A-Z0-9]/g, '')
+                .slice(0, 6),
+            )
+          }
+          placeholder="예) AB3F9K"
+          placeholderTextColor={C.sub}
+          autoCapitalize="characters"
+          className="mt-4 h-14 w-full rounded-xl border-2 border-brand/30 text-center font-mono text-[20px] tracking-[6px] text-ink"
+        />
+        <View className="mt-4 w-full">
+          <Two>
+            <Btn small kind="outline" onPress={() => setCode(false)}>
+              취소
+            </Btn>
+            <Btn
+              small
+              disabled={v.length < 6}
+              loading={join.isPending}
+              onPress={() => join.mutate(v)}
+            >
+              확인
+            </Btn>
+          </Two>
+        </View>
+      </Dialog>
+    </View>
+  );
+}
+
+export function RoomCreateScreen() {
+  const qc = useQueryClient();
+  const [name, setName] = useState('');
+  const [cat, setCat] = useState('코딩');
+  const [pub, setPub] = useState(true);
+  const create = useMutation({
+    mutationFn: () => api.rooms.create({ title: name.trim(), categoryName: cat, isPublic: pub }),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ['rooms'] });
+      router.replace({ pathname: '/room/[id]', params: { id: r._id } });
+      toast(`스터디룸을 만들었어요 · 코드 ${r.inviteCode}`);
+    },
+  });
+  return (
+    <Screen>
+      <Header title="스터디룸 만들기" center />
+      <Label>
+        <Text className="text-[13px] font-bold text-ink">스터디룸 이름</Text>
+      </Label>
+      <Input value={name} onChangeText={setName} placeholder="예) 파이썬 기초 스터디" autoFocus />
+      <Label>
+        <Text className="text-[13px] font-bold text-ink">카테고리</Text>
+      </Label>
+      <View className="flex-row gap-2">
+        {['코딩', '자격증', '수학', '영어'].map((c) => (
+          <Chip key={c} small on={cat === c} onPress={() => setCat(c)}>
+            {c}
+          </Chip>
+        ))}
+      </View>
+      <Label>
+        <Text className="text-[13px] font-bold text-ink">공개 여부</Text>
+      </Label>
+      <View className="flex-row gap-3">
+        {(
+          [
+            [true, '공개', '👥'],
+            [false, '비공개', '🔒'],
+          ] as const
+        ).map(([v, l, ic]) => (
+          <Pressable
+            key={l}
+            onPress={() => setPub(v)}
+            className={cx(
+              'h-28 flex-1 items-center justify-center rounded-2xl border-2',
+              pub === v ? 'border-brand bg-mint' : 'border-transparent bg-cream',
+            )}
+          >
+            <Text className="text-[26px]">{ic}</Text>
+            <Text className="text-[13px] font-semibold text-ink">{l}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <Btn
+        className="mt-8"
+        disabled={!name.trim()}
+        loading={create.isPending}
+        onPress={() => create.mutate()}
+      >
+        스터디룸 만들기
+      </Btn>
+    </Screen>
+  );
+}
+
+export function RoomScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const room = useQuery({ queryKey: ['room', id], queryFn: () => api.rooms.get(id) });
+  const chatId = useQuery({ queryKey: ['room-chat', id], queryFn: () => api.rooms.chatRoomId(id) });
+  const history = useQuery({
+    queryKey: ['messages', chatId.data],
+    queryFn: () => api.social.messages(chatId.data!),
+    enabled: !!chatId.data,
+  });
+  const live = useLiveRoom(id);
+  const myItem = useSession();
+  const now = useNow();
+  const [started] = useState(() => Date.now());
+  const [members, setMembers] = useState<RoomMember[]>([]);
+  const [msgs, setMsgs] = useState<Message[]>([]);
+  const [timer, setTimer] = useState<{ label: string; endsAt: number } | null>(null);
+  const [hear, setHear] = useState(true);
+  const [menu, setMenu] = useState(false);
+  const [pick, setPick] = useState(false);
+  const [chat, setChat] = useState(false);
+  const [conn, setConn] = useState<'ok' | 'lost' | 'back' | 'kicked'>('ok');
+  const [v, setV] = useState('');
+  const pending = useRef<string[]>([]);
+  const list = useRef<FlatList<Message>>(null);
+
+  // 방 정보 · 대화 기록을 불러오면 목록을 채운다 (렌더 중 상태 조정)
+  const [loadedRoom, setLoadedRoom] = useState<typeof room.data>();
+  if (room.data && room.data !== loadedRoom) {
+    setLoadedRoom(room.data);
+    setMembers(room.data.members);
+    const rule = room.data.timerRule;
+    if (rule?.enabled && rule !== loadedRoom?.timerRule)
+      setTimer({ label: '집중', endsAt: now + rule.focusMin * 60000 });
+  }
+  const [loadedMsgs, setLoadedMsgs] = useState<typeof history.data>();
+  if (history.data && history.data !== loadedMsgs) {
+    setLoadedMsgs(history.data);
+    setMsgs(history.data);
+  }
+  useEffect(() => {
+    socket.emit(
+      'room:join',
+      { roomId: id },
+      (r) => r.missed && setMsgs((p) => [...p, ...r.missed!]),
+    );
+    return () => socket.emit('room:leave', { roomId: id });
+  }, [id]);
+  useSocket('room:presence', (p) => p.roomId === id && setMembers(p.members), [id]);
+  useSocket(
+    'room:timer',
+    (p) =>
+      p.roomId === id &&
+      setTimer(
+        p.rule?.enabled && p.endsAt
+          ? { label: p.phase === 'break' ? '휴식' : '집중', endsAt: new Date(p.endsAt).getTime() }
+          : null,
+      ),
+    [id],
+  );
+  useSocket(
+    'chat:message',
+    (m) =>
+      m.chatRoomId === chatId.data &&
+      setMsgs((p) => (p.some((x) => x._id === m._id) ? p : [...p, m])),
+    [chatId.data],
+  );
+
+  // p.100 연결 끊김 시나리오: 끊김 → (재연결 | 5분 넘으면 자동 퇴장). 목업에서는 설정 > 예외 시나리오로 켠다
+  const disconnect = useMockFlags((s) => s.roomDisconnect);
+  const [wasDisconnect, setWasDisconnect] = useState(false);
+  if (disconnect !== wasDisconnect) {
+    setWasDisconnect(disconnect);
+    if (disconnect) setConn('lost');
+  }
+  useEffect(() => {
+    if (!disconnect) return;
+    const back = setTimeout(() => {
+      setConn('back');
+      pending.current.forEach((t) =>
+        socket.emit(
+          'chat:send',
+          { chatRoomId: chatId.data!, text: t, clientId: `c${Date.now()}` },
+          (m) => setMsgs((p) => [...p, m]),
+        ),
+      );
+      pending.current = [];
+      useMockFlags.setState({ roomDisconnect: false });
+      setTimeout(() => setConn('ok'), 2600);
+    }, 6000);
+    return () => clearTimeout(back);
+  }, [disconnect]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 5분 넘게 끊기면 자동 퇴장 (공부 시간 기록은 서버에 저장돼 있다)
+  const kick = useMockFlags((s) => s.roomKick);
+  if (kick && conn !== 'kicked') setConn('kicked');
+  useEffect(() => {
+    if (kick) useMockFlags.setState({ roomKick: false });
+  }, [kick]);
+  useEffect(() => {
+    if (conn !== 'lost') return;
+    const t = setTimeout(() => setConn('kicked'), 5 * 60 * 1000);
+    return () => clearTimeout(t);
+  }, [conn]);
+
+  const send = () => {
+    if (!v.trim() || !chatId.data) return;
+    if (conn === 'lost') {
+      pending.current.push(v.trim());
+      setMsgs((p) => [
+        ...p,
+        {
+          _id: `p${Date.now()}`,
+          chatRoomId: chatId.data!,
+          senderId: 'u-me',
+          type: 'text',
+          text: v.trim(),
+          sharedItemId: null,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+    } else
+      socket.emit(
+        'chat:send',
+        { chatRoomId: chatId.data, text: v.trim(), clientId: `c${Date.now()}` },
+        (m) => setMsgs((p) => [...p, m]),
+      );
+    setV('');
+  };
+  if (!room.data) return <Loading />;
+  const last = msgs[msgs.length - 1];
+  const tiles = chat ? members.slice(0, 2) : members;
+  const remain = timer ? Math.max(0, Math.floor((timer.endsAt - now) / 1000)) : 0;
+  const mySec =
+    (members.find((m) => m.userId === 'u-me')?.todaySec ?? 0) +
+    Math.floor((now - started) / 1000) +
+    (myItem.since ? 0 : 0);
+
+  return (
+    <Screen scroll={false} pad={false}>
+      {conn === 'lost' && (
+        <View className="bg-sun/25 px-5 py-2">
+          <Text className="text-[12px] font-semibold text-ink">
+            ● 연결이 끊겼어요 · 다시 연결 중…
+          </Text>
+        </View>
+      )}
+      {conn === 'back' && (
+        <View className="mx-4 mt-2 rounded-xl bg-ink px-4 py-2.5">
+          <Text className="text-[12px] font-bold text-white">다시 연결됐어요</Text>
+          <Text className="text-[12px] text-white/60">멤버 상태를 최신으로 맞췄어요</Text>
+        </View>
+      )}
+      {!chat && (
+        <View className="px-5">
+          <View className="h-11 flex-row items-center justify-between">
+            <Pressable accessibilityLabel="나가기" onPress={() => router.back()} hitSlop={10}>
+              <ArrowLeft size={22} color={C.ink} />
+            </Pressable>
+            <Pressable
+              accessibilityLabel="세부 설정"
+              onPress={() => router.push({ pathname: '/room/settings', params: { id } })}
+              hitSlop={10}
+            >
+              <Settings size={20} color={C.ink} />
+            </Pressable>
+          </View>
+          <View className="flex-row items-center justify-between">
+            <Text className="text-[19px] font-bold text-ink">{room.data.title}</Text>
+            <View className="flex-row gap-1">
+              {timer && <Badge tone="dark">{`⏱ ${timer.label} ${hms(remain).slice(3)}`}</Badge>}
+              <Badge tone="gray">{`${members.length}명 접속중`}</Badge>
+            </View>
+          </View>
+        </View>
+      )}
+      <View className="flex-row flex-wrap justify-between gap-y-2.5 px-4 pt-3">
+        {tiles.map((m) => {
+          const me = m.userId === 'u-me';
+          const camOn = me ? live.camOn : m.camOn;
+          return (
+            <View
+              key={m.userId}
+              className={cx(
+                'w-[48.5%] items-center justify-center rounded-2xl',
+                chat ? 'h-20' : 'h-[118px]',
+                camOn ? 'bg-night' : 'bg-mint',
+              )}
+            >
+              {camOn && (
+                <View className="absolute top-2.5 right-2.5 h-1.5 w-1.5 rounded-full bg-sun" />
+              )}
+              {!camOn && (
+                <Text className={chat ? 'text-[20px]' : 'text-[30px]'}>{m.avatarUrl ?? '🙂'}</Text>
+              )}
+              <Text className={cx('text-[13px] font-bold', camOn ? 'text-white' : 'text-ink')}>
+                {m.nickname}
+              </Text>
+              <Text
+                className={cx('font-mono text-[12px]', camOn ? 'text-white/70' : 'text-ink/60')}
+              >
+                {conn === 'lost' && !me
+                  ? '연결 확인 중'
+                  : hms(
+                      me
+                        ? mySec
+                        : (m.todaySec ?? 0) +
+                            (conn === 'lost' ? 0 : Math.floor((now - started) / 1000)),
+                    )}
+              </Text>
+              {!chat && !(me ? live.micOn : m.micOn) && (
+                <View className="absolute bottom-2.5 left-2.5">
+                  <MicOff size={12} color={camOn ? 'rgba(255,255,255,.5)' : C.sub} />
+                </View>
+              )}
+            </View>
+          );
+        })}
+      </View>
+
+      {chat ? (
+        <FlatList
+          ref={list}
+          data={msgs}
+          keyExtractor={(m) => m._id}
+          onContentSizeChange={() => list.current?.scrollToEnd()}
+          className="mt-2 flex-1 bg-cream"
+          contentContainerClassName="gap-3 px-4 py-3"
+          renderItem={({ item: m }) => {
+            const mine = m.senderId === 'u-me';
+            return (
+              <View className={cx(mine && 'items-end')}>
+                {!mine && <Text className="mb-1 text-[11px] text-sub">💬 {m.senderNickname}</Text>}
+                <View className="max-w-[78%] rounded-2xl bg-white px-3 py-2">
+                  <Text className="text-[13px] text-ink">{m.text}</Text>
+                </View>
+                {mine && conn === 'back' && m === msgs[msgs.length - 1] && (
+                  <Text className="mt-1 text-[10px] text-brand">자동으로 전송했어요</Text>
+                )}
+              </View>
+            );
+          }}
+        />
+      ) : (
+        <View className="mt-auto px-4 pb-1">
+          <View className="flex-row gap-2">
+            <Ctl
+              on={live.micOn}
+              onPress={live.toggleMic}
+              icon={
+                live.micOn ? <Mic size={16} color={C.ink} /> : <MicOff size={16} color={C.sub} />
+              }
+              label={`내 마이크 ${live.micOn ? '켜짐' : '꺼짐'}`}
+            />
+            <Ctl
+              on={live.camOn}
+              onPress={live.toggleCam}
+              icon={
+                live.camOn ? (
+                  <Camera size={16} color={C.ink} />
+                ) : (
+                  <CameraOff size={16} color={C.sub} />
+                )
+              }
+              label={`내 카메라 ${live.camOn ? '켜짐' : '꺼짐'}`}
+            />
+            <Ctl
+              on={hear}
+              onPress={() => setHear((h) => !h)}
+              icon={
+                hear ? <Volume2 size={16} color={C.ink} /> : <VolumeX size={16} color={C.sub} />
+              }
+              label={`듣기 ${hear ? '켜짐' : '꺼짐'}`}
+              sub="내 학습하는 소리만"
+              strong
+            />
+          </View>
+          <View className="mt-2 flex-row items-center rounded-2xl border border-line px-3 py-2.5">
+            <Pressable onPress={() => setChat(true)} className="flex-1">
+              <Text numberOfLines={1} className="text-[12px] text-sub">
+                💬{' '}
+                {last
+                  ? `${last.senderId === 'u-me' ? '나' : last.senderNickname}: ${last.text}`
+                  : '채팅을 시작해 보세요'}
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityLabel="도구"
+              onPress={() => setMenu((m) => !m)}
+              className={cx(
+                'h-8 w-8 items-center justify-center rounded-full',
+                menu ? 'bg-ink' : 'bg-mint',
+              )}
+            >
+              {menu ? <X size={16} color="#fff" /> : <Plus size={16} color={C.brand} />}
+            </Pressable>
+          </View>
+        </View>
+      )}
+      <View className="flex-row items-center gap-2 px-4 pt-2 pb-3">
+        <View className="flex-1 flex-row items-center gap-2 rounded-full bg-cream px-3">
+          <View className="h-6 w-6 items-center justify-center rounded-full bg-ink">
+            <Plus size={14} color="#fff" />
+          </View>
+          <TextInput
+            value={v}
+            onFocus={() => setChat(true)}
+            onChangeText={setV}
+            onSubmitEditing={send}
+            returnKeyType="send"
+            placeholder="채팅을 입력하는 중입"
+            placeholderTextColor={C.sub}
+            className="h-11 flex-1 text-[13px] text-ink"
+          />
+          <Smile size={18} color={C.sun} />
+        </View>
+        <Pressable
+          accessibilityLabel="전송"
+          onPress={send}
+          className="h-9 w-9 items-center justify-center rounded-lg bg-ink"
+        >
+          <Send size={15} color="#fff" />
+        </Pressable>
+      </View>
+      {chat && (
+        <Pressable
+          onPress={() => setChat(false)}
+          className="absolute top-2 right-3 rounded-full bg-black/40 px-2 py-0.5"
+        >
+          <Text className="text-[11px] text-white">캠 보기</Text>
+        </Pressable>
+      )}
+
+      {menu && (
+        <View className="absolute right-5 bottom-[150px] z-20 gap-1 rounded-2xl border border-line bg-white p-1.5 shadow-lg">
+          {(
+            [
+              ['📅', '시간표', () => router.push({ pathname: '/room/schedule', params: { id } })],
+              ['🚨', '신고', () => router.push({ pathname: '/room/report', params: { id } })],
+              ['⏱', '타이머', () => router.push({ pathname: '/room/timer', params: { id } })],
+              ['🃏', '퀴즈', () => setPick(true)],
+            ] as const
+          ).map(([ic, l, fn]) => (
+            <Pressable
+              key={l}
+              onPress={() => {
+                setMenu(false);
+                fn();
+              }}
+              className="items-center rounded-xl px-3 py-1.5 active:bg-cream"
+            >
+              <Text className="text-[18px]">{ic}</Text>
+              <Text className="text-[10px] text-ink">{l}</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+      <Dialog open={pick} onClose={() => setPick(false)}>
+        <Text className="mb-4 text-[15px] font-bold text-ink">학습 자료 유형 선택</Text>
+        <View className="w-full flex-row gap-2">
+          <Pressable
+            onPress={() => {
+              setPick(false);
+              router.push({ pathname: '/play/solve', params: { from: 'room' } });
+            }}
+            className="h-20 flex-1 items-center justify-center rounded-2xl bg-mint"
+          >
+            <Text className="text-[14px] font-semibold text-ink">📝 퀴즈</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              setPick(false);
+              router.push({ pathname: '/room/cards', params: { id } });
+            }}
+            className="h-20 flex-1 items-center justify-center rounded-2xl bg-mint"
+          >
+            <Text className="text-[14px] font-semibold text-ink">🃏 플래시 카드</Text>
+          </Pressable>
+        </View>
+      </Dialog>
+      <Alert
+        open={conn === 'kicked'}
+        title="스터디룸에서 나갔어요"
+        body={`5분 넘게 연결되지 않아 자동으로 퇴장했어요.\n공부 시간 기록은 저장돼 있어요.`}
+        secondary="홈으로"
+        onSecondary={() => router.dismissTo('/')}
+        primary="다시 입장"
+        onPrimary={() => setConn('ok')}
+      />
+    </Screen>
+  );
+}
+
+const Ctl = ({
+  on,
+  onPress,
+  icon,
+  label,
+  sub,
+  strong,
+}: {
+  on: boolean;
+  onPress: () => void;
+  icon: React.ReactNode;
+  label: string;
+  sub?: string;
+  strong?: boolean;
+}) => (
+  <Pressable
+    onPress={onPress}
+    accessibilityState={{ selected: on }}
+    className={cx(
+      'h-[58px] flex-1 items-center justify-center rounded-xl',
+      strong && on ? 'border border-brand/30 bg-mint' : 'bg-[#f2f4f8]',
+    )}
+  >
+    {icon}
+    <Text className={cx('mt-0.5 text-[10px] font-semibold', on ? 'text-ink' : 'text-sub')}>
+      {label}
+    </Text>
+    {sub && <Text className="text-[9px] text-sub">{sub}</Text>}
+  </Pressable>
+);
+
+export function RoomCardsScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const shared = useQuery({ queryKey: ['room-shared', id], queryFn: () => api.rooms.shared(id) });
+  const [flip, setFlip] = useState<string[]>([]);
+  return (
+    <Screen>
+      <Pressable
+        onPress={() => router.back()}
+        className="mt-3 flex-row items-center gap-2 self-start rounded-full border border-line px-3 py-1.5"
+      >
+        <ArrowLeft size={16} color={C.ink} />
+        <Text className="text-[13px] text-ink">뒤로 가기</Text>
+      </Pressable>
+      <Text className="mt-3 text-[12px] text-sub">수민님이 공유한 플래시 카드 · 탭해서 뒤집기</Text>
+      <View className="mt-3 flex-row flex-wrap justify-between gap-y-3">
+        {shared.data?.flashcards.map((c) => {
+          const on = flip.includes(c._id);
+          return (
+            <Pressable
+              key={c._id}
+              onPress={() => setFlip((p) => (on ? p.filter((x) => x !== c._id) : [...p, c._id]))}
+              className={cx(
+                'h-36 w-[48.5%] items-center justify-center rounded-2xl border p-3',
+                on ? 'border-brand bg-brand' : 'border-line bg-mint',
+              )}
+            >
+              <Text
+                className={cx(
+                  'text-center text-[13px] font-semibold',
+                  on ? 'text-white' : 'text-ink',
+                )}
+              >
+                {on ? c.back : c.front}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </Screen>
+  );
+}

@@ -454,12 +454,15 @@ const PLANS: { id: PlanTier; name: string; price: string; desc: string[]; hot?: 
   },
 ];
 
+/** 결제 연동 전: 무료 플랜으로만 바꿀 수 있다 (목업은 화면 확인용으로 모두 허용) */
+export const canChangePlan = (t: PlanTier) => t === 'free' || env.useMock;
+
 export function PlanScreen() {
   const qc = useQueryClient();
   const me = useQuery({ queryKey: ['me'], queryFn: api.me.get });
   const cur = me.data?.subscription?.tier ?? 'free';
   const [pick, setPick] = useState<PlanTier | null>(null);
-  // 결제는 README 결정 사항대로 나중에 붙인다 — 지금은 서버에 플랜 변경만 요청
+  // 결제는 README 결정 사항대로 나중에 붙인다 — 그전까지 실서버에서는 유료 플랜으로 바꾸지 않는다
   const change = useMutation({
     mutationFn: (t: PlanTier) => api.me.changePlan(t),
     onSuccess: (u) => {
@@ -496,7 +499,9 @@ export function PlanScreen() {
               className="mt-3"
               kind={cur === p.id ? 'outline' : p.id === 'max' ? 'dark' : 'primary'}
               disabled={cur === p.id}
-              onPress={() => setPick(p.id)}
+              onPress={() =>
+                canChangePlan(p.id) ? setPick(p.id) : toast('결제는 준비 중이에요. 곧 열려요')
+              }
             >
               {cur === p.id
                 ? '현재 플랜'

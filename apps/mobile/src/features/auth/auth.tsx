@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Linking, Pressable, Text, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { BookOpen, Check, Sparkles } from 'lucide-react-native';
 import type { LearnerType, SocialProvider } from '@notelink/shared';
 import { api, ApiError } from '@/lib/api';
-import { getProviderToken } from '@/lib/social-auth';
+import { getProviderToken, socialLoginReady } from '@/lib/social-auth';
 import { clearAccountState } from '@/lib/account';
 import { useAuth } from '@/stores/auth';
 import { toast } from '@/stores/toast';
@@ -96,6 +96,7 @@ export function LoginScreen() {
       <View className="mt-24 gap-2.5">
         <Btn
           kind="sun"
+          disabled={!socialLoginReady}
           loading={social.isPending && social.variables === 'kakao'}
           onPress={() => social.mutate('kakao')}
         >
@@ -103,6 +104,7 @@ export function LoginScreen() {
         </Btn>
         <Btn
           kind="outline"
+          disabled={!socialLoginReady}
           loading={social.isPending && social.variables === 'naver'}
           onPress={() => social.mutate('naver')}
         >
@@ -110,12 +112,18 @@ export function LoginScreen() {
         </Btn>
         <Btn
           kind="outline"
+          disabled={!socialLoginReady}
           loading={social.isPending && social.variables === 'google'}
           onPress={() => social.mutate('google')}
         >
           Google로 시작하기
         </Btn>
         <Btn onPress={() => setEmailOpen(true)}>이메일로 시작하기</Btn>
+        {!socialLoginReady && (
+          <Text className="text-center text-[12px] text-sub">
+            소셜 로그인은 준비 중이에요. 이메일로 시작해 주세요
+          </Text>
+        )}
       </View>
       <Sheet open={emailOpen} onClose={() => setEmailOpen(false)} title="이메일로 시작하기">
         <Label>이메일</Label>
@@ -149,9 +157,9 @@ export function LoginScreen() {
 }
 
 const TERMS = [
-  ['service', '이용약관 (필수)', true],
-  ['privacy', '개인정보 처리 (필수)', true],
-  ['marketing', '마케팅 수신 (선택)', false],
+  ['service', '이용약관 (필수)', true, 'https://notelink.app/terms'],
+  ['privacy', '개인정보 처리 (필수)', true, 'https://notelink.app/privacy'],
+  ['marketing', '마케팅 수신 (선택)', false, 'https://notelink.app/marketing'],
 ] as const;
 
 const Box = ({ on }: { on: boolean }) => (
@@ -190,18 +198,29 @@ export function TermsScreen() {
         <Text className="text-[15px] font-bold text-ink">전체 동의</Text>
       </Pressable>
       <View className="mt-2 gap-2">
-        {TERMS.map(([k, l]) => {
+        {TERMS.map(([k, l, , url]) => {
           const on = agreed.includes(k);
+          // 동의 체크와 '보기'(전문 열기)는 따로 누른다
           return (
-            <Pressable
-              key={k}
-              onPress={() => setAgreed((p) => (on ? p.filter((x) => x !== k) : [...p, k]))}
-              className="flex-row items-center gap-3 rounded-2xl border border-line px-4 py-3.5"
-            >
-              <Box on={on} />
-              <Text className="flex-1 text-[14px] text-ink">{l}</Text>
-              <Text className="text-[12px] text-sub">보기</Text>
-            </Pressable>
+            <View key={k} className="flex-row items-center rounded-2xl border border-line pr-2">
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: on }}
+                onPress={() => setAgreed((p) => (on ? p.filter((x) => x !== k) : [...p, k]))}
+                className="flex-1 flex-row items-center gap-3 py-3.5 pl-4"
+              >
+                <Box on={on} />
+                <Text className="flex-1 text-[14px] text-ink">{l}</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel={`${l} 전문 보기`}
+                onPress={() => Linking.openURL(url)}
+                className="px-2 py-3.5"
+              >
+                <Text className="text-[12px] text-sub">보기</Text>
+              </Pressable>
+            </View>
           );
         })}
       </View>

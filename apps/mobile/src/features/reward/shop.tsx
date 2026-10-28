@@ -62,7 +62,6 @@ export function ShopScreen() {
         sort,
       }),
   });
-  const all = useQuery({ queryKey: ['shop', 'all'], queryFn: () => api.shop.items({}) });
   const { points, owned, wished } = useShopData();
   const [sortOpen, setSortOpen] = useState(false);
   const [detail, setDetail] = useState<ShopItem | null>(null);
@@ -81,6 +80,8 @@ export function ShopScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ['me'] });
       qc.invalidateQueries({ queryKey: ['my-items'] });
+      // 포인트 내역을 열어 둔 적이 있어도 새 구매 내역이 바로 보이게
+      qc.invalidateQueries({ queryKey: ['ledger'] });
       setMsg(`🎉 구매 완료 · ${it.name}`);
     },
     // 서버가 원자적으로 처리하므로 실패하면 포인트는 차감되지 않는다 (p.101)
@@ -91,8 +92,9 @@ export function ShopScreen() {
           ? setFail(true)
           : setMsg('구매하지 못했어요'),
   });
+  // 찜 탭도 고른 정렬을 따른다 — '찜'은 카테고리가 없으므로 items가 정렬된 전체 목록이다
   const list =
-    tab === '찜' ? (all.data ?? []).filter((i) => wished.has(i._id)) : (items.data ?? []);
+    tab === '찜' ? (items.data ?? []).filter((i) => wished.has(i._id)) : (items.data ?? []);
   const tryBuy = (it: ShopItem) => {
     setDetail(null);
     if (it.price > points) setPoor(it);

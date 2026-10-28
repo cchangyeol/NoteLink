@@ -595,7 +595,10 @@ export const mockApi: Api = {
       ),
   },
   ai: {
-    job: (id) => ok(db.jobs.get(id)!),
+    job: (id) => {
+      const j = db.jobs.get(id);
+      return j ? ok(j) : fail(ERROR_CODES.NOT_FOUND, '작업을 찾을 수 없어요', 404);
+    },
     cancel: (id) => ok(void Object.assign(db.jobs.get(id) ?? {}, { status: 'canceled' })),
     retry: (id) => {
       const old = db.jobs.get(id)!;

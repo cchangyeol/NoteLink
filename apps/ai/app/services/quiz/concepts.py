@@ -284,18 +284,27 @@ def screen(
 
 
 def _concepts(r: JsonObject) -> list[str]:
-    return [c for c in r.get("concepts") or [] if isinstance(c, str)]
+    """답의 개념 이름. 쓰다 만 JSON을 닫은 답은 빈 목록('{"concepts":[' → 빈 목록)이거나
+    모양이 어긋날 수 있음(문자열이면 글자 하나씩 읽힘)."""
+    items = r.get("concepts")
+    if not isinstance(items, list):
+        return []
+    return [c for c in items if isinstance(c, str) and c.strip()]
 
 
 def for_page(llm: Llm, text: str, title: str) -> tuple[list[str], list[tuple[str, str]]]:
     """한 쪽의 개념 이름: 뽑기 → 검사 → 버린 것만 한 번 더 요청.
 
-    첫 요청이 실패하면 LlmError를 그대로 올려 작업 처리기가 다시 시도하게 합니다.
+    첫 요청이 실패하거나 이름 없이 오면 LlmError를 올려 작업 처리기가 다시 시도하게 합니다.
+    C_SCHEMA가 이름을 1개 이상 요구하므로 빈 목록은 개념 없는 쪽이 아니라 잘린 답입니다.
     """
     subject_set, subject = subject_words(title), subject_name(title)
     user = f"노트 제목: {title}\n<노트조각>\n{text[:2500]}\n</노트조각>\n\n개념 이름을 뽑아라."
     r = llm.call(settings.quiz_gen_model, C_SYS, user, C_SCHEMA, "Concepts", max_tokens=300)
-    good, bad = screen(llm, _concepts(r), subject_set, subject)
+    first = _concepts(r)
+    if not first:
+        raise LlmError("개념 이름 없음")
+    good, bad = screen(llm, first, subject_set, subject)
     if bad:
         # 목록 전체를 다시 달라고 하면 통과한 이름을 말만 바꿔 다시 냄('advice 불가산 명사' 두 번)
         again = (

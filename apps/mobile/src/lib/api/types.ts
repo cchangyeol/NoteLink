@@ -33,6 +33,7 @@ import type {
   TimerRule,
   Timetable,
   TimetableClass,
+  TimetableShare,
   Todo,
   TodoType,
   UploadTarget,
@@ -145,6 +146,8 @@ export interface Api {
     addClass(c: Omit<TimetableClass, '_id' | 'source'>): Promise<TimetableClass>;
     removeClass(id: string): Promise<void>;
     share(p: { friendIds: string[]; mode: 'full' | 'free_only' }): Promise<void>;
+    /** 내가 시간표를 공유 중인 친구들 (FR-14-05 '공유 중' 표시) */
+    shares(): Promise<TimetableShare[]>;
   };
   social: {
     friends(): Promise<Friend[]>;

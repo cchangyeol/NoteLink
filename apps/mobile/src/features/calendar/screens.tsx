@@ -502,7 +502,13 @@ function AddClassSheet({ open, onClose }: { open: boolean; onClose: () => void }
 }
 
 function ShareTimetableSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const qc = useQueryClient();
   const friends = useQuery({ queryKey: ['friends'], queryFn: api.social.friends, enabled: open });
+  const sharing = useQuery({
+    queryKey: ['timetable-shares'],
+    queryFn: api.timetable.shares,
+    enabled: open,
+  });
   const [mode, setMode] = useState<'전체 공개' | '비는 시간만'>('전체 공개');
   // 아무도 고르지 않은 상태로 시작하고, 지금 친구 목록에 있는 사람만 보낸다
   const [pick, setPick] = useState<string[]>([]);
@@ -511,6 +517,7 @@ function ShareTimetableSheet({ open, onClose }: { open: boolean; onClose: () => 
     mutationFn: () =>
       api.timetable.share({ friendIds: chosen, mode: mode === '전체 공개' ? 'full' : 'free_only' }),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['timetable-shares'] });
       onClose();
       toast(`${chosen.length}명에게 시간표를 공유했어요`);
     },
@@ -546,7 +553,9 @@ function ShareTimetableSheet({ open, onClose }: { open: boolean; onClose: () => 
               <Avatar name={f.nickname} size={30} tone="mint" />
               <View className="flex-1">
                 <Text className="text-subhead font-semibold text-ink">{f.nickname}</Text>
-                {f.nickname === '지우' && <Text className="text-caption2 text-sub">공유 중</Text>}
+                {sharing.data?.some((x) => x.friendId === f.userId) && (
+                  <Text className="text-caption2 text-sub">공유 중</Text>
+                )}
               </View>
               <View
                 className={cx(

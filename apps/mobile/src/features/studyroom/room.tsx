@@ -731,6 +731,7 @@ export function RoomCardsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const shared = useQuery({ queryKey: ['room-shared', id], queryFn: () => api.rooms.shared(id) });
   const [flip, setFlip] = useState<string[]>([]);
+  const owner = shared.data?.items.find((i) => i.itemType === 'flashcards')?.sharedByNickname;
   return (
     <Screen>
       <Pressable
@@ -741,7 +742,7 @@ export function RoomCardsScreen() {
         <Text className="text-footnote text-ink">뒤로 가기</Text>
       </Pressable>
       <Text className="mt-3 text-caption text-sub">
-        수민님이 공유한 플래시 카드 · 탭해서 뒤집기
+        {owner ? `${owner}님이 공유한 플래시 카드` : '공유된 플래시 카드'} · 탭해서 뒤집기
       </Text>
       <View className="mt-3 flex-row flex-wrap justify-between gap-y-3">
         {shared.data?.flashcards.map((c) => {

@@ -7,7 +7,7 @@ import { Accelerometer } from 'expo-sensors';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { Mic, PartyPopper, PenLine, X } from 'lucide-react-native';
 import { api } from '@/lib/api';
-import { goalLabel, hm, hms } from '@/lib/dates';
+import { diffLabel, goalLabel, hm, hms } from '@/lib/dates';
 import { useNow } from '@/hooks';
 import { useSession } from '@/stores/session';
 import { toast } from '@/stores/toast';
@@ -20,6 +20,7 @@ export function SummaryScreen() {
   const { sec, points } = useLocalSearchParams<{ sec?: string; points?: string }>();
   const today = useQuery({ queryKey: ['study', 'today'], queryFn: api.study.today });
   const weekly = useQuery({ queryKey: ['study', 'weekly'], queryFn: api.study.weekly });
+  const me = useQuery({ queryKey: ['me'], queryFn: api.me.get });
   const goal = useQuery({ queryKey: ['goal', 'weekly'], queryFn: api.study.weeklyGoal });
   const items = today.data?.items ?? [];
   const total = items.reduce((a, i) => a + i.accumulatedSec, 0);
@@ -48,7 +49,7 @@ export function SummaryScreen() {
       </View>
       <View className="items-center">
         <PartyPopper size={ICON.xl} color={C.brand} />
-        <Text className="text-title3 font-bold text-ink">수고했어요, 형욱 님</Text>
+        <Text className="text-title3 font-bold text-ink">수고했어요, {me.data?.nickname} 님</Text>
         <Text className="text-caption text-sub">
           오늘 순공시간{sec ? ` · 이번 세션 ${hm(Number(sec))}` : ''}
         </Text>
@@ -89,7 +90,7 @@ export function SummaryScreen() {
       </View>
       <Progress value={pct} className="mt-1.5" />
       <Text className="mt-1 text-caption text-sub">
-        {hm(weekly.data?.totalSec ?? 0)} · 지난주보다 1시간 40분 늘었어요
+        {hm(weekly.data?.totalSec ?? 0)} · {diffLabel(weekly.data?.diffFromLastWeekSec ?? 0)}
       </Text>
       <Card tone="white" className="mt-4 p-4">
         <Text className="text-subhead font-semibold text-ink">오늘 공부를 노트로 남겨둘까요?</Text>

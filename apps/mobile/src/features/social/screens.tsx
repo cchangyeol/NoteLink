@@ -162,7 +162,7 @@ export function ChatScreen() {
   const myId = useAuth((s) => s.userId);
   const {
     id,
-    name = '지우',
+    name = '',
     status = 'resting',
   } = useLocalSearchParams<{ id: string; name?: string; status?: User['status'] }>();
   const qc = useQueryClient();

@@ -15,7 +15,7 @@ import {
   Users,
 } from 'lucide-react-native';
 import { api } from '@/lib/api';
-import { addDays, dLabel, hm, md, parse, today, ymd, WD, seoul } from '@/lib/dates';
+import { addDays, diffLabel, dLabel, hm, md, parse, today, ymd, WD, seoul } from '@/lib/dates';
 import {
   Badge,
   Card,
@@ -162,7 +162,9 @@ export function RecordScreen() {
           <>
             <Text className="text-caption text-sub">이번주 순공시간</Text>
             <Text className="text-title2 font-bold text-ink">{hm(weekly.data?.totalSec ?? 0)}</Text>
-            <Text className="text-caption text-sub">지난주보다 1시간 40분 늘었어요</Text>
+            <Text className="text-caption text-sub">
+              {diffLabel(weekly.data?.diffFromLastWeekSec ?? 0)}
+            </Text>
             <Label
               right={
                 <Pressable onPress={() => router.push('/dday')}>

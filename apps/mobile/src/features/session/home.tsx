@@ -75,7 +75,7 @@ export function HomeScreen() {
             {has && <Text className="text-caption text-sub">안녕하세요</Text>}
             <Text className="text-title2 font-bold text-ink">
               {has
-                ? `${(me.data?.nickname ?? '').slice(1) || '형욱'} 님 🔥 12일째`
+                ? `${me.data?.nickname ?? ''} 님 🔥 ${me.data?.streakDays ?? 0}일째`
                 : '안녕하세요👋'}
             </Text>
             {!has && (

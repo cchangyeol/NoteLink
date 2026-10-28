@@ -34,6 +34,8 @@
   "overrides": {
     "multer": "2.5.0",
     "react": "19.2.3",
-    "react-native": "0.86.3"
+    "react-native": "0.86.3",
+    "expo-asset": "57.0.20",
+    "expo-constants": "57.0.22"
   }
 }

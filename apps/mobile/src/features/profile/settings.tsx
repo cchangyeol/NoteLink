@@ -3,7 +3,15 @@ import { Linking, Pressable, ScrollView, View } from 'react-native';
 import { Text } from '@/components/text';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronRight, ExternalLink } from 'lucide-react-native';
+import {
+  CalendarDays,
+  Check,
+  ChevronRight,
+  ExternalLink,
+  FlaskConical,
+  Gift,
+  Zap,
+} from 'lucide-react-native';
 import type { PlanTier, UserSettings } from '@notelink/shared';
 import { api } from '@/lib/api';
 import { env } from '@/lib/env';
@@ -102,7 +110,7 @@ export function SettingsScreen() {
             className="flex-row items-center gap-3"
           >
             <View className="h-10 w-10 items-center justify-center rounded-xl bg-white">
-              <Text className="text-sun">⚡</Text>
+              <Zap size={ICON.md} color={C.sun} />
             </View>
             <View className="flex-1">
               <Text className="text-callout font-semibold text-ink">
@@ -139,14 +147,14 @@ export function SettingsScreen() {
 
         <Label>학습</Label>
         <Group>
-          <Row chevron onPress={() => router.navigate('/record')}>
-            📅 캘린더 바로가기
+          <Row icon={CalendarDays} chevron onPress={() => router.navigate('/record')}>
+            캘린더 바로가기
           </Row>
         </Group>
         <Label>상점</Label>
         <Group>
-          <Row chevron onPress={() => router.push('/shop')}>
-            🎁 상점 바로가기
+          <Row icon={Gift} chevron onPress={() => router.push('/shop')}>
+            상점 바로가기
           </Row>
         </Group>
         <Label>녹음·재생</Label>
@@ -249,8 +257,8 @@ export function SettingsScreen() {
           </Row>
           <Row right={<Text className="text-footnote text-sub">0.1.0</Text>}>앱 버전</Row>
           {env.useMock && (
-            <Row chevron onPress={() => router.push('/(tabs)/profile/dev')}>
-              🧪 예외 시나리오 (목업 전용)
+            <Row icon={FlaskConical} chevron onPress={() => router.push('/(tabs)/profile/dev')}>
+              예외 시나리오 (목업 전용)
             </Row>
           )}
         </Group>
@@ -274,7 +282,7 @@ export function SettingsScreen() {
                 update.mutate({ subtitleLanguage: l });
                 setSheet(null);
               }}
-              right={s.subtitleLanguage === l && <Text className="text-brand">✓</Text>}
+              right={s.subtitleLanguage === l && <Check size={ICON.md} color={C.brand} />}
             >
               {l}
             </Row>
@@ -290,7 +298,7 @@ export function SettingsScreen() {
                 update.mutate({ pageTurn: k });
                 setSheet(null);
               }}
-              right={s.pageTurn === k && <Text className="text-brand">✓</Text>}
+              right={s.pageTurn === k && <Check size={ICON.md} color={C.brand} />}
             >
               {PAGE[k]}
             </Row>
@@ -516,7 +524,7 @@ export function PlanScreen() {
       <Alert
         open={!!pick}
         tone="brand"
-        icon="⚡"
+        icon={<Zap size={ICON.lg} color={C.brand} />}
         title={`${PLANS.find((p) => p.id === pick)?.name} 플랜으로 바꿀까요?`}
         body="결제는 앱 마켓 계정으로 진행돼요. 언제든 해지할 수 있어요."
         secondary="취소"

@@ -6,7 +6,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
-import { ArrowUpDown, Check, ChevronLeft, ChevronRight, Heart, X } from 'lucide-react-native';
+import {
+  ArrowUpDown,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Frown,
+  Heart,
+  Package,
+  ShoppingBasket,
+  X,
+} from 'lucide-react-native';
 import { ERROR_CODES, type ShopItem } from '@notelink/shared';
 import { api, ApiError, NetworkError } from '@/lib/api';
 import { clock } from '@/lib/dates';
@@ -150,7 +160,7 @@ export function ShopScreen() {
         </Pressable>
         {list.length === 0 && (items.isSuccess || tab === '찜') ? (
           <View className="mt-3 items-center rounded-2xl border border-line py-12">
-            <Text className="text-large">🧺</Text>
+            <ShoppingBasket size={ICON.xl} color={C.brand} />
             <Text className="mt-2 text-subhead font-semibold text-ink">
               {tab === '찜' ? '찜한 아이템이 없어요' : '준비 중인 아이템이에요'}
             </Text>
@@ -305,7 +315,7 @@ export function ShopScreen() {
       <Dialog open={!!poor} onClose={() => setPoor(null)}>
         {poor && (
           <>
-            <Text className="text-title1">😢</Text>
+            <Frown size={ICON.xl} color={C.brand} />
             <Text className="text-callout font-bold text-ink">포인트가 부족해요</Text>
             <Text className="mt-1 text-caption text-sub">
               {poor.name} 구매까지 {poor.price - points} P 더 필요해요
@@ -468,7 +478,7 @@ export function BoxScreen() {
       </View>
       {owned.size <= 1 ? (
         <View className="mt-14 items-center">
-          <Text className="text-display">📦</Text>
+          <Package size={ICON.xl} color={C.brand} />
           <Text className="mt-2 text-subhead font-semibold text-ink">
             아직 보유한 아이템이 없어요
           </Text>

@@ -20,6 +20,15 @@ import {
   Toggle,
   cx,
 } from '@/components/ui';
+import {
+  BookOpen,
+  Flame,
+  GraduationCap,
+  NotebookPen,
+  PartyPopper,
+  Target,
+} from 'lucide-react-native';
+import { ICON, C } from '@/theme';
 
 // p.51 #13 D-day 관리 / #14 반복 목표 설정
 
@@ -45,17 +54,19 @@ export function DDayScreen() {
   const row = (d: DDay) => (
     <View key={d._id} className="flex-row items-center gap-3 border-b border-line py-3">
       <View className="h-9 w-9 items-center justify-center rounded-full bg-cream">
-        <Text>
-          {d.source === 'todo'
-            ? d.kind === '시험'
-              ? '🎯'
-              : '📘'
-            : d.daysLeft < 0
-              ? '🎉'
-              : d.title === '수능'
-                ? '🎓'
-                : '📝'}
-        </Text>
+        {(() => {
+          const Ic =
+            d.source === 'todo'
+              ? d.kind === '시험'
+                ? Target
+                : BookOpen
+              : d.daysLeft < 0
+                ? PartyPopper
+                : d.title === '수능'
+                  ? GraduationCap
+                  : NotebookPen;
+          return <Ic size={ICON.sm} color={C.brand} />;
+        })()}
       </View>
       <View className="flex-1">
         <Text className="text-callout font-semibold text-ink">{d.title}</Text>
@@ -239,7 +250,10 @@ export function RepeatGoalScreen() {
       </Card>
       {g && (
         <View className="mt-3 rounded-xl bg-sun/15 px-3 py-2.5">
-          <Text className="text-footnote text-ink">🔥 연속 {g.streak}일 달성 중</Text>
+          <View className="flex-row items-center gap-1.5">
+            <Flame size={ICON.xs} color={C.brand} />
+            <Text className="text-footnote text-ink">연속 {g.streak}일 달성 중</Text>
+          </View>
         </View>
       )}
       <Alert

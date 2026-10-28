@@ -3,7 +3,17 @@ import { Pressable, View } from 'react-native';
 import { Text } from '@/components/text';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, Settings2 } from 'lucide-react-native';
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Flag,
+  Link2,
+  Repeat,
+  Settings2,
+  Target,
+  Users,
+} from 'lucide-react-native';
 import { api } from '@/lib/api';
 import { addDays, dLabel, hm, md, parse, today, ymd, WD, seoul } from '@/lib/dates';
 import {
@@ -168,7 +178,7 @@ export function RecordScreen() {
                 onPress={() => router.push('/dday')}
                 className="flex-row items-center gap-3 px-4 py-3"
               >
-                <Text>🎯</Text>
+                <Target size={ICON.md} color={C.brand} />
                 <View className="flex-1">
                   <Text className="text-subhead font-semibold text-ink">{next.title}</Text>
                   <Text className="text-caption text-sub">
@@ -186,11 +196,11 @@ export function RecordScreen() {
                 }
                 className="mt-2 flex-row items-center gap-3 px-4 py-3"
               >
-                <Text>🔁</Text>
+                <Repeat size={ICON.md} color={C.brand} />
                 <View className="flex-1">
                   <Text className="text-subhead font-semibold text-ink">반복 목표</Text>
                   <Text className="text-caption text-sub">
-                    {goals.data[0].name} · 🔥 {goals.data[0].streak}일째
+                    {goals.data[0].name} · 연속 {goals.data[0].streak}일째
                   </Text>
                 </View>
                 <ChevronRight size={ICON.md} color={C.sub} />
@@ -287,40 +297,44 @@ export function RecordScreen() {
       <Sheet open={sheet === 'cal'} onClose={() => setSheet(null)} title="캘린더 설정">
         <Group>
           <Row
+            icon={Flag}
             chevron
             onPress={() => {
               setSheet(null);
               router.push('/holiday');
             }}
           >
-            🎌 공휴일 설정
+            공휴일 설정
           </Row>
           <Row
+            icon={Link2}
             chevron
             onPress={() => {
               setSheet(null);
               router.push('/cal-share');
             }}
           >
-            🔗 캘린더 공유 설정
+            캘린더 공유 설정
           </Row>
           <Row
+            icon={Users}
             chevron
             onPress={() => {
               setSheet(null);
               router.push('/cal-shared');
             }}
           >
-            👥 공유받은 캘린더
+            공유받은 캘린더
           </Row>
           <Row
+            icon={CalendarDays}
             chevron
             onPress={() => {
               setSheet(null);
               router.push('/timetable');
             }}
           >
-            📅 내 시간표
+            내 시간표
           </Row>
         </Group>
       </Sheet>
@@ -424,7 +438,10 @@ function WeekView({ onMonth }: { onMonth: () => void }) {
         onPress={() => router.push('/timetable')}
         className="mt-3 flex-row items-center px-4 py-3.5"
       >
-        <Text className="flex-1 text-subhead font-semibold text-ink">📅 내 시간표 편집하기</Text>
+        <View className="flex-1 flex-row items-center gap-1.5">
+          <CalendarDays size={ICON.sm} color={C.sub} />
+          <Text className="text-subhead font-semibold text-ink">내 시간표 편집하기</Text>
+        </View>
         <ChevronRight size={ICON.md} color={C.sub} />
       </Card>
     </>

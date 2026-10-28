@@ -30,11 +30,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { router, useSegments } from 'expo-router';
 import {
+  Check,
   ChevronLeft,
   ChevronRight,
+  type LucideIcon,
   Search as SearchIcon,
   X,
-  type LucideIcon,
 } from 'lucide-react-native';
 import { C, ICON, MOTION } from '@/theme';
 
@@ -797,7 +798,7 @@ export function Success({
         entering={ZoomIn}
         className="h-20 w-20 items-center justify-center rounded-full bg-mint"
       >
-        <Text className="text-large text-brand">✓</Text>
+        <Check size={ICON.xl} color={C.brand} />
       </Animated.View>
       <Text className="mt-5 text-title3 font-bold text-ink">{title}</Text>
       <Text className="mt-1.5 text-center text-footnote text-sub">{body}</Text>

@@ -3,7 +3,7 @@ import { AppState, Pressable, View } from 'react-native';
 import { Text } from '@/components/text';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronRight, FileText } from 'lucide-react-native';
+import { Check, ChevronRight, FileText, Image, Pin } from 'lucide-react-native';
 import { ERROR_CODES, type AiJob } from '@notelink/shared';
 import { api, NetworkError } from '@/lib/api';
 import { uploadToBlob } from '@/lib/upload';
@@ -216,7 +216,7 @@ export function ConvertScreen() {
                 i < step ? 'text-brand' : i === step ? 'font-bold text-ink' : 'text-sub',
               )}
             >
-              {i < step ? `✓ ${s} 완료` : i === step ? `⏳ ${s} 중...` : `○ ${s}`}
+              {i < step ? `${s} 완료` : i === step ? `${s} 중...` : s}
             </Text>
           ))}
         </View>
@@ -250,7 +250,10 @@ export function ConvertScreen() {
           </Text>
         </View>
         <View className="mt-2 rounded-xl bg-mint px-3 py-2.5">
-          <Text className="text-footnote text-brand">✓ 원본은 기기에 보관 중이에요</Text>
+          <View className="flex-row items-center gap-1.5">
+            <Check size={ICON.xs} color={C.brand} />
+            <Text className="text-footnote text-brand">원본은 기기에 보관 중이에요</Text>
+          </View>
         </View>
         <Btn className="mt-3" onPress={run}>
           지금 다시 시도
@@ -347,7 +350,10 @@ export function ResultScreen() {
             }
             className="mt-3 flex-row items-center px-4 py-3"
           >
-            <Text className="flex-1 text-footnote text-ink">🖼 원본 필기 보기</Text>
+            <View className="flex-1 flex-row items-center gap-1.5">
+              <Image size={ICON.xs} color={C.brand} />
+              <Text className="text-footnote text-ink">원본 필기 보기</Text>
+            </View>
             <ChevronRight size={ICON.sm} color={C.sub} />
           </Card>
         </>
@@ -417,7 +423,10 @@ export function DocSummary({
           <Badge>수학</Badge>
         </View>
       )}
-      <Text className="mt-5 mb-2 text-subhead font-bold text-ink">📌 핵심 요약</Text>
+      <View className="flex-row items-center gap-1.5 mt-5 mb-2">
+        <Pin size={ICON.sm} color={C.sub} />
+        <Text className="text-subhead font-bold text-ink">핵심 요약</Text>
+      </View>
       <View className="gap-3 rounded-2xl bg-cream p-4">
         {points.map((p) => (
           <View key={p} className="flex-row gap-2">
@@ -436,7 +445,10 @@ export function DocSummary({
       </View>
       {onOriginal && (
         <Card tone="white" onPress={onOriginal} className="mt-4 flex-row items-center px-4 py-3">
-          <Text className="flex-1 text-subhead text-ink">📄 원본 문서 보기</Text>
+          <View className="flex-1 flex-row items-center gap-1.5">
+            <FileText size={ICON.sm} color={C.sub} />
+            <Text className="text-subhead text-ink">원본 문서 보기</Text>
+          </View>
           <ChevronRight size={ICON.sm} color={C.sub} />
         </Card>
       )}

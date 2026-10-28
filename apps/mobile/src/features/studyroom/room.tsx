@@ -5,16 +5,23 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
+  CalendarDays,
   Camera,
   CameraOff,
+  Layers,
   Lock,
+  MessageCircle,
   Mic,
   MicOff,
+  NotebookPen,
   Plus,
   Search as SearchIcon,
   Send,
   Settings,
+  Siren,
   Smile,
+  Timer,
+  Users,
   Volume2,
   VolumeX,
   X,
@@ -91,7 +98,7 @@ export function RoomListScreen() {
                 onPress={() => router.push({ pathname: '/room/[id]', params: { id: r._id } })}
                 className="mb-2 flex-row items-center gap-3 p-4"
               >
-                <Text className="text-title3">👥</Text>
+                <Users size={ICON.lg} color={C.brand} />
                 <View className="flex-1">
                   <Text className="text-callout font-bold text-ink">{r.title}</Text>
                   <Text className="text-caption text-sub">
@@ -116,7 +123,7 @@ export function RoomListScreen() {
         ) : (
           <View className="items-center py-10">
             <View className="h-14 w-14 items-center justify-center rounded-full bg-mint">
-              <Text className="text-title1">👥</Text>
+              <Users size={ICON.xl} color={C.brand} />
             </View>
             <Text className="mt-3 text-callout font-bold text-ink">
               참여 중인 스터디룸이 없어요
@@ -243,10 +250,10 @@ export function RoomCreateScreen() {
       <View className="flex-row gap-3">
         {(
           [
-            [true, '공개', '👥'],
-            [false, '비공개', '🔒'],
+            [true, '공개', Users],
+            [false, '비공개', Lock],
           ] as const
-        ).map(([v, l, ic]) => (
+        ).map(([v, l, Ic]) => (
           <Pressable
             key={l}
             onPress={() => setPub(v)}
@@ -255,7 +262,7 @@ export function RoomCreateScreen() {
               pub === v ? 'border-brand bg-mint' : 'border-transparent bg-cream',
             )}
           >
-            <Text className="text-title1">{ic}</Text>
+            <Ic size={ICON.xl} color={C.brand} />
             <Text className="text-footnote font-semibold text-ink">{l}</Text>
           </Pressable>
         ))}
@@ -446,7 +453,7 @@ export function RoomScreen() {
           <View className="flex-row items-center justify-between">
             <Text className="text-title3 font-bold text-ink">{room.data.title}</Text>
             <View className="flex-row gap-1">
-              {timer && <Badge tone="dark">{`⏱ ${timer.label} ${hms(remain).slice(3)}`}</Badge>}
+              {timer && <Badge tone="dark">{`${timer.label} ${hms(remain).slice(3)}`}</Badge>}
               <Badge tone="gray">{`${members.length}명 접속중`}</Badge>
             </View>
           </View>
@@ -509,7 +516,10 @@ export function RoomScreen() {
             return (
               <View className={cx(mine && 'items-end')}>
                 {!mine && (
-                  <Text className="mb-1 text-caption2 text-sub">💬 {m.senderNickname}</Text>
+                  <View className="flex-row items-center gap-1.5 mb-1">
+                    <MessageCircle size={ICON.xs} color={C.sub} />
+                    <Text className="text-caption2 text-sub">{m.senderNickname}</Text>
+                  </View>
                 )}
                 <View className="max-w-[78%] rounded-2xl bg-white px-3 py-2">
                   <Text className="text-footnote text-ink">{m.text}</Text>
@@ -623,12 +633,16 @@ export function RoomScreen() {
         <View className="absolute right-5 bottom-[150px] z-20 gap-1 rounded-2xl border border-line bg-white p-1.5 shadow-lg">
           {(
             [
-              ['📅', '시간표', () => router.push({ pathname: '/room/schedule', params: { id } })],
-              ['🚨', '신고', () => router.push({ pathname: '/room/report', params: { id } })],
-              ['⏱', '타이머', () => router.push({ pathname: '/room/timer', params: { id } })],
-              ['🃏', '퀴즈', () => setPick(true)],
+              [
+                CalendarDays,
+                '시간표',
+                () => router.push({ pathname: '/room/schedule', params: { id } }),
+              ],
+              [Siren, '신고', () => router.push({ pathname: '/room/report', params: { id } })],
+              [Timer, '타이머', () => router.push({ pathname: '/room/timer', params: { id } })],
+              [Layers, '퀴즈', () => setPick(true)],
             ] as const
-          ).map(([ic, l, fn]) => (
+          ).map(([Ic, l, fn]) => (
             <Pressable
               key={l}
               onPress={() => {
@@ -637,7 +651,7 @@ export function RoomScreen() {
               }}
               className="items-center rounded-xl px-3 py-1.5 active:bg-cream"
             >
-              <Text className="text-headline">{ic}</Text>
+              <Ic size={ICON.md} color={C.brand} />
               <Text className="text-caption2 text-ink">{l}</Text>
             </Pressable>
           ))}
@@ -653,7 +667,10 @@ export function RoomScreen() {
             }}
             className="h-20 flex-1 items-center justify-center rounded-2xl bg-mint"
           >
-            <Text className="text-subhead font-semibold text-ink">📝 퀴즈</Text>
+            <View className="flex-row items-center gap-1.5">
+              <NotebookPen size={ICON.sm} color={C.sub} />
+              <Text className="text-subhead font-semibold text-ink">퀴즈</Text>
+            </View>
           </Pressable>
           <Pressable
             onPress={() => {

@@ -9,7 +9,9 @@ import {
   Bold,
   Check,
   FileText,
+  Folder,
   Heading1,
+  Image,
   ImageIcon,
   Link2,
   List,
@@ -17,6 +19,7 @@ import {
   Pencil,
   Share2,
   Trash2,
+  Users,
 } from 'lucide-react-native';
 import type { Material } from '@notelink/shared';
 import { api } from '@/lib/api';
@@ -132,7 +135,7 @@ function FileOptions({ m, open, onClose }: { m: Material; open: boolean; onClose
       </Dialog>
       <Dialog open={stage === 'done'}>
         <View className="h-12 w-12 items-center justify-center rounded-full bg-mint">
-          <Text className="text-title2 text-brand">✓</Text>
+          <Check size={ICON.lg} color={C.brand} />
         </View>
         <Text className="mt-3 text-callout font-bold text-ink">삭제가 완료됐어요</Text>
         <Text className="text-caption text-sub">{m.title} 파일이 삭제됐어요</Text>
@@ -192,7 +195,7 @@ export function HandDetailScreen() {
           ) : (
             <View className="rounded-2xl bg-cream p-3">
               <View className="aspect-[4/3] items-center justify-center rounded-xl bg-cream-2">
-                <Text className="text-large">🖼</Text>
+                <Image size={ICON.xl} color={C.brand} />
               </View>
               <Text className="mt-2 text-footnote font-semibold text-ink">
                 {m.title.replace(' ', '_')}
@@ -466,7 +469,10 @@ export function DownloadedScreen() {
             </View>
             <View>
               <Text className="text-subhead font-semibold text-ink">{name}</Text>
-              <Text className="text-caption2 text-sub">📁 다운로드 폴더에 저장됨</Text>
+              <View className="flex-row items-center gap-1.5">
+                <Folder size={ICON.xs} color={C.sub} />
+                <Text className="text-caption2 text-sub">다운로드 폴더에 저장됨</Text>
+              </View>
             </View>
           </Card>
         }
@@ -561,7 +567,10 @@ export function ShareScreen() {
         onPress={() => setPick(true)}
         className="h-10 flex-row items-center self-start rounded-full border border-line px-4"
       >
-        <Text className="text-footnote text-ink">👥 {to.name} ⌄</Text>
+        <View className="flex-row items-center gap-1.5">
+          <Users size={ICON.xs} color={C.brand} />
+          <Text className="text-footnote text-ink">{to.name} ⌄</Text>
+        </View>
       </Pressable>
       <Sheet open={pick} onClose={() => setPick(false)} title="공유 대상">
         <Group>
@@ -611,7 +620,10 @@ export function SharedScreen() {
             </View>
             <View>
               <Text className="text-subhead font-semibold text-ink">{name}</Text>
-              <Text className="text-caption2 text-sub">👥 {to}으로 전송됨</Text>
+              <View className="flex-row items-center gap-1.5">
+                <Users size={ICON.xs} color={C.sub} />
+                <Text className="text-caption2 text-sub">{to}으로 전송됨</Text>
+              </View>
             </View>
           </Card>
         }

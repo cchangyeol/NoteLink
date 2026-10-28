@@ -6,7 +6,20 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Speech from 'expo-speech';
 import * as Haptics from 'expo-haptics';
-import { ArrowLeft, Plus, Volume2, X } from 'lucide-react-native';
+import {
+  Archive,
+  ArrowLeft,
+  Brain,
+  CircleCheck,
+  FileText,
+  Layers,
+  PartyPopper,
+  PenLine,
+  Plus,
+  Sparkles,
+  Volume2,
+  X,
+} from 'lucide-react-native';
 import { ERROR_CODES, type AiJob, type Question } from '@notelink/shared';
 import { api, ApiError } from '@/lib/api';
 import { socket } from '@/lib/socket';
@@ -52,12 +65,14 @@ export function QuizHomeScreen() {
             <Progress value={100} className="mt-2" />
           </Card>
           <View className="mt-3 flex-row flex-wrap justify-between gap-y-2">
-            {[
-              ['✏️', '퀴즈 만들기', '/(tabs)/quiz/notes'],
-              ['🗂', '플래시 카드', '/play/flash'],
-              ['🗃', '퀴즈 보관함', '/play/box'],
-              ['✨', '유사 퀴즈', '/play/similar'],
-            ].map(([ic, l, href]) => (
+            {(
+              [
+                [PenLine, '퀴즈 만들기', '/(tabs)/quiz/notes'],
+                [Layers, '플래시 카드', '/play/flash'],
+                [Archive, '퀴즈 보관함', '/play/box'],
+                [Sparkles, '유사 퀴즈', '/play/similar'],
+              ] as const
+            ).map(([Ic, l, href]) => (
               <Card
                 key={l}
                 onPress={() =>
@@ -65,7 +80,7 @@ export function QuizHomeScreen() {
                 }
                 className="w-[48.5%] p-4"
               >
-                <Text className="text-title2">{ic}</Text>
+                <Ic size={ICON.lg} color={C.brand} />
                 <Text className="text-subhead font-semibold text-ink">{l}</Text>
               </Card>
             ))}
@@ -75,7 +90,7 @@ export function QuizHomeScreen() {
         sets.isSuccess && (
           <View className="items-center pt-32">
             <View className="h-14 w-14 items-center justify-center rounded-full bg-sun/25">
-              <Text className="text-title1">🧠</Text>
+              <Brain size={ICON.xl} color={C.brand} />
             </View>
             <Text className="mt-4 text-callout font-bold text-ink">
               아직 만들어진 퀴즈가 없어요
@@ -207,12 +222,12 @@ export function QuizNotesScreen() {
           <View className="absolute right-5 bottom-24 items-end gap-3">
             {(
               [
-                ['플래시 카드', '🗂', () => router.push('/play/flash')],
-                ['퀴즈 보관함', '🗃', () => router.push('/play/box')],
-                ['새 노트 올리고 만들기', '📄', () => router.navigate('/(tabs)/note')],
-                ['퀴즈 만들기', '✏️', make],
+                ['플래시 카드', Layers, () => router.push('/play/flash')],
+                ['퀴즈 보관함', Archive, () => router.push('/play/box')],
+                ['새 노트 올리고 만들기', FileText, () => router.navigate('/(tabs)/note')],
+                ['퀴즈 만들기', PenLine, make],
               ] as const
-            ).map(([l, ic, fn], i) => (
+            ).map(([l, Ic, fn], i) => (
               <Animated.View key={l} entering={ZoomIn.delay(i * 30)}>
                 <Pressable
                   onPress={() => {
@@ -225,7 +240,7 @@ export function QuizNotesScreen() {
                     <Text className="text-footnote font-semibold text-white">{l}</Text>
                   </View>
                   <View className="h-11 w-11 items-center justify-center rounded-full bg-white shadow">
-                    <Text className="text-headline">{ic}</Text>
+                    <Ic size={ICON.md} color={C.brand} />
                   </View>
                 </Pressable>
               </Animated.View>
@@ -300,7 +315,7 @@ export function QuizGenScreen() {
         </View>
         <View className="items-center pt-32">
           <View className="h-20 w-20 items-center justify-center rounded-full bg-sun/25">
-            <Text className="text-large">🧠</Text>
+            <Brain size={ICON.xl} color={C.brand} />
           </View>
           <Text className="mt-5 text-callout font-bold text-ink">문제를 생성하고 있어요</Text>
           <Text className="text-caption text-sub">노트 내용을 분석해서 퀴즈를 만드는 중이에요</Text>
@@ -362,7 +377,7 @@ export function QuizReadyScreen() {
           entering={ZoomIn}
           className="h-20 w-20 items-center justify-center rounded-full bg-mint"
         >
-          <Text className="text-large">✅</Text>
+          <CircleCheck size={ICON.xl} color={C.brand} />
         </Animated.View>
         <Text className="mt-5 text-headline font-bold text-ink">총 5문제가 생성됐어요!</Text>
         <Text className="text-caption text-sub">
@@ -604,9 +619,12 @@ export function QuizReviewScreen() {
           </Pressable>
         </View>
         <View className="mt-3 rounded-xl bg-mint py-2.5">
-          <Text className="text-center text-footnote font-semibold text-ink">
-            🎉 미션 완료! {qs.length}문제를 모두 풀었어요
-          </Text>
+          <View className="flex-row items-center gap-1.5">
+            <PartyPopper size={ICON.xs} color={C.brand} />
+            <Text className="text-center text-footnote font-semibold text-ink">
+              미션 완료! {qs.length}문제를 모두 풀었어요
+            </Text>
+          </View>
         </View>
         <View className="mt-3 gap-2">
           {qs.map((q, n) => (
@@ -746,7 +764,7 @@ export function QuizSimilarScreen() {
                 className="rounded-full bg-mint px-2.5 py-1"
               >
                 <Text className="text-caption2 text-brand">
-                  {saved.includes(q._id) ? '✓ 저장됨' : '플래시카드 저장'}
+                  {saved.includes(q._id) ? '저장됨' : '플래시카드 저장'}
                 </Text>
               </Pressable>
             </View>

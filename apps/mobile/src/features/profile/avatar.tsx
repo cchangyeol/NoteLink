@@ -5,7 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AiJob } from '@notelink/shared';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, ChevronRight, ImageIcon, Info } from 'lucide-react-native';
+import { Camera, Check, ChevronRight, ImageIcon, Info } from 'lucide-react-native';
 import { api } from '@/lib/api';
 import { uploadToBlob } from '@/lib/upload';
 import { socket } from '@/lib/socket';
@@ -178,7 +178,7 @@ export function PhotoStyleScreen() {
                 setStyle(x);
                 setOpen(false);
               }}
-              right={style === x && <Text className="text-brand">✓</Text>}
+              right={style === x && <Check size={ICON.md} color={C.brand} />}
             >
               {x}
             </Row>
@@ -273,7 +273,7 @@ export function AvatarStyleScreen() {
       <Header
         title="아바타 스타일 선택"
         large={false}
-        right={<Badge tone="gray">🙂 원본 사진</Badge>}
+        right={<Badge tone="gray">원본 사진</Badge>}
       />
       <View className="flex-row items-center justify-between">
         <Text className="text-footnote font-semibold text-ink">스타일 비교</Text>
@@ -329,7 +329,7 @@ export function AvatarCustomScreen() {
       <Header
         title="아바타 커스터마이징"
         large={false}
-        right={<Badge tone="gray">🙂 원본 사진</Badge>}
+        right={<Badge tone="gray">원본 사진</Badge>}
       />
       <Segment items={['남자', '여자'] as const} value={g} onChange={setG} />
       <View

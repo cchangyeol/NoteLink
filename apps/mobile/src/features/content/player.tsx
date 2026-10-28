@@ -11,7 +11,7 @@ import Animated, {
 import { useQuery } from '@tanstack/react-query';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
-import { Bookmark, Pause, Play, Repeat } from 'lucide-react-native';
+import { Bookmark, Pause, Play, Repeat, Sparkles } from 'lucide-react-native';
 import { api } from '@/lib/api';
 import { toast } from '@/stores/toast';
 import { Chip, Sheet, cx } from '@/components/ui';
@@ -162,9 +162,12 @@ export function Player({
               <LipSyncAvatar playing={p.playing} />
             </View>
             <View className="mt-8 rounded-lg border border-white/10 p-3">
-              <Text className="text-caption2 font-semibold text-white">
-                🎭 아바타 립싱크 재생 중
-              </Text>
+              <View className="flex-row items-center gap-1.5">
+                <Sparkles size={ICON.xs} color={'#fff'} />
+                <Text className="text-caption2 font-semibold text-white">
+                  아바타 립싱크 재생 중
+                </Text>
+              </View>
               <Text className="mt-1 text-caption leading-5 text-white/50">
                 {segs.map((s, i) => (
                   <Text key={i} className={cx(i === cap && 'font-bold text-white')}>
@@ -264,9 +267,9 @@ export function Player({
       </View>
       <View className="mt-3 flex-row gap-2">
         <Chip small onPress={() => setView((v) => (v === 'summary' ? 'text' : 'summary'))}>
-          {view === 'summary' ? '📝 원문 텍스트 보기' : '요약 보기'}
+          {view === 'summary' ? '원문 텍스트 보기' : '요약 보기'}
         </Chip>
-        <Chip small onPress={() => setSheet(true)}>{`🔖 북마크 모음 (${marks.length})`}</Chip>
+        <Chip small onPress={() => setSheet(true)}>{`북마크 모음 (${marks.length})`}</Chip>
       </View>
       <Sheet open={sheet} onClose={() => setSheet(false)} title="북마크 모음">
         <View className="gap-2">

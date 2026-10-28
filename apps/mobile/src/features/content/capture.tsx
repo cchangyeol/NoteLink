@@ -15,7 +15,17 @@ import {
 import { useKeepAwake } from 'expo-keep-awake';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
-import { Check, FileText, Mic, RotateCw, SunMedium, X, Zap, Crop } from 'lucide-react-native';
+import {
+  Camera,
+  Check,
+  Crop,
+  FileText,
+  Mic,
+  RotateCw,
+  SunMedium,
+  X,
+  Zap,
+} from 'lucide-react-native';
 import { api, type ImageVerdict } from '@/lib/api';
 import { checkFile, type LocalFile } from '@/lib/upload';
 import { useDraft } from '@/stores/draft';
@@ -229,7 +239,10 @@ export function PhotoCheckScreen() {
             resizeMode="cover"
           />
         ) : (
-          <Text className="text-footnote text-sub">📷 촬영된 필기 이미지</Text>
+          <View className="flex-row items-center gap-1.5">
+            <Camera size={ICON.xs} color={C.sub} />
+            <Text className="text-footnote text-sub">촬영된 필기 이미지</Text>
+          </View>
         )}
       </View>
       <View className="mt-4 flex-row gap-2">
@@ -685,7 +698,10 @@ export function ScanCheckScreen() {
         {files[cur] ? (
           <Image source={{ uri: files[cur].uri }} className="h-full w-full" resizeMode="contain" />
         ) : (
-          <Text className="text-footnote text-sub">📄 {cur + 1}페이지 미리보기</Text>
+          <View className="flex-row items-center gap-1.5">
+            <FileText size={ICON.xs} color={C.sub} />
+            <Text className="text-footnote text-sub">{cur + 1}페이지 미리보기</Text>
+          </View>
         )}
       </View>
     </Screen>

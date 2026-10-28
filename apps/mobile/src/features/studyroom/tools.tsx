@@ -9,14 +9,19 @@ import * as Clipboard from 'expo-clipboard';
 import {
   ArrowLeft,
   Bell,
+  CalendarDays,
   Camera,
   Check,
   ChevronDown,
   ChevronLeft,
   Copy,
   HelpCircle,
+  KeyRound,
   Lock,
+  Pencil,
   Settings,
+  Sparkles,
+  Timer,
   UserPlus,
 } from 'lucide-react-native';
 import type { ReportType, TimerRule } from '@notelink/shared';
@@ -321,10 +326,10 @@ export function TimerScreen() {
           <View className="flex-row gap-2">
             {(
               [
-                ['pomodoro', '뽀모도로', '집중과 휴식 반복', '⏱'],
-                ['period', '교시제', '정해진 시간표', '📅'],
+                ['pomodoro', '뽀모도로', '집중과 휴식 반복', Timer],
+                ['period', '교시제', '정해진 시간표', CalendarDays],
               ] as const
-            ).map(([k, t, d, ic]) => (
+            ).map(([k, t, d, Ic]) => (
               <Pressable
                 key={k}
                 onPress={() => setType(k)}
@@ -333,7 +338,7 @@ export function TimerScreen() {
                   type === k ? 'border-brand/40 bg-mint' : 'border-line',
                 )}
               >
-                <Text>{ic}</Text>
+                <Ic size={ICON.md} color={C.brand} />
                 <View className="flex-1">
                   <Text className="text-footnote font-semibold text-ink">{t}</Text>
                   <Text className="text-caption2 text-sub">{d}</Text>
@@ -382,7 +387,10 @@ export function TimerScreen() {
               </View>
               <View className="mt-3 rounded-xl bg-cream p-3">
                 <View className="flex-row justify-between">
-                  <Text className="text-caption font-bold text-ink">⚙ 직접 설정</Text>
+                  <View className="flex-row items-center gap-1.5">
+                    <Settings size={ICON.xs} color={C.brand} />
+                    <Text className="text-caption font-bold text-ink">직접 설정</Text>
+                  </View>
                   <Text className="text-caption text-brand">4회 반복</Text>
                 </View>
                 <View className="mt-2 flex-row gap-2">
@@ -451,7 +459,7 @@ export function TimerScreen() {
                   </Text>
                   <Text className="text-caption2 text-sub">{p.label}</Text>
                 </View>
-                <Text className="text-sub">✎</Text>
+                <Pencil size={ICON.md} color={C.brand} />
               </View>
             ))}
           </View>
@@ -568,14 +576,17 @@ export function ScheduleScreen() {
                   c === 2 ? 'border border-brand bg-mint' : c === 1 ? 'bg-cream-2' : 'bg-cream',
                 )}
               >
-                {c === 2 && <Text className="text-caption2">🙌</Text>}
+                {c === 2 && <Sparkles size={ICON.md} color={C.brand} />}
               </Pressable>
             ))}
           </View>
         ))}
       </View>
       <View className="mt-3 rounded-2xl border border-line p-3">
-        <Text className="text-footnote font-bold text-ink">🙌 실시간 매칭된 공통 가능 시간</Text>
+        <View className="flex-row items-center gap-1.5">
+          <Sparkles size={ICON.xs} color={C.brand} />
+          <Text className="text-footnote font-bold text-ink">실시간 매칭된 공통 가능 시간</Text>
+        </View>
         {s?.matches.map((m) => (
           <Pressable
             key={m.label}
@@ -596,7 +607,7 @@ export function ScheduleScreen() {
                 {m.best ? ' 연속' : ''} 가능)
               </Text>
             </View>
-            {m.best && <Text className="text-caption2 font-semibold text-brand">가장 추천 ⭐</Text>}
+            {m.best && <Text className="text-caption2 font-semibold text-brand">가장 추천</Text>}
           </Pressable>
         ))}
       </View>
@@ -641,7 +652,10 @@ export function RoomSettingsScreen() {
             onPress={() => setCode(true)}
             className="flex-row items-center gap-2 rounded-xl bg-cream px-4 py-4"
           >
-            <Text className="text-subhead font-semibold text-ink">🔑 스터디룸 코드</Text>
+            <View className="flex-row items-center gap-1.5">
+              <KeyRound size={ICON.sm} color={C.sub} />
+              <Text className="text-subhead font-semibold text-ink">스터디룸 코드</Text>
+            </View>
           </Pressable>
           <Pressable
             onPress={() => setLeave(true)}
@@ -748,7 +762,7 @@ export function InviteScreen() {
           const st = inRoom.has(f.userId)
             ? '참여 중'
             : invited.includes(f.userId)
-              ? '✓ 초대됨'
+              ? '초대됨'
               : '초대하기';
           return (
             <View

@@ -6,7 +6,25 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import { ChevronRight, MoreHorizontal, Plus, X } from 'lucide-react-native';
+import {
+  Camera,
+  ChevronRight,
+  CircleDot,
+  FileText,
+  Folder,
+  ImageIcon,
+  Lightbulb,
+  type LucideIcon,
+  Mic,
+  MoreHorizontal,
+  Paperclip,
+  PenLine,
+  Plus,
+  ScanLine,
+  Share2,
+  Trash2,
+  X,
+} from 'lucide-react-native';
 import type { Material } from '@notelink/shared';
 import { api } from '@/lib/api';
 import { toast } from '@/stores/toast';
@@ -33,15 +51,15 @@ import { seoul } from '@/lib/dates';
 
 const TAGS = ['수학', '영어', '국어', '과학', '사회', '자격증', '기타'];
 const KIND = {
-  recording: ['🎙', '녹음'],
-  handwriting: ['✏️', '필기'],
-  document: ['📄', '문서'],
+  recording: [Mic, '녹음'],
+  handwriting: [PenLine, '필기'],
+  document: [FileText, '문서'],
 } as const;
 
 const EmptyNote = ({ children }: { children?: React.ReactNode }) => (
   <View className="items-center">
     <View className="h-16 w-16 items-center justify-center rounded-full bg-mint">
-      <Text className="text-title1">📁</Text>
+      <Folder size={ICON.xl} color={C.brand} />
     </View>
     <Text className="mt-4 text-body font-bold text-ink">아직 학습 자료가 없어요</Text>
     <Text className="mt-1 text-footnote text-sub">
@@ -120,7 +138,7 @@ export function NoteListScreen() {
                   className="w-[48.5%] p-2.5"
                 >
                   <View className="h-20 items-center justify-center rounded-xl bg-white">
-                    <Text className="text-title1">📁</Text>
+                    <Folder size={ICON.xl} color={C.brand} />
                   </View>
                   <Text className="mt-2 px-1 text-subhead font-semibold text-ink">{f.title}</Text>
                   <Text className="px-1 text-caption2 text-sub">
@@ -205,9 +223,12 @@ export function NoteTitleScreen() {
         onPress={() => setTitle(`${d.getMonth() + 1}월 ${d.getDate()}일 ${tag} 녹음`)}
         className="mt-2"
       >
-        <Text className="text-caption text-brand">
-          💡 추천: {d.getMonth() + 1}월 {d.getDate()}일 {tag} 녹음
-        </Text>
+        <View className="flex-row items-center gap-1.5">
+          <Lightbulb size={ICON.xs} color={C.brand} />
+          <Text className="text-caption text-brand">
+            추천: {d.getMonth() + 1}월 {d.getDate()}일 {tag} 녹음
+          </Text>
+        </View>
       </Pressable>
     </Screen>
   );
@@ -331,7 +352,10 @@ export function FolderScreen() {
                   className="flex-row items-center gap-3 px-4 py-3"
                 >
                   <View className="h-10 w-10 items-center justify-center rounded-full bg-cream">
-                    <Text className="text-headline">{KIND[m.kind][0]}</Text>
+                    {(() => {
+                      const KindIcon = KIND[m.kind][0];
+                      return <KindIcon size={ICON.md} color={C.brand} />;
+                    })()}
                   </View>
                   <View className="flex-1">
                     <Text className="text-subhead font-semibold text-ink">{m.title}</Text>
@@ -356,11 +380,11 @@ export function FolderScreen() {
           <View className="absolute right-5 bottom-24 items-end gap-3">
             {(
               [
-                ['doc', '학습 자료 올리기', '📄'],
-                ['rec', '녹음 올리기 · 실시간 녹음', '🎙'],
-                ['hand', '필기 올리기', '✏️'],
+                ['doc', '학습 자료 올리기', FileText],
+                ['rec', '녹음 올리기 · 실시간 녹음', Mic],
+                ['hand', '필기 올리기', PenLine],
               ] as const
-            ).map(([k, l, ic], i) => (
+            ).map(([k, l, Ic], i) => (
               <Animated.View key={k} entering={ZoomIn.delay(i * 30)}>
                 <Pressable
                   onPress={() => {
@@ -373,7 +397,7 @@ export function FolderScreen() {
                     <Text className="text-footnote font-semibold text-white">{l}</Text>
                   </View>
                   <View className="h-11 w-11 items-center justify-center rounded-full bg-white shadow">
-                    <Text className="text-headline">{ic}</Text>
+                    <Ic size={ICON.md} color={C.brand} />
                   </View>
                 </Pressable>
               </Animated.View>
@@ -385,7 +409,7 @@ export function FolderScreen() {
 
       <Sheet open={sheet === 'hand'} onClose={() => setSheet(null)} title="필기 올리기">
         <UploadOpt
-          icon="📷"
+          icon={Camera}
           title="카메라로 촬영"
           sub="필기한 종이를 바로 촬영해요"
           onPress={() => {
@@ -394,7 +418,7 @@ export function FolderScreen() {
           }}
         />
         <UploadOpt
-          icon="🖼"
+          icon={ImageIcon}
           title="갤러리에서 선택"
           sub="이미 찍어둔 사진을 올려요"
           onPress={pickGallery}
@@ -402,13 +426,13 @@ export function FolderScreen() {
       </Sheet>
       <Sheet open={sheet === 'rec'} onClose={() => setSheet(null)} title="녹음">
         <UploadOpt
-          icon="📁"
+          icon={Folder}
           title="녹음 파일 올리기"
           sub="가지고 있는 녹음 파일을 업로드해요"
           onPress={pickAudio}
         />
         <UploadOpt
-          icon="🔴"
+          icon={CircleDot}
           title="실시간 녹음 시작하기"
           sub="지금 바로 강의·수업을 녹음해요"
           onPress={() => {
@@ -419,13 +443,13 @@ export function FolderScreen() {
       </Sheet>
       <Sheet open={sheet === 'doc'} onClose={() => setSheet(null)} title="학습 자료 올리기">
         <UploadOpt
-          icon="📎"
+          icon={Paperclip}
           title="파일 선택 (PDF · 이미지)"
           sub="기기에 저장된 학습 자료를 올려요"
           onPress={pickDoc}
         />
         <UploadOpt
-          icon="🔦"
+          icon={ScanLine}
           title="스캔하기"
           sub="문서를 스캔해서 바로 올려요"
           onPress={() => {
@@ -437,21 +461,23 @@ export function FolderScreen() {
       <Sheet open={sheet === 'more'} onClose={() => setSheet(null)}>
         <Group>
           <Row
+            icon={Share2}
             onPress={() => {
               setSheet(null);
               router.push('/note-share');
             }}
           >
-            📤 폴더 자료 공유하기
+            폴더 자료 공유하기
           </Row>
           <Row
+            icon={Trash2}
             danger
             onPress={() => {
               setSheet(null);
               del.mutate();
             }}
           >
-            🗑 폴더 삭제
+            폴더 삭제
           </Row>
         </Group>
       </Sheet>
@@ -460,19 +486,21 @@ export function FolderScreen() {
 }
 
 const UploadOpt = ({
-  icon,
+  icon: Icon,
   title,
   sub,
   onPress,
 }: {
-  icon: string;
+  icon: LucideIcon;
   title: string;
   sub: string;
   onPress: () => void;
 }) => (
   <Animated.View entering={FadeIn}>
     <Card onPress={onPress} className="mb-2 flex-row items-center gap-3 px-4 py-3.5">
-      <Text className="text-title3">{icon}</Text>
+      <View className="h-10 w-10 items-center justify-center rounded-xl bg-white">
+        <Icon size={ICON.md} color={C.brand} />
+      </View>
       <View className="flex-1">
         <Text className="text-subhead font-semibold text-ink">{title}</Text>
         <Text className="text-caption text-sub">{sub}</Text>

@@ -5,7 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Accelerometer } from 'expo-sensors';
 import * as ScreenOrientation from 'expo-screen-orientation';
-import { X } from 'lucide-react-native';
+import { Mic, PartyPopper, PenLine, X } from 'lucide-react-native';
 import { api } from '@/lib/api';
 import { goalLabel, hm, hms } from '@/lib/dates';
 import { useNow } from '@/hooks';
@@ -47,7 +47,7 @@ export function SummaryScreen() {
         </Pressable>
       </View>
       <View className="items-center">
-        <Text className="text-large">🎉</Text>
+        <PartyPopper size={ICON.xl} color={C.brand} />
         <Text className="text-title3 font-bold text-ink">수고했어요, 형욱 님</Text>
         <Text className="text-caption text-sub">
           오늘 순공시간{sec ? ` · 이번 세션 ${hm(Number(sec))}` : ''}
@@ -104,7 +104,7 @@ export function SummaryScreen() {
               router.navigate({ pathname: '/(tabs)/note', params: { upload: 'hand' } })
             }
           >
-            <Text>✏️</Text>
+            <PenLine size={ICON.md} color={C.brand} />
             <Text className="text-footnote font-semibold text-ink">필기 사진</Text>
             <Text className="text-caption2 text-sub">촬영 · 갤러리</Text>
           </Card>
@@ -113,7 +113,7 @@ export function SummaryScreen() {
             className="flex-1 items-center py-3"
             onPress={() => router.navigate({ pathname: '/(tabs)/note', params: { upload: 'rec' } })}
           >
-            <Text>🎙</Text>
+            <Mic size={ICON.md} color={C.brand} />
             <Text className="text-footnote font-semibold text-ink">녹음</Text>
             <Text className="text-caption2 text-sub">파일 · 실시간</Text>
           </Card>

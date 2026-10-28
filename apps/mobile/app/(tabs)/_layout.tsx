@@ -23,6 +23,8 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        // 탭을 바꾸면 화면이 살짝 밀리며 바뀐다
+        animation: 'shift',
         tabBarActiveTintColor: C.brand,
         tabBarInactiveTintColor: '#a3a8ae',
         tabBarStyle: { borderTopColor: C.line },

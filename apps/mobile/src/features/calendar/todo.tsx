@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Text } from '@/components/text';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check } from 'lucide-react-native';
+import { CalendarDays, Check } from 'lucide-react-native';
 import type { Todo, TodoType } from '@notelink/shared';
 import { api } from '@/lib/api';
 import { md, today } from '@/lib/dates';
 import { toast } from '@/stores/toast';
 import { Badge, Btn, Chip, Dashed, Input, Label, Sheet, cx } from '@/components/ui';
-import { ICON } from '@/theme';
+import { ICON, C } from '@/theme';
 
 // p.50 #11 날짜별 할 일 / p.51 #12 할 일 추가
 
@@ -166,7 +166,10 @@ export function AddTodoSheet({
       </View>
       <Label>날짜</Label>
       <View className="h-12 flex-row items-center rounded-xl border border-line px-4">
-        <Text className="flex-1 text-subhead text-ink">📅 {md(date)}</Text>
+        <View className="flex-1 flex-row items-center gap-1.5">
+          <CalendarDays size={ICON.sm} color={C.sub} />
+          <Text className="text-subhead text-ink">{md(date)}</Text>
+        </View>
         <Text className="text-caption text-brand">변경</Text>
       </View>
       <Label>시간 (선택)</Label>

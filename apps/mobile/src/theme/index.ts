@@ -21,7 +21,7 @@ const tokens = require('./tokens') as {
     | 'peach',
     string
   >;
-  icon: Record<'xs' | 'sm' | 'md' | 'lg', number>;
+  icon: Record<'xs' | 'sm' | 'md' | 'lg' | 'xl', number>;
   motion: {
     press: { scale: number; damping: number; stiffness: number };
     enter: number;

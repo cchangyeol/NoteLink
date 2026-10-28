@@ -49,7 +49,7 @@ const spacing = {
 };
 
 /** 아이콘 크기 (lucide size) */
-const icon = { xs: 14, sm: 16, md: 20, lg: 24 };
+const icon = { xs: 14, sm: 16, md: 20, lg: 24, xl: 32 }; // xl: 빈 화면 · 결과 화면의 큰 아이콘
 
 /** 모션: 스프링 · 시간. 들어올 때보다 나갈 때 짧게 */
 const motion = {

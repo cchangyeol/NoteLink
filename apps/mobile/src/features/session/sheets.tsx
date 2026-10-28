@@ -5,6 +5,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { toast } from '@/stores/toast';
 import { Btn, Card, Chip, Input, Label, Sheet, Toggle } from '@/components/ui';
+import { TrendingUp } from 'lucide-react-native';
+import { ICON, C } from '@/theme';
 
 // p.47 #2 공부할 항목 추가 / p.49 #7 이번주 목표 시간
 
@@ -172,7 +174,10 @@ export function WeekGoalSheet({ open, onClose }: { open: boolean; onClose: () =>
         </View>
       </View>
       <View className="mt-4 rounded-xl bg-sun/15 px-3 py-2.5">
-        <Text className="text-caption text-ink">📈 최근 4주 평균은 18시간 30분이에요</Text>
+        <View className="flex-row items-center gap-1.5">
+          <TrendingUp size={ICON.xs} color={C.brand} />
+          <Text className="text-caption text-ink">최근 4주 평균은 18시간 30분이에요</Text>
+        </View>
       </View>
       <Card className="mt-3 flex-row items-center px-4 py-3">
         <View className="flex-1">

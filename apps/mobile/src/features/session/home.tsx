@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useKeepAwake } from 'expo-keep-awake';
 import { Accelerometer } from 'expo-sensors';
 import * as Haptics from 'expo-haptics';
-import { Pause, Play, Square, Users } from 'lucide-react-native';
+import { Pause, Play, Square, Target, Users } from 'lucide-react-native';
 import { api } from '@/lib/api';
 import { dLabel, goalLabel, hm, hms } from '@/lib/dates';
 import { useNow } from '@/hooks';
@@ -97,7 +97,7 @@ export function HomeScreen() {
             className="mt-3 flex-row items-center gap-3 px-1 py-2"
           >
             <View className="h-9 w-9 items-center justify-center rounded-full bg-cream">
-              <Text>🎯</Text>
+              <Target size={ICON.md} color={C.brand} />
             </View>
             <View className="flex-1">
               <Text className="text-subhead font-semibold text-ink">{nextDday.title}</Text>

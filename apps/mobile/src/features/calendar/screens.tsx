@@ -4,7 +4,7 @@ import { Text } from '@/components/text';
 import { router } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
-import { Check, ChevronRight, X } from 'lucide-react-native';
+import { Check, ChevronRight, Pin, Users, X } from 'lucide-react-native';
 import type { TimetableClass } from '@notelink/shared';
 import { api } from '@/lib/api';
 import { timeAgo, today, ymd, seoul } from '@/lib/dates';
@@ -99,9 +99,12 @@ export function HolidayScreen() {
       <Label>사용자 정의 휴일</Label>
       {custom.data?.map((c) => (
         <Card key={c._id} tone="mint" className="mb-2 flex-row items-center px-4 py-3">
-          <Text className="flex-1 text-subhead text-ink">
-            📌 {c.name} ({Number(c.date.slice(5, 7))}/{Number(c.date.slice(8))})
-          </Text>
+          <View className="flex-1 flex-row items-center gap-1.5">
+            <Pin size={ICON.sm} color={C.sub} />
+            <Text className="text-subhead text-ink">
+              {c.name} ({Number(c.date.slice(5, 7))}/{Number(c.date.slice(8))})
+            </Text>
+          </View>
           <Pressable
             accessibilityLabel="삭제"
             onPress={() => removeCustom.mutate(c._id)}
@@ -205,7 +208,7 @@ export function CalShareScreen() {
             className="mt-2"
             onPress={() => Share.share({ message: `내 학습 캘린더를 공유해요 👉 https://${link}` })}
           >
-            💬 카카오톡으로 공유
+            카카오톡으로 공유
           </Btn>
         </>
       )}
@@ -230,7 +233,10 @@ export function CalShareScreen() {
         onPress={() => router.push('/cal-shared')}
         className="mt-3 flex-row items-center px-4 py-3.5"
       >
-        <Text className="flex-1 text-subhead font-semibold text-ink">👥 공유받은 캘린더 보기</Text>
+        <View className="flex-1 flex-row items-center gap-1.5">
+          <Users size={ICON.sm} color={C.sub} />
+          <Text className="text-subhead font-semibold text-ink">공유받은 캘린더 보기</Text>
+        </View>
         <ChevronRight size={ICON.sm} color={C.sub} />
       </Card>
     </Screen>
@@ -319,7 +325,10 @@ export function TimetableScreen() {
               onPress={() => setSheet('share')}
               className="rounded-full bg-mint px-3 py-1.5"
             >
-              <Text className="text-caption font-semibold text-brand">👥 공유</Text>
+              <View className="flex-row items-center gap-1.5">
+                <Users size={ICON.xs} color={C.brand} />
+                <Text className="text-caption font-semibold text-brand">공유</Text>
+              </View>
             </Pressable>
           }
         />

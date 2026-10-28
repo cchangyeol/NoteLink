@@ -52,7 +52,7 @@ describe('시간표 공유', () => {
     const share = jest.spyOn(api.timetable, 'share');
     const friends = await api.social.friends();
     await renderScreen(<TimetableScreen />);
-    await fireEvent.press(await screen.findByText('👥 공유'));
+    await fireEvent.press(await screen.findByText('공유'));
     expect(await screen.findByText('0명에게 공유하기')).toBeTruthy();
     await fireEvent.press(await screen.findByText(friends[0]!.nickname));
     await fireEvent.press(screen.getByText('1명에게 공유하기'));

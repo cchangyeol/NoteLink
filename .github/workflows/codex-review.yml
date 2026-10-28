@@ -46,9 +46,13 @@ jobs:
 
       - name: 리뷰 컴퓨터 확인
         run: |
-          # Windows에서 PATH 순서가 바뀌면 Git Bash 대신 WSL bash가 잡힐 수 있습니다.
-          if [ "${{ runner.os }}" = "Windows" ] && [ "$OSTYPE" != "msys" ]; then
-            echo "::error::Git Bash가 아닌 bash($OSTYPE)로 실행됐습니다. 시스템 PATH 맨 위에 C:\\Program Files\\Git\\bin을 두세요."
+          # Windows에서 PATH 순서가 바뀌면 Git Bash 대신 WSL · Cygwin bash가 잡힐 수 있습니다.
+          # OSTYPE은 Git 버전에 따라 msys 또는 cygwin(2.56.0)이라 쓰지 않고, bash의 루트(/)가
+          # Git for Windows 설치 폴더인지(cmd\git.exe가 있는지) 봅니다. WSL · Cygwin 루트에는 없습니다.
+          # runner.os는 WSL 안으로 환경 변수가 넘어가지 않아도 되도록 스크립트에 직접 넣습니다.
+          if [ "${{ runner.os }}" = "Windows" ] && [ ! -f /cmd/git.exe ]; then
+            root=$(cygpath -w / 2> /dev/null || echo "알 수 없음")
+            echo "::error::Git Bash가 아닌 bash($OSTYPE, $BASH, 루트 $root)로 실행됐습니다. 시스템 PATH 맨 위에 Git for Windows의 bin(보통 C:\\Program Files\\Git\\bin)을 두세요."
             exit 1
           fi
           for c in git gh codex; do

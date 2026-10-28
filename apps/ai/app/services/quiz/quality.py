@@ -47,10 +47,17 @@ def _has(line: str, word: str) -> bool:
         return re.search(
             rf"(?<![A-Za-z]){pat}(?![A-Za-z])", line, re.I
         ) is not None and not re.search(rf"{pat}\s+being", line, re.I)
-    # 어미만 접음(stacked ~ stack, organizing ~ organiz-e). 앞부분만 같은 것은 아님
-    # ('insta'는 노트가 대비로 가르치는 installation과 instalment를 묶어 버림)
     stem = re.sub(r"(ing|ed|es|s)$", "", w)
-    return w in norm(line) or (len(stem) >= 4 and stem in norm(line))
+    if not re.fullmatch(r"[a-z]+", w):  # 한국어 · 숫자: 그대로
+        return w in norm(line) or (len(stem) >= 4 and stem in norm(line))
+    # 낱말 경계 안에서 어미만 접음(stacked ~ stack, organizing ~ organiz-e, stop ~ stopped).
+    # 글자열 포함으로 보면 'cell'이 'cellulose - 셀룰로스' 묶음에, 'range'가 'arrange'에 걸림
+    # (로컬 노트 4개, 10/28: 이런 일치 429건이 사라지고 새로 생긴 일치 0건).
+    # 글자 사이 공백 · '-' 하나는 허용('ship yard' / 'shipyard', 'stack-up' / 'stack up')
+    stem = stem if len(stem) >= 4 else w
+    body = r"[\s\-]?".join(map(re.escape, stem))
+    pat = rf"(?<![A-Za-z]){body}(?:{re.escape(stem[-1])})?(?:e|s|es|ed|d|ing)?(?![A-Za-z])"
+    return re.search(pat, line, re.I) is not None
 
 
 def groups(page_text: str) -> list[list[str]]:

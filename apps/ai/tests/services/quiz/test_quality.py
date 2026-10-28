@@ -1,3 +1,5 @@
+import pytest
+
 from app.clients.llm import JsonObject, LlmError
 from app.core.config import settings
 from app.services.quiz import quality as qa
@@ -41,6 +43,35 @@ def test_group_words_are_the_answers_synonyms() -> None:
 
 def test_short_word_does_not_match_inside_be_being() -> None:
     assert qa.group_words("be", PAGE) == []
+
+
+@pytest.mark.parametrize(
+    ("word", "line", "found"),
+    [
+        ("stack", "stacked boxes", True),
+        ("stacked", "쌓다 = stack", True),
+        ("organizing", "organize = arrange", True),
+        ("stop", "stopped", True),
+        ("stack up", "stack-up", True),
+        ("shipyard", "ship yard: 조선소", True),
+        ("세포", "세포막", True),  # 한국어는 그대로
+        ("cell", "cellulose - 셀룰로스", False),
+        ("form", "format - 형식", False),
+        ("fast", "fastened", False),
+        ("range", "arrange", False),
+    ],
+)
+def test_long_word_matches_only_whole_word_with_inflection(
+    word: str, line: str, found: bool
+) -> None:
+    assert qa._has(line, word) is found
+
+
+def test_word_inside_a_longer_word_is_not_its_group() -> None:
+    page = "cell - 세포\ncellulose - 셀룰로스"
+    opts = ["cell", "cellulose", "enzyme", "protein", "lipid"]
+    assert qa.group_conflict("cell", opts, page) == []
+    assert qa.group_words("form", "form - 형태\nformat = layout") == []
 
 
 def test_contrasts_are_gloss_pairs_near_the_answer() -> None:

@@ -1,6 +1,6 @@
 import pytest
 
-from app.clients.llm import LlmError
+from app.clients.llm import JsonObject, LlmError, repair
 from app.services.quiz import concepts as c
 from app.services.quiz.models import Question
 from tests.fakes import FakeLlm
@@ -143,6 +143,38 @@ def test_for_page_first_call_failure_is_raised() -> None:
     llm = FakeLlm({"Concepts": [LlmError("HTTP 503")]})
     with pytest.raises(LlmError):
         c.for_page(llm, "노트 글", "토익")
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        repair('{"concepts":['),  # 잘린 답을 닫으면 빈 목록
+        {"concepts": []},
+        {"concepts": "enough의 수식 위치"},  # 글자 하나씩 읽히던 문자열
+        {"concepts": ["", "  ", 3]},
+        {},
+    ],
+)
+def test_for_page_first_answer_without_names_is_raised(answer: JsonObject) -> None:
+    llm = FakeLlm({"Concepts": [answer]})
+    with pytest.raises(LlmError):
+        c.for_page(llm, "노트 글", "토익")
+    assert llm.named("Names") == []
+
+
+def test_for_page_second_answer_without_names_keeps_first_names() -> None:
+    llm = FakeLlm(
+        {
+            "Concepts": [
+                names_answer("enough의 수식 위치", "형용사 어휘"),
+                {"concepts": "새 이름"},
+            ],
+            "Names": [verdicts()],
+        }
+    )
+    good, bad = c.for_page(llm, "노트 글", "토익")
+    assert good == ["enough의 수식 위치"]
+    assert bad == [("형용사 어휘", "넓음(구체 용어 없음)")]
 
 
 def test_failed_check_passes_names_unflagged() -> None:

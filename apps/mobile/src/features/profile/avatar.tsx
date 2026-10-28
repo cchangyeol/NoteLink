@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { AiJob } from '@notelink/shared';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera, ChevronRight, ImageIcon, Info } from 'lucide-react-native';
 import { api } from '@/lib/api';
@@ -9,6 +10,7 @@ import { uploadToBlob } from '@/lib/upload';
 import { socket } from '@/lib/socket';
 import { useSocket } from '@/hooks';
 import { toast } from '@/stores/toast';
+import { useNet } from '@/stores/net';
 import {
   Avatar,
   Badge,
@@ -191,24 +193,35 @@ export function PhotoGenScreen() {
   const { jobId } = useLocalSearchParams<{ jobId: string }>();
   const qc = useQueryClient();
   const [pct, setPct] = useState(0);
+  const online = useNet((s) => s.state === 'ok');
+  const handled = useRef(false);
+  // 끝난 작업은 한 번만 처리한다 (소켓 완료 이벤트 · 상태 재조회 중 먼저 온 쪽)
+  const finish = (status: AiJob['status']) => {
+    if (handled.current || (status !== 'succeeded' && status !== 'failed')) return;
+    handled.current = true;
+    qc.invalidateQueries({ queryKey: ['me'] });
+    router.dismissTo('/(tabs)/profile');
+    toast(
+      status === 'succeeded'
+        ? '새 프로필이 적용됐어요'
+        : '프로필을 만들지 못했어요. 다시 시도해 주세요',
+    );
+  };
+  // 다시 연결되면 다시 구독한다
   useEffect(() => {
-    socket.emit('ai:subscribe', { jobId });
-  }, [jobId]);
+    if (online) socket.emit('ai:subscribe', { jobId });
+  }, [jobId, online]);
   useSocket('ai:progress', (p) => p.jobId === jobId && setPct(p.progress), [jobId]);
-  useSocket(
-    'ai:done',
-    (p) => {
-      if (p.jobId !== jobId) return;
-      qc.invalidateQueries({ queryKey: ['me'] });
-      router.dismissTo('/(tabs)/profile');
-      toast(
-        p.job.status === 'succeeded'
-          ? '새 프로필이 적용됐어요'
-          : '프로필을 만들지 못했어요. 다시 시도해 주세요',
-      );
-    },
-    [jobId],
-  );
+  useSocket('ai:done', (p) => p.jobId === jobId && finish(p.job.status), [jobId]);
+  // 끊긴 사이 완료 이벤트를 놓쳐도 작업 상태를 다시 물어 빠져나온다
+  const job = useQuery({
+    queryKey: ['ai-job', jobId],
+    queryFn: () => api.ai.job(jobId),
+    refetchInterval: 5000,
+  });
+  useEffect(() => {
+    if (job.data) finish(job.data.status);
+  }, [job.data?.status]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <Screen>
       <Header title="프로필 생성" back={false} />

@@ -39,6 +39,7 @@ import {
   cx,
 } from '@/components/ui';
 import { C, ICON } from '@/theme';
+import Constants from 'expo-constants';
 
 // p.43~45 프로필 · 설정 · 계정 정보 · 닉네임 · 요금제
 
@@ -46,6 +47,9 @@ const LANGS = ['한국어', 'English', '日本語', '中文'];
 const PAGE = { swipe: '좌우 스와이프', scroll: '위아래 스크롤', tap: '탭해서 넘기기' } as const;
 const gb = (b: number) =>
   b >= 1024 ** 3 ? `${Math.round(b / 1024 ** 3)}GB` : b ? `${Math.round(b / 1024 ** 2)}MB` : '0KB';
+
+/** 앱 버전은 app.config.ts의 version을 읽는다 */
+const APP_VERSION = Constants.expoConfig?.version ?? '-';
 
 export function SettingsScreen() {
   const qc = useQueryClient();
@@ -255,7 +259,7 @@ export function SettingsScreen() {
           <Row chevron onPress={() => setSheet('biz')}>
             사업자 정보
           </Row>
-          <Row right={<Text className="text-footnote text-sub">0.1.0</Text>}>앱 버전</Row>
+          <Row right={<Text className="text-footnote text-sub">{APP_VERSION}</Text>}>앱 버전</Row>
           {env.useMock && (
             <Row icon={FlaskConical} chevron onPress={() => router.push('/(tabs)/profile/dev')}>
               예외 시나리오 (목업 전용)

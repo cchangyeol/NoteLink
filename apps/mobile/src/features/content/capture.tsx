@@ -42,8 +42,12 @@ function NeedPermission({ onGrant, canAsk }: { onGrant: () => void; canAsk: bool
 }
 
 /** p.61 #10 카메라 촬영 / p.65 #18 문서 스캔 */
+/** 스캔을 마칠 때 초안에 넣을 페이지: '+ 추가'면 기존 페이지 뒤에, 아니면 새로 */
+export const scanPages = (prev: LocalFile[], pages: LocalFile[], append: boolean) =>
+  append ? [...prev, ...pages] : pages;
+
 export function CameraScreen() {
-  const { mode } = useLocalSearchParams<{ mode?: 'scan' }>();
+  const { mode, append } = useLocalSearchParams<{ mode?: 'scan'; append?: '1' }>();
   const scan = mode === 'scan';
   const insets = useSafeAreaInsets();
   const [perm, request] = useCameraPermissions();
@@ -152,7 +156,10 @@ export function CameraScreen() {
             <Pressable
               disabled={!pages.length}
               onPress={() => {
-                useDraft.getState().set({ files: pages });
+                // '+ 추가'로 들어왔으면 이미 스캔한 페이지 뒤에 붙인다 (다시 스캔은 새로 시작)
+                useDraft
+                  .getState()
+                  .set({ files: scanPages(useDraft.getState().files, pages, append === '1') });
                 router.replace('/capture/scan-check');
               }}
               className={cx('rounded-full bg-brand px-4 py-1.5', !pages.length && 'opacity-40')}
@@ -665,7 +672,9 @@ export function ScanCheckScreen() {
           </Pressable>
         ))}
         <Pressable
-          onPress={() => router.replace({ pathname: '/capture/camera', params: { mode: 'scan' } })}
+          onPress={() =>
+            router.replace({ pathname: '/capture/camera', params: { mode: 'scan', append: '1' } })
+          }
           className="h-20 w-14 items-center justify-center rounded-lg border border-brand/40"
         >
           <Text className="text-[11px] text-sub">+ 추가</Text>

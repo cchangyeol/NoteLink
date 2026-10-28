@@ -93,7 +93,6 @@ export function ConvertScreen() {
       setMaterialId(r.material._id);
       setJob(r.job);
       setPhase('ai');
-      socket.emit('ai:subscribe', { jobId: r.job._id });
     } catch (e) {
       setPhase(e instanceof NetworkError ? 'paused' : 'failed');
     }
@@ -110,6 +109,11 @@ export function ConvertScreen() {
       ctrl.abort();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 작업이 바뀔 때마다(처음 등록 · 다시 시도로 새 작업) 그 작업의 진행 상황을 구독한다
+  useEffect(() => {
+    if (job?._id) socket.emit('ai:subscribe', { jobId: job._id });
+  }, [job?._id]);
 
   useSocket(
     'ai:progress',

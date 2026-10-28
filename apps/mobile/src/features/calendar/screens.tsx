@@ -6,7 +6,7 @@ import * as Clipboard from 'expo-clipboard';
 import { Check, ChevronRight, X } from 'lucide-react-native';
 import type { TimetableClass } from '@notelink/shared';
 import { api } from '@/lib/api';
-import { addDays, timeAgo, today, ymd, seoul } from '@/lib/dates';
+import { timeAgo, today, ymd, seoul } from '@/lib/dates';
 import { toast } from '@/stores/toast';
 import {
   Avatar,

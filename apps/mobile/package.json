@@ -13,7 +13,11 @@
     "format": "prettier --write ."
   },
   "jest": {
-    "preset": "jest-expo"
+    "preset": "jest-expo",
+    "setupFiles": [
+      "./jest.setup.js"
+    ],
+    "resolver": "react-native-worklets/jest/resolver"
   },
   "dependencies": {
     "@notelink/shared": "*",

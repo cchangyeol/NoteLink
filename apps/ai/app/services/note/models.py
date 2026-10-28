@@ -88,7 +88,7 @@ class PageLines(TypedDict):
 
 
 class Mark(TypedDict):
-    """글 안의 강조 구간."""
+    """조각 글 안의 강조 구간."""
 
     kind: MarkKind
     start: int
@@ -96,3 +96,26 @@ class Mark(TypedDict):
     color: NotRequired[str]
     baseColor: NotRequired[str]
     text: NotRequired[str]  # symbol · keyword에서 찾은 글자
+
+
+class Emphasis(TypedDict):
+    has: bool
+    marks: list[Mark]
+
+
+class PageRef(TypedDict):
+    pageNo: int
+    lineIds: list[int]
+
+
+class Chunk(TypedDict):
+    """④ 노트 조각 (note_chunks). userId · embedding 등은 저장할 때 붙임."""
+
+    order: int
+    title: str | None  # 제목 줄, 없으면 None
+    path: list[str]  # 상위 제목
+    text: str  # OCR 원문, 줄은 \n
+    lines: list[PageRef]  # text 줄마다 원본 위치
+    emphasis: Emphasis
+    uncertainCount: int  # [?] 개수
+    needsLlm: bool  # 코드로 못 나눈 긴 문단

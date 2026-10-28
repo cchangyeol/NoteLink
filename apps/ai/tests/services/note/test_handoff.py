@@ -2,7 +2,7 @@ from typing import Any
 
 from app.services.note.handoff import line_results, page_texts
 from app.services.note.models import PageLayout
-from app.services.note.pipeline import NotePage, note_result
+from app.services.note.pipeline import NotePage, note_chunks, note_result
 from tests.services.note.helpers import row, word
 
 
@@ -74,14 +74,21 @@ def test_note_result_uses_upload_page_numbers_not_ocr_page_numbers() -> None:
     ]
     res = note_result(pages)
     assert [p["pageNo"] for p in res["pages"]] == [1, 2, 3]  # OCR pageNumber는 모두 1
-    assert res["pages"][0]["ocrText"] == "1. 이질 아메바\n- 영양형 ★"
     assert res["pages"][1]["ocrText"] == ""
+    assert [c["title"] for c in res["chunks"]] == ["1. 이질 아메바", "2. 대장 아메바"]
+    assert res["chunks"][1]["lines"][0]["pageNo"] == 3
     assert [p["pageNo"] for p in res["lineResults"]] == [1, 2, 3]
-    assert res["lineResults"][1]["lines"] == []
 
 
 def test_blurry_words_get_marks_in_every_output() -> None:
-    res = note_result([{"pageNo": 1, "read": read(("1. 로로드아메바", 0.3), ("포낭형", 0.95))}])
-    assert res["pages"][0]["ocrText"] == "1. [?]로로드아메바\n포낭형"
-    first = res["lineResults"][0]["lines"][0]
-    assert first["text"] == "1. [?]로로드아메바" and first["conf"] == 0.3
+    res = note_result([{"pageNo": 1, "read": read(("1. 로로드아메바", 0.3), ("포낭형 ★", 0.95))}])
+    assert res["pages"][0]["ocrText"] == "1. [?]로로드아메바\n포낭형 ★"
+    (c,) = res["chunks"]
+    assert c["uncertainCount"] == 1
+    (m,) = c["emphasis"]["marks"]
+    assert c["text"][m["start"] : m["end"]] == "★"  # [?]를 넣은 뒤의 위치
+
+
+def test_note_chunks_takes_a_page_number() -> None:
+    (c,) = note_chunks(read(("1. 이질 아메바", 0.9), ("내용", 0.9)), page_no=7)
+    assert c["lines"][0]["pageNo"] == 7

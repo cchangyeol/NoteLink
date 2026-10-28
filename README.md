@@ -201,6 +201,7 @@ npm run dev:mobile   # 앱 개발 서버
   - **자동 병합**: PR에서 "Enable auto-merge"를 켜 두면 승인과 `CI 결과` 통과가 모두 되는 순간 병합됩니다. 병합된 브랜치는 자동으로 지워집니다.
   - **Codex 리뷰**: `develop` · `main`으로 가는 PR이 열리거나 커밋이 올라오면 리뷰 전용 컴퓨터(self-hosted runner, 라벨 `codex`)가 `scripts/codex-review.sh`로 Codex 리뷰를 돌려 PR 댓글(치명적 문제 · 중요 · 제안 · 좋았던 점 · 권장 조치)로 남깁니다(`.github/workflows/codex-review.yml`). CI가 실패한 상태면 리뷰 대신 실패 로그를 남깁니다. 지적을 고쳐 커밋을 올리면 재리뷰합니다(이전 지적 반영 여부를 먼저 확인). 초안 PR은 "Ready for review"로 바꿀 때 리뷰합니다. 리뷰 컴퓨터가 꺼져 있으면 최완우가 `scripts/codex-review.sh <PR번호>`로 직접 돌립니다(재리뷰는 같은 계정의 지난 리뷰를 찾아 이어 가므로, 리뷰 컴퓨터와 같은 계정으로 돌려야 합니다). 리뷰 기준은 `AGENTS.md`의 Code Review Rules입니다.
   - 리뷰 컴퓨터는 Codex 리뷰 전용입니다. 다른 워크플로에서 `runs-on`에 `self-hosted` · `codex`를 쓰지 않습니다.
+  - 자동 리뷰는 PR의 대상 브랜치와 상관없이 기본 브랜치(`main`)의 `codex-review.yml` · `scripts/codex-review.sh`로 돕니다. 둘을 고치면 `main`에도 반영해야 자동 리뷰에 적용됩니다.
 
 ### 버전 · 보안
 

@@ -94,14 +94,17 @@ def test_different_options_are_not_same_value(a: str, b: str) -> None:
         ("약3.5×10^5 CFU", "약350,000 CFU"),  # 한국어에 붙은 수
         ("0.5 mg", ".5 mg"),
         ("1.5E3 cells", "1,500 cells"),  # 대문자 E 지수
+        ("1.5E+3 cells", "1,500 cells"),  # + 부호 지수
+        ("1.5×10^+3 cells", "1,500 cells"),
     ],
 )
 def test_same_value_in_different_forms(a: str, b: str) -> None:
     assert same_value(a, b)
 
 
-def test_same_number_in_two_forms_fails() -> None:
-    opts = ["350,000 CFU/mL", "3.5×10^5 CFU/mL", "1,000 CFU/mL", "10 CFU/mL", "100 CFU/mL"]
+@pytest.mark.parametrize("other", ["3.5×10^5 CFU/mL", "3.5E+5 CFU/mL", "3.5×10^+5 CFU/mL"])
+def test_same_number_in_two_forms_fails(other: str) -> None:
+    opts = ["350,000 CFU/mL", other, "1,000 CFU/mL", "10 CFU/mL", "100 CFU/mL"]
     d = draft(stem="기준 균 수는?", passage="", options=opts, answer="1,000 CFU/mL")
     assert "값이 같은 숫자 보기" in why(d, "규칙")
 

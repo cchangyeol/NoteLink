@@ -53,9 +53,10 @@ def _has(line: str, word: str) -> bool:
     # 낱말 경계 안에서 어미만 접음(stacked ~ stack, organizing ~ organiz-e, stop ~ stopped).
     # 글자열 포함으로 보면 'cell'이 'cellulose - 셀룰로스' 묶음에, 'range'가 'arrange'에 걸림
     # (로컬 노트 4개, 10/28: 이런 일치 429건이 사라지고 새로 생긴 일치 0건).
-    # 글자 사이 공백 · '-' 하나는 허용('ship yard' / 'shipyard', 'stack-up' / 'stack up')
+    # 글자 사이 공백 · '-' · 아포스트로피 하나는 허용('ship yard' / 'shipyard',
+    # 'stack-up' / 'stack up', norm이 아포스트로피를 지우는 "one's own")
     stem = stem if len(stem) >= 4 else w
-    body = r"[\s\-]?".join(map(re.escape, stem))
+    body = r"[\s\-'’]?".join(map(re.escape, stem))
     pat = rf"(?<![A-Za-z]){body}(?:{re.escape(stem[-1])})?(?:e|s|es|ed|d|ing)?(?![A-Za-z])"
     return re.search(pat, line, re.I) is not None
 
@@ -93,6 +94,8 @@ def contrasts(answer: str, page_text: str) -> list[str]:
 
     ('installation - 설치' / 'instalment - 할부'). 노트가 가르치는 짝이라 natural_options가
     버리면 안 됩니다(10/25-26에 버렸음).
+    같은 한국어 낱말로 뜻을 적은 줄은 대비가 아니라 유의어라 빼고 검사합니다
+    ('begin - 시작하다' / 'start - 시작하다'. 로컬 노트 4개의 짝 6개는 그대로, 10/28).
     알려진 한계: 단어장처럼 이런 줄이 이어진 쪽에서는 이웃 낱말도 짝으로 봅니다(#12).
     """
     lines = [ln for ln in page_text.split("\n") if ln.strip()]
@@ -101,11 +104,18 @@ def contrasts(answer: str, page_text: str) -> list[str]:
     ]
     out = []
     for i in at:
+        mine = _gloss_words(lines[i])
         for ln in lines[max(0, i - 2) : i + 3]:
             m = GLOSS.match(ln)
-            if m and not same_item(m.group(1), answer):
+            if m and not same_item(m.group(1), answer) and not mine & _gloss_words(ln):
                 out.append(m.group(1).strip().lower())
     return out
+
+
+def _gloss_words(line: str) -> set[str]:
+    """'낱말 - 한국어 뜻' 줄의 뜻에 있는 한국어 낱말."""
+    m = GLOSS.match(line)
+    return set(re.findall(r"[가-힣]{2,}", line[m.end() - 1 :])) if m else set()
 
 
 def group_conflict(answer: str, choices: list[str], page_text: str) -> list[str]:

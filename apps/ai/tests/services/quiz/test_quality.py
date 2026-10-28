@@ -74,8 +74,23 @@ def test_word_inside_a_longer_word_is_not_its_group() -> None:
     assert qa.group_words("form", "form - 형태\nformat = layout") == []
 
 
+def test_word_with_apostrophe_finds_its_group() -> None:
+    assert qa._has("one's own = personal", "one's own")
+    opts = ["one's own", "personal", "public", "shared", "common"]
+    assert qa.group_conflict("one's own", opts, "one's own = personal") == ["personal"]
+
+
 def test_contrasts_are_gloss_pairs_near_the_answer() -> None:
     assert qa.contrasts("installation", PAGE) == ["instalment"]
+
+
+def test_same_gloss_is_a_synonym_not_a_contrast() -> None:
+    assert qa.contrasts("begin", "begin - 시작하다\nstart - 시작하다") == []
+    d = draft("The meeting will ____ at noon.", ["begin", "start", "a", "b", "c"], "begin")
+    llm = FakeLlm({"Natural": natural(True, False, False, False)})
+    assert qa.two_answers(llm, d, "begin - 시작하다\nstart - 시작하다", "빈칸") == [
+        "빈칸에 넣어도 말이 되는 오답 보기: start"
+    ]
 
 
 def test_group_conflict_flags_wrong_option_in_answers_group() -> None:

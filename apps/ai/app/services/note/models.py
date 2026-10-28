@@ -1,6 +1,8 @@
 """노트 결과에서 주고받는 모양. 좌표는 쪽 크기 대비 0~1, 단어 상자(polygon)만 OCR 원래 단위."""
 
-from typing import Literal, TypedDict
+from typing import Literal, NotRequired, TypedDict
+
+type MarkKind = Literal["color", "highlight", "symbol", "keyword"]
 
 
 class Word(TypedDict):
@@ -11,6 +13,10 @@ class Word(TypedDict):
     end: int
     polygon: list[float]
     confidence: float
+    color: NotRequired[str]  # 글씨색
+    colorDiff: NotRequired[bool]  # 손글씨 주된 색과 다름 = 강조
+    baseColor: NotRequired[str]  # 손글씨 주된 색
+    highlight: NotRequired[str]  # 형광펜 색
 
 
 class Line(TypedDict):
@@ -79,3 +85,14 @@ class PageLines(TypedDict):
     lines: list[OcrLine]
     marks: list[MarkBox]
     marksChecked: bool  # False = 찾지 않음 ('표시 없음'과 구분)
+
+
+class Mark(TypedDict):
+    """글 안의 강조 구간."""
+
+    kind: MarkKind
+    start: int
+    end: int
+    color: NotRequired[str]
+    baseColor: NotRequired[str]
+    text: NotRequired[str]  # symbol · keyword에서 찾은 글자

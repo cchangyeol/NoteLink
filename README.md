@@ -199,7 +199,8 @@ npm run dev:mobile   # 앱 개발 서버
   - **라벨**: 바뀐 경로를 보고 영역 라벨(프론트 · 백엔드 · AI서버 · 인프라 · 공용 · CI·설정 · 문서)이 자동으로 붙습니다(`.github/labeler.yml`). 작업 종류 라벨(`enhancement` / `bug`)은 직접 붙입니다.
   - **승인**: `develop` · `main` 병합에는 최완우(`Choiwanwoo-03`) 또는 최한결(`cchangyeol`) 중 최소 한 명의 Approve가 필요합니다(`.github/CODEOWNERS`). 새 커밋을 올리면 이전 승인은 사라지니 다시 받아야 합니다.
   - **자동 병합**: PR에서 "Enable auto-merge"를 켜 두면 승인과 `CI 결과` 통과가 모두 되는 순간 병합됩니다. 병합된 브랜치는 자동으로 지워집니다.
-  - **Codex 리뷰**: `develop`으로 가는 PR은 리뷰어가 `scripts/codex-review.sh <PR번호>`로 Codex 리뷰를 돌려 PR 댓글(치명적 문제 · 중요 · 제안 · 좋았던 점 · 권장 조치)로 남깁니다. CI가 실패한 상태면 리뷰 대신 실패 로그를 남깁니다. 지적을 고쳐 커밋을 올리면 같은 명령으로 재리뷰합니다(이전 지적 반영 여부를 먼저 확인). 리뷰 기준은 `AGENTS.md`의 Code Review Rules입니다.
+  - **Codex 리뷰**: `develop` · `main`으로 가는 PR이 열리거나 커밋이 올라오면 리뷰 전용 컴퓨터(self-hosted runner, 라벨 `codex`)가 `scripts/codex-review.sh`로 Codex 리뷰를 돌려 PR 댓글(치명적 문제 · 중요 · 제안 · 좋았던 점 · 권장 조치)로 남깁니다(`.github/workflows/codex-review.yml`). CI가 실패한 상태면 리뷰 대신 실패 로그를 남깁니다. 지적을 고쳐 커밋을 올리면 재리뷰합니다(이전 지적 반영 여부를 먼저 확인). 초안 PR은 "Ready for review"로 바꿀 때 리뷰합니다. 리뷰 컴퓨터가 꺼져 있으면 최완우가 `scripts/codex-review.sh <PR번호>`로 직접 돌립니다(재리뷰는 같은 계정의 지난 리뷰를 찾아 이어 가므로, 리뷰 컴퓨터와 같은 계정으로 돌려야 합니다). 리뷰 기준은 `AGENTS.md`의 Code Review Rules입니다.
+  - 리뷰 컴퓨터는 Codex 리뷰 전용입니다. 다른 워크플로에서 `runs-on`에 `self-hosted` · `codex`를 쓰지 않습니다.
 
 ### 버전 · 보안
 

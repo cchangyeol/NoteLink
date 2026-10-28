@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text } from '@/components/text';
 import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -25,7 +26,7 @@ import {
   cx,
 } from '@/components/ui';
 import { NetBanner } from '@/components/NetBanner';
-import { C } from '@/theme';
+import { C, ICON } from '@/theme';
 import { seoul } from '@/lib/dates';
 
 // p.58~60 노트 목록 · 새 자료 · 강의 상세 · 올리기 방식 선택
@@ -40,10 +41,10 @@ const KIND = {
 const EmptyNote = ({ children }: { children?: React.ReactNode }) => (
   <View className="items-center">
     <View className="h-16 w-16 items-center justify-center rounded-full bg-mint">
-      <Text className="text-[28px]">📁</Text>
+      <Text className="text-title1">📁</Text>
     </View>
-    <Text className="mt-4 text-[16px] font-bold text-ink">아직 학습 자료가 없어요</Text>
-    <Text className="mt-1 text-[13px] text-sub">
+    <Text className="mt-4 text-body font-bold text-ink">아직 학습 자료가 없어요</Text>
+    <Text className="mt-1 text-footnote text-sub">
       녹음이나 필기, 문서를 올려서 첫 자료를 만들어보세요
     </Text>
     {children && <View className="mt-6 w-[200px]">{children}</View>}
@@ -60,7 +61,7 @@ function Fab({ onPress, open }: { onPress: () => void; open?: boolean }) {
         open ? 'bg-ink' : 'border border-line bg-white',
       )}
     >
-      {open ? <X size={22} color="#fff" /> : <Plus size={24} color={C.ink} />}
+      {open ? <X size={ICON.lg} color="#fff" /> : <Plus size={ICON.lg} color={C.ink} />}
     </Pressable>
   );
 }
@@ -119,10 +120,10 @@ export function NoteListScreen() {
                   className="w-[48.5%] p-2.5"
                 >
                   <View className="h-20 items-center justify-center rounded-xl bg-white">
-                    <Text className="text-[28px]">📁</Text>
+                    <Text className="text-title1">📁</Text>
                   </View>
-                  <Text className="mt-2 px-1 text-[14px] font-semibold text-ink">{f.title}</Text>
-                  <Text className="px-1 text-[11px] text-sub">
+                  <Text className="mt-2 px-1 text-subhead font-semibold text-ink">{f.title}</Text>
+                  <Text className="px-1 text-caption2 text-sub">
                     {f.subjectName} · {seoul(f.createdAt).getMonth() + 1}/
                     {seoul(f.createdAt).getDate()} · 자료 {f.materialCount}개
                   </Text>
@@ -130,7 +131,7 @@ export function NoteListScreen() {
               ))}
             </View>
             {folders.isSuccess && list.length === 0 && (
-              <Text className="py-10 text-center text-[13px] text-sub">
+              <Text className="py-10 text-center text-footnote text-sub">
                 ‘{q}’에 맞는 자료가 없어요
               </Text>
             )}
@@ -164,7 +165,7 @@ export function NoteTagScreen() {
       }
     >
       <Header title="태그 설정" right={<Steps n={0} />} />
-      <Text className="mt-4 mb-3 text-[14px] font-semibold text-ink">과목을 선택해주세요</Text>
+      <Text className="mt-4 mb-3 text-subhead font-semibold text-ink">과목을 선택해주세요</Text>
       <View className="flex-row flex-wrap gap-2">
         {TAGS.map((t) => (
           <Chip key={t} on={tag === t} onPress={() => setTag(t)}>
@@ -204,7 +205,7 @@ export function NoteTitleScreen() {
         onPress={() => setTitle(`${d.getMonth() + 1}월 ${d.getDate()}일 ${tag} 녹음`)}
         className="mt-2"
       >
-        <Text className="text-[12px] text-brand">
+        <Text className="text-caption text-brand">
           💡 추천: {d.getMonth() + 1}월 {d.getDate()}일 {tag} 녹음
         </Text>
       </Pressable>
@@ -303,7 +304,7 @@ export function FolderScreen() {
               onPress={() => setSheet('more')}
               className="h-9 w-9 items-center justify-center rounded-full border border-line"
             >
-              <MoreHorizontal size={18} color={C.ink} />
+              <MoreHorizontal size={ICON.md} color={C.ink} />
             </Pressable>
           }
         />
@@ -320,7 +321,7 @@ export function FolderScreen() {
           </View>
         ) : (
           <>
-            <Text className="mt-4 mb-2 text-[12px] text-sub">자료 {mats.data?.length ?? 0}개</Text>
+            <Text className="mt-4 mb-2 text-caption text-sub">자료 {mats.data?.length ?? 0}개</Text>
             <View className="gap-2">
               {items.map((m) => (
                 <Card
@@ -330,18 +331,18 @@ export function FolderScreen() {
                   className="flex-row items-center gap-3 px-4 py-3"
                 >
                   <View className="h-10 w-10 items-center justify-center rounded-full bg-cream">
-                    <Text className="text-[18px]">{KIND[m.kind][0]}</Text>
+                    <Text className="text-headline">{KIND[m.kind][0]}</Text>
                   </View>
                   <View className="flex-1">
-                    <Text className="text-[14px] font-semibold text-ink">{m.title}</Text>
-                    <Text className="text-[11px] text-sub">
+                    <Text className="text-subhead font-semibold text-ink">{m.title}</Text>
+                    <Text className="text-caption2 text-sub">
                       {KIND[m.kind][1]} ·{' '}
                       {m.kind === 'recording'
                         ? '32:10 · 자동 요약 완료'
                         : `${seoul(m.createdAt).getMonth() + 1}/${seoul(m.createdAt).getDate()} 업로드`}
                     </Text>
                   </View>
-                  <ChevronRight size={16} color={C.sub} />
+                  <ChevronRight size={ICON.sm} color={C.sub} />
                 </Card>
               ))}
             </View>
@@ -369,10 +370,10 @@ export function FolderScreen() {
                   className="flex-row items-center gap-2"
                 >
                   <View className="rounded-full bg-ink px-3 py-1.5">
-                    <Text className="text-[13px] font-semibold text-white">{l}</Text>
+                    <Text className="text-footnote font-semibold text-white">{l}</Text>
                   </View>
                   <View className="h-11 w-11 items-center justify-center rounded-full bg-white shadow">
-                    <Text className="text-[18px]">{ic}</Text>
+                    <Text className="text-headline">{ic}</Text>
                   </View>
                 </Pressable>
               </Animated.View>
@@ -471,12 +472,12 @@ const UploadOpt = ({
 }) => (
   <Animated.View entering={FadeIn}>
     <Card onPress={onPress} className="mb-2 flex-row items-center gap-3 px-4 py-3.5">
-      <Text className="text-[20px]">{icon}</Text>
+      <Text className="text-title3">{icon}</Text>
       <View className="flex-1">
-        <Text className="text-[14px] font-semibold text-ink">{title}</Text>
-        <Text className="text-[12px] text-sub">{sub}</Text>
+        <Text className="text-subhead font-semibold text-ink">{title}</Text>
+        <Text className="text-caption text-sub">{sub}</Text>
       </View>
-      <ChevronRight size={16} color={C.sub} />
+      <ChevronRight size={ICON.sm} color={C.sub} />
     </Card>
   </Animated.View>
 );

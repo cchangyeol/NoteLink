@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text } from '@/components/text';
 import { router, useFocusEffect } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useKeepAwake } from 'expo-keep-awake';
@@ -11,7 +12,7 @@ import { dLabel, goalLabel, hm, hms } from '@/lib/dates';
 import { useNow } from '@/hooks';
 import { AUTO_END_MS, useSession } from '@/stores/session';
 import { Badge, Btn, Card, Dashed, Screen, cx } from '@/components/ui';
-import { C } from '@/theme';
+import { C, ICON } from '@/theme';
 import { AddItemSheet, WeekGoalSheet } from './sheets';
 import { SocialDrawer } from '../social/drawer';
 import { NetBanner } from '@/components/NetBanner';
@@ -71,14 +72,14 @@ export function HomeScreen() {
         <NetBanner />
         <View className="flex-row items-start justify-between pt-4">
           <View>
-            {has && <Text className="text-[12px] text-sub">안녕하세요</Text>}
-            <Text className="text-[22px] font-bold text-ink">
+            {has && <Text className="text-caption text-sub">안녕하세요</Text>}
+            <Text className="text-title2 font-bold text-ink">
               {has
                 ? `${(me.data?.nickname ?? '').slice(1) || '형욱'} 님 🔥 12일째`
                 : '안녕하세요👋'}
             </Text>
             {!has && (
-              <Text className="text-[12px] text-sub">노트링크와 함께 학습을 시작해보세요</Text>
+              <Text className="text-caption text-sub">노트링크와 함께 학습을 시작해보세요</Text>
             )}
           </View>
           <Pressable
@@ -86,7 +87,7 @@ export function HomeScreen() {
             onPress={() => setDrawer(true)}
             className="h-9 w-9 items-center justify-center rounded-full bg-mint"
           >
-            <Users size={18} color={C.brand} />
+            <Users size={ICON.md} color={C.brand} />
           </Pressable>
         </View>
 
@@ -99,8 +100,8 @@ export function HomeScreen() {
               <Text>🎯</Text>
             </View>
             <View className="flex-1">
-              <Text className="text-[14px] font-semibold text-ink">{nextDday.title}</Text>
-              <Text className="text-[12px] text-sub">
+              <Text className="text-subhead font-semibold text-ink">{nextDday.title}</Text>
+              <Text className="text-caption text-sub">
                 {nextDday.kind} · {nextDday.date.slice(5).replace('-', '월 ')}일
               </Text>
             </View>
@@ -111,17 +112,17 @@ export function HomeScreen() {
         {/* 순공시간 카드 */}
         <View className="mt-3 rounded-3xl bg-night p-5">
           <View className="flex-row items-center justify-between">
-            <Text className="text-[12px] text-white/70">오늘 순공시간</Text>
+            <Text className="text-caption text-white/70">오늘 순공시간</Text>
             <View className="flex-row items-center gap-1">
               <View
                 className={cx('h-1.5 w-1.5 rounded-full', running ? 'bg-sun' : 'bg-white/50')}
               />
-              <Text className="text-[12px] text-white/70">
+              <Text className="text-caption text-white/70">
                 {running ? '측정 중' : active ? '일시정지' : '측정 대기'}
               </Text>
             </View>
           </View>
-          <Text className={cx('mt-1 text-[13px]', running ? 'text-sun' : 'text-white/60')}>
+          <Text className={cx('mt-1 text-footnote', running ? 'text-sun' : 'text-white/60')}>
             {active
               ? `${running ? '▶ ' : ''}${active.title} · ${active.subjectName}`
               : has
@@ -129,13 +130,13 @@ export function HomeScreen() {
                 : '먼저 공부할 항목을 추가해 주세요'}
           </Text>
           <Text
-            className="mt-1 font-mono text-[44px] font-bold text-white"
+            className="mt-1 tabular-nums text-display font-bold text-white"
             style={{ fontVariant: ['tabular-nums'] }}
           >
             {hms(active || todaySec ? todaySec : 0)}
           </Text>
           <Pressable onPress={() => setSheet('goal')}>
-            <Text className="text-[13px] text-white/80">
+            <Text className="text-footnote text-white/80">
               {running
                 ? `책상 앞이에요 · 이번주 목표 ${pct}%`
                 : active
@@ -146,7 +147,7 @@ export function HomeScreen() {
             </Text>
           </Pressable>
           <Pressable onPress={() => active && router.push('/landscape')}>
-            <Text className="mt-0.5 text-[11px] text-white/45">
+            <Text className="mt-0.5 text-caption2 text-white/45">
               ⟳ 가로로 돌리면 자동 측정 · 세로로 세우면 정지
             </Text>
           </Pressable>
@@ -157,7 +158,7 @@ export function HomeScreen() {
                   <Btn
                     kind="gray"
                     small
-                    icon={<Pause size={16} color="#fff" />}
+                    icon={<Pause size={ICON.sm} color="#fff" />}
                     onPress={() => s.pause()}
                   >
                     일시정지
@@ -166,7 +167,7 @@ export function HomeScreen() {
                   <Btn
                     kind="sun"
                     small
-                    icon={<Play size={16} color={C.ink} />}
+                    icon={<Play size={ICON.sm} color={C.ink} />}
                     onPress={() => s.resume()}
                   >
                     계속하기
@@ -177,7 +178,7 @@ export function HomeScreen() {
                 <Btn
                   kind={running ? 'sun' : 'gray'}
                   small
-                  icon={<Square size={14} color={running ? C.ink : '#fff'} />}
+                  icon={<Square size={ICON.xs} color={running ? C.ink : '#fff'} />}
                   onPress={() => finish()}
                 >
                   종료
@@ -186,7 +187,7 @@ export function HomeScreen() {
             </View>
           ) : (
             <View className="mt-4 rounded-xl bg-white/5 py-2.5">
-              <Text className="text-center text-[12px] text-white/70">
+              <Text className="text-center text-caption text-white/70">
                 {has
                   ? '아래 목록에서 ▶을 눌러 공부를 시작하세요'
                   : '항목을 추가하면 ▶로 바로 시작할 수 있어요'}
@@ -196,13 +197,13 @@ export function HomeScreen() {
         </View>
 
         <View className="mt-6 mb-2 flex-row items-center justify-between">
-          <Text className="text-[17px] font-bold text-ink">오늘 공부할 목록</Text>
-          <Text className="text-[12px] text-sub">{items.length}개</Text>
+          <Text className="text-headline font-bold text-ink">오늘 공부할 목록</Text>
+          <Text className="text-caption text-sub">{items.length}개</Text>
         </View>
         {!has && (
           <View className="items-center rounded-2xl border border-dashed border-cream-2 py-5">
-            <Text className="text-[13px] text-sub">아직 공부할 목록이 없어요</Text>
-            <Text className="text-[11px] text-sub/80">
+            <Text className="text-footnote text-sub">아직 공부할 목록이 없어요</Text>
+            <Text className="text-caption2 text-sub/80">
               과목이나 할 일을 추가하면 항목별로 시간을 따로 재요
             </Text>
           </View>
@@ -221,12 +222,12 @@ export function HomeScreen() {
               >
                 <View className={cx('h-8 w-1 rounded-full', on ? 'bg-brand' : 'bg-cream-2')} />
                 <View className="flex-1">
-                  <Text className="text-[15px] font-semibold text-ink">{it.title}</Text>
-                  <Text className="text-[12px] text-sub">
+                  <Text className="text-callout font-semibold text-ink">{it.title}</Text>
+                  <Text className="text-caption text-sub">
                     {it.subjectName} · 목표 {goalLabel(it.goalMin)}
                   </Text>
                 </View>
-                <Text className="font-mono text-[14px] font-semibold text-ink/80">
+                <Text className="tabular-nums text-subhead font-semibold text-ink/80">
                   {hms(live(it._id, it.accumulatedSec))}
                 </Text>
                 <Pressable
@@ -238,9 +239,9 @@ export function HomeScreen() {
                   )}
                 >
                   {play ? (
-                    <Pause size={15} color="#fff" />
+                    <Pause size={ICON.sm} color="#fff" />
                   ) : (
-                    <Play size={15} color={on ? '#fff' : C.brand} />
+                    <Play size={ICON.sm} color={on ? '#fff' : C.brand} />
                   )}
                 </Pressable>
               </View>
@@ -249,16 +250,16 @@ export function HomeScreen() {
         </View>
         <Dashed onPress={() => setSheet('add')}>+ 공부할 항목 추가</Dashed>
 
-        <Text className="mt-6 mb-2 text-[17px] font-bold text-ink">학습 기록</Text>
+        <Text className="mt-6 mb-2 text-headline font-bold text-ink">학습 기록</Text>
         <Card className="p-4" onPress={() => router.push('/record')}>
           <View className="flex-row justify-between">
-            <Text className="text-[12px] text-sub">이번주 순공시간</Text>
-            <Text className="text-[12px] font-semibold text-brand">기록 · 캘린더 ›</Text>
+            <Text className="text-caption text-sub">이번주 순공시간</Text>
+            <Text className="text-caption font-semibold text-brand">기록 · 캘린더 ›</Text>
           </View>
-          <Text className="mt-1 text-[22px] font-bold text-ink">
+          <Text className="mt-1 text-title2 font-bold text-ink">
             {has ? hm(weekSec) : '0시간 0분'}
           </Text>
-          <Text className="text-[12px] text-sub">
+          <Text className="text-caption text-sub">
             {has
               ? `지난주보다 ${hm(weekly.data?.diffFromLastWeekSec ?? 0).replace('0시간 ', '')} 늘었어요`
               : '학습 기록이 쌓이면 스트릭이 시작돼요'}

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text } from '@/components/text';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Settings2 } from 'lucide-react-native';
@@ -17,7 +18,7 @@ import {
   Sheet,
   cx,
 } from '@/components/ui';
-import { C } from '@/theme';
+import { C, ICON } from '@/theme';
 import { AddTodoSheet, TodoSheet } from '../calendar/todo';
 
 // p.50 학습 기록 · 주간 보기 · 날짜별 할 일
@@ -51,7 +52,7 @@ export function Month({
         {WD.map((d, i) => (
           <Text
             key={d}
-            className={cx('flex-1 text-center text-[11px]', i === 0 ? 'text-danger' : 'text-sub')}
+            className={cx('flex-1 text-center text-caption2', i === 0 ? 'text-danger' : 'text-sub')}
           >
             {d}
           </Text>
@@ -86,7 +87,7 @@ export function Month({
               >
                 <Text
                   className={cx(
-                    'text-[12px]',
+                    'text-caption',
                     sel || lv >= 2
                       ? 'font-semibold text-white'
                       : shared?.has(d)
@@ -143,19 +144,19 @@ export function RecordScreen() {
               onPress={() => setSheet('cal')}
               className="h-9 w-9 items-center justify-center rounded-full bg-cream"
             >
-              <Settings2 size={17} color={C.ink} />
+              <Settings2 size={ICON.md} color={C.ink} />
             </Pressable>
           }
         />
         {mode === '월간' ? (
           <>
-            <Text className="text-[12px] text-sub">이번주 순공시간</Text>
-            <Text className="text-[22px] font-bold text-ink">{hm(weekly.data?.totalSec ?? 0)}</Text>
-            <Text className="text-[12px] text-sub">지난주보다 1시간 40분 늘었어요</Text>
+            <Text className="text-caption text-sub">이번주 순공시간</Text>
+            <Text className="text-title2 font-bold text-ink">{hm(weekly.data?.totalSec ?? 0)}</Text>
+            <Text className="text-caption text-sub">지난주보다 1시간 40분 늘었어요</Text>
             <Label
               right={
                 <Pressable onPress={() => router.push('/dday')}>
-                  <Text className="text-[13px] text-brand">전체 ›</Text>
+                  <Text className="text-footnote text-brand">전체 ›</Text>
                 </Pressable>
               }
             >
@@ -169,8 +170,8 @@ export function RecordScreen() {
               >
                 <Text>🎯</Text>
                 <View className="flex-1">
-                  <Text className="text-[14px] font-semibold text-ink">{next.title}</Text>
-                  <Text className="text-[12px] text-sub">
+                  <Text className="text-subhead font-semibold text-ink">{next.title}</Text>
+                  <Text className="text-caption text-sub">
                     {next.kind} · {md(next.date)}
                   </Text>
                 </View>
@@ -187,23 +188,23 @@ export function RecordScreen() {
               >
                 <Text>🔁</Text>
                 <View className="flex-1">
-                  <Text className="text-[14px] font-semibold text-ink">반복 목표</Text>
-                  <Text className="text-[12px] text-sub">
+                  <Text className="text-subhead font-semibold text-ink">반복 목표</Text>
+                  <Text className="text-caption text-sub">
                     {goals.data[0].name} · 🔥 {goals.data[0].streak}일째
                   </Text>
                 </View>
-                <ChevronRight size={18} color={C.sub} />
+                <ChevronRight size={ICON.md} color={C.sub} />
               </Card>
             )}
             <View className="mt-5 flex-row items-center justify-between">
               <Pressable accessibilityLabel="이전 달" onPress={() => shift(-1)} hitSlop={10}>
-                <ChevronLeft size={18} color={C.sub} />
+                <ChevronLeft size={ICON.md} color={C.sub} />
               </Pressable>
-              <Text className="text-[15px] font-bold text-ink">
+              <Text className="text-callout font-bold text-ink">
                 {y}년 {m}월
               </Text>
               <Pressable accessibilityLabel="다음 달" onPress={() => shift(1)} hitSlop={10}>
-                <ChevronRight size={18} color={C.sub} />
+                <ChevronRight size={ICON.md} color={C.sub} />
               </Pressable>
             </View>
             <Segment
@@ -222,7 +223,7 @@ export function RecordScreen() {
                 setSheet('todo');
               }}
             />
-            <Text className="mt-2 text-[11px] text-sub">
+            <Text className="mt-2 text-caption2 text-sub">
               색이 진할수록 공부 시간이 길고, 점은 할 일이 있는 날이에요
             </Text>
             <Label
@@ -237,7 +238,9 @@ export function RecordScreen() {
                         range === x ? 'bg-ink' : 'bg-cream',
                       )}
                     >
-                      <Text className={cx('text-[11px]', range === x ? 'text-white' : 'text-ink')}>
+                      <Text
+                        className={cx('text-caption2', range === x ? 'text-white' : 'text-ink')}
+                      >
                         {{ all: '전체', '90d': '90일', '30d': '30일' }[x]}
                       </Text>
                     </Pressable>
@@ -245,7 +248,7 @@ export function RecordScreen() {
                 </View>
               }
             >
-              <Text className="text-[13px] font-bold text-ink">누적 기록</Text>
+              <Text className="text-footnote font-bold text-ink">누적 기록</Text>
             </Label>
             <View className="flex-row flex-wrap justify-between gap-y-2">
               {[
@@ -255,8 +258,8 @@ export function RecordScreen() {
                 ['주로 공부한 시간', `오후 ${(stats.data?.peakHour ?? 21) - 12}시`],
               ].map(([k, v]) => (
                 <Card key={k} className="w-[48.5%] px-3 py-2.5">
-                  <Text className="text-[11px] text-sub">{k}</Text>
-                  <Text className="text-[16px] font-bold text-ink">{v}</Text>
+                  <Text className="text-caption2 text-sub">{k}</Text>
+                  <Text className="text-body font-bold text-ink">{v}</Text>
                 </Card>
               ))}
             </View>
@@ -356,19 +359,19 @@ function WeekView({ onMonth }: { onMonth: () => void }) {
       />
       <View className="mt-4 flex-row items-center justify-between">
         <Pressable onPress={() => setOffset((o) => o - 1)} hitSlop={10}>
-          <ChevronLeft size={18} color={C.sub} />
+          <ChevronLeft size={ICON.md} color={C.sub} />
         </Pressable>
-        <Text className="text-[15px] font-bold text-ink">
+        <Text className="text-callout font-bold text-ink">
           {sun.getMonth() + 1}월 {sun.getDate()}일 – {addDays(sun, 6).getDate()}일
         </Text>
         <Pressable onPress={() => setOffset((o) => o + 1)} hitSlop={10}>
-          <ChevronRight size={18} color={C.sub} />
+          <ChevronRight size={ICON.md} color={C.sub} />
         </Pressable>
       </View>
       <View className="mt-3 flex-row pl-7">
         {days.map((d) => (
           <View key={d.getDate()} className="flex-1 items-center">
-            <Text className="text-[11px] text-sub">{WD[d.getDay()]}</Text>
+            <Text className="text-caption2 text-sub">{WD[d.getDay()]}</Text>
             <View
               className={cx(
                 'mt-1 h-7 w-7 items-center justify-center rounded-full',
@@ -377,7 +380,7 @@ function WeekView({ onMonth }: { onMonth: () => void }) {
             >
               <Text
                 className={cx(
-                  'text-[13px]',
+                  'text-footnote',
                   ymd(d) === today() ? 'font-bold text-white' : 'text-ink',
                 )}
               >
@@ -394,7 +397,7 @@ function WeekView({ onMonth }: { onMonth: () => void }) {
             className="absolute left-0 right-0 border-t border-line"
             style={{ top: i * 3 * H }}
           >
-            <Text className="text-[9px] text-sub">{t}</Text>
+            <Text className="text-caption2 text-sub">{t}</Text>
           </View>
         ))}
         <View className="absolute inset-0 left-7 flex-row">
@@ -408,21 +411,21 @@ function WeekView({ onMonth }: { onMonth: () => void }) {
                     className="absolute left-0.5 right-0.5 rounded-md px-1 py-0.5"
                     style={{ top: b.top * H + 4, height: b.h * H, backgroundColor: b.bg }}
                   >
-                    <Text className="text-[9px] leading-3 text-ink">{b.label}</Text>
+                    <Text className="text-caption2 leading-3 text-ink">{b.label}</Text>
                   </View>
                 ))}
             </View>
           ))}
         </View>
       </View>
-      <Text className="mt-2 text-[11px] text-sub">● 시간표 자동연동 ● 스터디룸 일정</Text>
+      <Text className="mt-2 text-caption2 text-sub">● 시간표 자동연동 ● 스터디룸 일정</Text>
       <Card
         tone="mint"
         onPress={() => router.push('/timetable')}
         className="mt-3 flex-row items-center px-4 py-3.5"
       >
-        <Text className="flex-1 text-[14px] font-semibold text-ink">📅 내 시간표 편집하기</Text>
-        <ChevronRight size={18} color={C.sub} />
+        <Text className="flex-1 text-subhead font-semibold text-ink">📅 내 시간표 편집하기</Text>
+        <ChevronRight size={ICON.md} color={C.sub} />
       </Card>
     </>
   );

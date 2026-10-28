@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text } from '@/components/text';
 import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -15,7 +16,7 @@ import { useNet } from '@/stores/net';
 import { toast } from '@/stores/toast';
 import { Alert, Badge, Btn, Card, Loading, Progress, Screen, Search, cx } from '@/components/ui';
 import { NetBanner } from '@/components/NetBanner';
-import { C } from '@/theme';
+import { C, ICON } from '@/theme';
 import { seoul } from '@/lib/dates';
 
 // p.85~89 퀴즈 · 플래시카드 · 퀴즈 보관함
@@ -23,7 +24,7 @@ import { seoul } from '@/lib/dates';
 const Tutor = ({ size = 76 }: { size?: number }) => (
   <View
     accessibilityLabel="AI 튜터"
-    className="items-center justify-center self-center rounded-full bg-[#eecaa6]"
+    className="items-center justify-center self-center rounded-full bg-peach"
     style={{ width: size, height: size }}
   >
     <Text style={{ fontSize: size * 0.58 }}>🧑🏻</Text>
@@ -36,7 +37,7 @@ export function QuizHomeScreen() {
   return (
     <Screen>
       <NetBanner />
-      <Text className="pt-4 text-[22px] font-bold text-ink">학습 퀴즈</Text>
+      <Text className="pt-4 text-title2 font-bold text-ink">학습 퀴즈</Text>
       {latest ? (
         <>
           <Card
@@ -44,8 +45,8 @@ export function QuizHomeScreen() {
             onPress={() => router.push({ pathname: '/play/solve', params: { setId: latest._id } })}
             className="mt-4 p-4"
           >
-            <Text className="text-[12px] text-sub">이어서 풀기</Text>
-            <Text className="text-[16px] font-bold text-ink">
+            <Text className="text-caption text-sub">이어서 풀기</Text>
+            <Text className="text-body font-bold text-ink">
               {latest.title} · {latest.questionCount}문제
             </Text>
             <Progress value={100} className="mt-2" />
@@ -64,8 +65,8 @@ export function QuizHomeScreen() {
                 }
                 className="w-[48.5%] p-4"
               >
-                <Text className="text-[22px]">{ic}</Text>
-                <Text className="text-[14px] font-semibold text-ink">{l}</Text>
+                <Text className="text-title2">{ic}</Text>
+                <Text className="text-subhead font-semibold text-ink">{l}</Text>
               </Card>
             ))}
           </View>
@@ -74,10 +75,14 @@ export function QuizHomeScreen() {
         sets.isSuccess && (
           <View className="items-center pt-32">
             <View className="h-14 w-14 items-center justify-center rounded-full bg-sun/25">
-              <Text className="text-[26px]">🧠</Text>
+              <Text className="text-title1">🧠</Text>
             </View>
-            <Text className="mt-4 text-[15px] font-bold text-ink">아직 만들어진 퀴즈가 없어요</Text>
-            <Text className="text-[12px] text-sub">노트를 업로드하면 자동으로 퀴즈가 생성돼요</Text>
+            <Text className="mt-4 text-callout font-bold text-ink">
+              아직 만들어진 퀴즈가 없어요
+            </Text>
+            <Text className="text-caption text-sub">
+              노트를 업로드하면 자동으로 퀴즈가 생성돼요
+            </Text>
             <Btn small className="mt-5 w-56" onPress={() => router.push('/(tabs)/quiz/notes')}>
               노트 업로드하고 퀴즈 만들기
             </Btn>
@@ -99,7 +104,7 @@ function ErrorAlert({ retry }: { retry: () => void }) {
       body={`잠시 후 다시 시도해 주세요.\n작성한 내용은 그대로 보관돼 있어요.`}
       extra={
         <View className="mt-2 rounded border border-line px-1.5">
-          <Text className="text-[11px] text-sub">오류 코드 E-5012</Text>
+          <Text className="text-caption2 text-sub">오류 코드 E-5012</Text>
         </View>
       }
       secondary="닫기"
@@ -145,13 +150,11 @@ export function QuizNotesScreen() {
     <View className="flex-1 bg-white">
       <Screen>
         <NetBanner />
-        <Text className="pt-4 pb-3 text-[16px] font-bold text-ink">
-          어떤 노트로 퀴즈를 만들까요?
-        </Text>
+        <Text className="pt-4 pb-3 text-body font-bold text-ink">어떤 노트로 퀴즈를 만들까요?</Text>
         <Search value={q} onChangeText={setQ} placeholder="노트 검색" />
         {notes.isSuccess && notes.data.length === 0 && (
           <View className="items-center py-16">
-            <Text className="text-[13px] text-sub">아직 노트가 없어요</Text>
+            <Text className="text-footnote text-sub">아직 노트가 없어요</Text>
             <Btn small className="mt-4 w-44" onPress={() => router.navigate('/(tabs)/note')}>
               노트 올리러 가기
             </Btn>
@@ -177,14 +180,14 @@ export function QuizNotesScreen() {
                       i % 2 ? 'bg-sun/30' : 'border border-line bg-white',
                     )}
                   >
-                    <Text className="text-[10px] font-semibold text-ink">
+                    <Text className="text-caption2 font-semibold text-ink">
                       {i % 2 ? '동기화 대기' : '기기에 저장됨'}
                     </Text>
                   </View>
                 )}
               </View>
-              <Text className="mt-2 px-1 text-[13px] font-semibold text-ink">{f.title}</Text>
-              <Text className="px-1 text-[11px] text-sub">
+              <Text className="mt-2 px-1 text-footnote font-semibold text-ink">{f.title}</Text>
+              <Text className="px-1 text-caption2 text-sub">
                 {f.subjectName} · {seoul(f.createdAt).getMonth() + 1}/{seoul(f.createdAt).getDate()}
               </Text>
             </Card>
@@ -192,7 +195,7 @@ export function QuizNotesScreen() {
         </View>
         {offline && (
           <View className="mt-6 rounded-full bg-mint py-2.5">
-            <Text className="text-center text-[12px] font-semibold text-brand">
+            <Text className="text-center text-caption font-semibold text-brand">
               저장된 노트는 그대로 볼 수 있어요
             </Text>
           </View>
@@ -219,10 +222,10 @@ export function QuizNotesScreen() {
                   className="flex-row items-center gap-2"
                 >
                   <View className="rounded-full bg-ink px-3 py-1.5">
-                    <Text className="text-[13px] font-semibold text-white">{l}</Text>
+                    <Text className="text-footnote font-semibold text-white">{l}</Text>
                   </View>
                   <View className="h-11 w-11 items-center justify-center rounded-full bg-white shadow">
-                    <Text className="text-[18px]">{ic}</Text>
+                    <Text className="text-headline">{ic}</Text>
                   </View>
                 </Pressable>
               </Animated.View>
@@ -238,7 +241,7 @@ export function QuizNotesScreen() {
           menu ? 'bg-ink' : 'border border-line bg-white',
         )}
       >
-        {menu ? <X size={22} color="#fff" /> : <Plus size={24} color={C.ink} />}
+        {menu ? <X size={ICON.lg} color="#fff" /> : <Plus size={ICON.lg} color={C.ink} />}
       </Pressable>
     </View>
   );
@@ -292,17 +295,17 @@ export function QuizGenScreen() {
             }}
             className="rounded-full border border-danger/30 px-3 py-1"
           >
-            <Text className="text-[13px] text-danger">취소</Text>
+            <Text className="text-footnote text-danger">취소</Text>
           </Pressable>
         </View>
         <View className="items-center pt-32">
           <View className="h-20 w-20 items-center justify-center rounded-full bg-sun/25">
-            <Text className="text-[34px]">🧠</Text>
+            <Text className="text-large">🧠</Text>
           </View>
-          <Text className="mt-5 text-[15px] font-bold text-ink">문제를 생성하고 있어요</Text>
-          <Text className="text-[12px] text-sub">노트 내용을 분석해서 퀴즈를 만드는 중이에요</Text>
+          <Text className="mt-5 text-callout font-bold text-ink">문제를 생성하고 있어요</Text>
+          <Text className="text-caption text-sub">노트 내용을 분석해서 퀴즈를 만드는 중이에요</Text>
           <Progress value={pct} className="mt-5 w-40" />
-          <Text className="mt-2 text-[11px] text-sub">{pct}%</Text>
+          <Text className="mt-2 text-caption2 text-sub">{pct}%</Text>
         </View>
       </Screen>
       <Alert
@@ -312,7 +315,7 @@ export function QuizGenScreen() {
         body={`문제를 3개까지 만들었어요.\n갱신 후 이어서 만들 수 있어요.`}
         extra={
           <View className="mt-3 w-full">
-            <Text className="text-right text-[11px] text-sub">3 / 5</Text>
+            <Text className="text-right text-caption2 text-sub">3 / 5</Text>
             <Progress value={60} />
           </View>
         }
@@ -349,7 +352,7 @@ export function QuizReadyScreen() {
             onPress={() => router.dismissTo('/(tabs)/quiz')}
             className="mt-2 self-center rounded-full border border-line px-3 py-1"
           >
-            <Text className="text-[12px] text-sub">나중에 풀기</Text>
+            <Text className="text-caption text-sub">나중에 풀기</Text>
           </Pressable>
         </>
       }
@@ -359,10 +362,10 @@ export function QuizReadyScreen() {
           entering={ZoomIn}
           className="h-20 w-20 items-center justify-center rounded-full bg-mint"
         >
-          <Text className="text-[34px]">✅</Text>
+          <Text className="text-large">✅</Text>
         </Animated.View>
-        <Text className="mt-5 text-[17px] font-bold text-ink">총 5문제가 생성됐어요!</Text>
-        <Text className="text-[12px] text-sub">
+        <Text className="mt-5 text-headline font-bold text-ink">총 5문제가 생성됐어요!</Text>
+        <Text className="text-caption text-sub">
           {title ?? '이차방정식 풀이'} 노트를 기반으로 만들었어요
         </Text>
       </View>
@@ -449,7 +452,7 @@ export function QuizSolveScreen() {
       <Screen
         footer={
           pick === null ? (
-            <Btn kind="cream" icon={<Volume2 size={16} color={C.ink} />} onPress={speak}>
+            <Btn kind="cream" icon={<Volume2 size={ICON.sm} color={C.ink} />} onPress={speak}>
               {speaking ? '읽어주는 중… (탭해서 멈춤)' : '음성으로 듣기'}
             </Btn>
           ) : right ? (
@@ -468,11 +471,11 @@ export function QuizSolveScreen() {
       >
         {from === 'room' && (
           <Pressable onPress={() => router.back()} className="mt-3 flex-row items-center gap-2">
-            <ArrowLeft size={16} color={C.ink} />
-            <Text className="text-[13px] text-ink">스터디룸으로</Text>
+            <ArrowLeft size={ICON.sm} color={C.ink} />
+            <Text className="text-footnote text-ink">스터디룸으로</Text>
           </Pressable>
         )}
-        <Text className="pt-8 text-center text-[12px] text-sub">
+        <Text className="pt-8 text-center text-caption text-sub">
           복습 퀴즈 {i + 1} / {qs.length}
         </Text>
         <View className="mt-4">
@@ -480,7 +483,7 @@ export function QuizSolveScreen() {
         </View>
         {pick === null || right === null ? (
           <Animated.View entering={FadeIn}>
-            <Text className="mt-5 text-[15px] leading-6 font-bold text-ink">{q.prompt}</Text>
+            <Text className="mt-5 text-callout leading-6 font-bold text-ink">{q.prompt}</Text>
             <View className="mt-4 gap-2.5">
               {(q.choices ?? []).map((c, n) => (
                 <Pressable
@@ -491,7 +494,7 @@ export function QuizSolveScreen() {
                     pick === c ? 'border-brand bg-mint' : 'border-line active:bg-mint',
                   )}
                 >
-                  <Text className="text-[14px] text-ink">
+                  <Text className="text-subhead text-ink">
                     {'①②③④⑤'[n]} {c}
                   </Text>
                 </Pressable>
@@ -500,10 +503,12 @@ export function QuizSolveScreen() {
           </Animated.View>
         ) : (
           <Animated.View entering={ZoomIn}>
-            <View className={cx('mt-8 rounded-xl py-2.5', right ? 'bg-[#9aa6dd]' : 'bg-danger/10')}>
+            <View
+              className={cx('mt-8 rounded-xl py-2.5', right ? 'bg-correct-soft' : 'bg-danger/10')}
+            >
               <Text
                 className={cx(
-                  'text-center text-[13px] font-semibold',
+                  'text-center text-footnote font-semibold',
                   right ? 'text-white' : 'text-danger',
                 )}
               >
@@ -511,16 +516,16 @@ export function QuizSolveScreen() {
               </Text>
             </View>
             {!right && (
-              <Text className="mt-3 text-center text-[12px] text-sub">내가 고른 답: {pick}</Text>
+              <Text className="mt-3 text-center text-caption text-sub">내가 고른 답: {pick}</Text>
             )}
             <View className="mt-6 flex-row items-center justify-center gap-2">
-              <Text className="text-[13px] text-sub">결과</Text>
+              <Text className="text-footnote text-sub">결과</Text>
               {qs.map((_, n) => (
                 <View
                   key={n}
                   className={cx(
                     'h-3 w-3 rounded-full',
-                    n < results.length ? (results[n] ? 'bg-[#5b74d6]' : 'bg-danger') : 'bg-cream-2',
+                    n < results.length ? (results[n] ? 'bg-correct' : 'bg-danger') : 'bg-cream-2',
                   )}
                 />
               ))}
@@ -580,7 +585,7 @@ export function QuizReviewScreen() {
               onPress={() => router.push({ pathname: '/play/similar', params: { setId } })}
               className="mt-2 self-center rounded-full border border-line px-3 py-1"
             >
-              <Text className="text-[12px] text-sub">유사 퀴즈 생성하기</Text>
+              <Text className="text-caption text-sub">유사 퀴즈 생성하기</Text>
             </Pressable>
           </>
         }
@@ -593,13 +598,13 @@ export function QuizReviewScreen() {
             }}
             className={cx('rounded-full px-3 py-1', select ? 'bg-ink' : 'border border-line')}
           >
-            <Text className={cx('text-[12px]', select ? 'text-white' : 'text-ink')}>
+            <Text className={cx('text-caption', select ? 'text-white' : 'text-ink')}>
               {select ? '취소' : '선택'}
             </Text>
           </Pressable>
         </View>
         <View className="mt-3 rounded-xl bg-mint py-2.5">
-          <Text className="text-center text-[13px] font-semibold text-ink">
+          <Text className="text-center text-footnote font-semibold text-ink">
             🎉 미션 완료! {qs.length}문제를 모두 풀었어요
           </Text>
         </View>
@@ -616,12 +621,12 @@ export function QuizReviewScreen() {
             >
               <View className="flex-row items-start gap-2">
                 <View className="h-5 w-5 items-center justify-center rounded-full bg-brand">
-                  <Text className="text-[10px] text-white">{n + 1}</Text>
+                  <Text className="text-caption2 text-white">{n + 1}</Text>
                 </View>
-                <Text className="flex-1 text-[13px] text-ink">Q. {q.prompt}</Text>
+                <Text className="flex-1 text-footnote text-ink">Q. {q.prompt}</Text>
               </View>
               <View className="mt-2 rounded-lg bg-mint px-3 py-2">
-                <Text className="text-[12px] text-brand">A. {q.answer}</Text>
+                <Text className="text-caption text-brand">A. {q.answer}</Text>
               </View>
             </Pressable>
           ))}
@@ -633,11 +638,11 @@ export function QuizReviewScreen() {
           className="absolute inset-0 z-40 items-center justify-center bg-black/55"
         >
           <Tutor size={96} />
-          <Text className="mt-4 text-[17px] font-bold text-white">퀴즈 풀기 성공!</Text>
-          <Animated.View entering={ZoomIn} className="mt-3 rounded-2xl bg-[#f7f2e6] px-10 py-3">
-            <Text className="text-[18px] font-bold text-brand">+{points}P</Text>
+          <Text className="mt-4 text-headline font-bold text-white">퀴즈 풀기 성공!</Text>
+          <Animated.View entering={ZoomIn} className="mt-3 rounded-2xl bg-cream px-10 py-3">
+            <Text className="text-headline font-bold text-brand">+{points}P</Text>
           </Animated.View>
-          <Text className="mt-6 text-[11px] text-white/60">탭해서 닫기</Text>
+          <Text className="mt-6 text-caption2 text-white/60">탭해서 닫기</Text>
         </Pressable>
       )}
     </View>
@@ -655,21 +660,21 @@ export function QuizExplainScreen() {
         onPress={() => router.back()}
         className="mt-3 flex-row items-center gap-2 self-start rounded-full border border-line px-3 py-1.5"
       >
-        <ArrowLeft size={16} color={C.ink} />
-        <Text className="text-[13px] text-ink">뒤로 가기</Text>
+        <ArrowLeft size={ICON.sm} color={C.ink} />
+        <Text className="text-footnote text-ink">뒤로 가기</Text>
       </Pressable>
-      <Text className="mt-4 text-[16px] font-bold text-ink">AI 설명</Text>
+      <Text className="mt-4 text-body font-bold text-ink">AI 설명</Text>
       <View className="mt-2 rounded-2xl border border-line">
         <View className="border-b border-ink/80 p-3">
-          <Text className="text-[12px] font-semibold text-brand">문제 {q?.order ?? 1}</Text>
-          <Text className="text-[14px] text-ink">{q?.prompt}</Text>
+          <Text className="text-caption font-semibold text-brand">문제 {q?.order ?? 1}</Text>
+          <Text className="text-subhead text-ink">{q?.prompt}</Text>
         </View>
         <View className="p-3 pt-6">
           {ex.data ? (
             ex.data.text.split('\n').map((l) => (
               <Text
                 key={l}
-                className={cx('text-[13px] leading-6 text-ink', l.startsWith('•') && 'pl-2')}
+                className={cx('text-footnote leading-6 text-ink', l.startsWith('•') && 'pl-2')}
               >
                 {l}
               </Text>
@@ -710,20 +715,20 @@ export function QuizSimilarScreen() {
   }
   return (
     <Screen footer={<Btn onPress={() => router.back()}>확인</Btn>}>
-      <Text className="pt-5 text-[16px] font-bold text-ink">유사 퀴즈 생성</Text>
-      <Text className="text-[12px] text-sub">
+      <Text className="pt-5 text-body font-bold text-ink">유사 퀴즈 생성</Text>
+      <Text className="text-caption text-sub">
         원본과 같은 난이도로 {sim.data?.questionCount ?? 3}문제를 새로 만들었어요
       </Text>
       {!sim.data && <Loading />}
       <View className="mt-3 gap-2">
         {sim.data?.questions.map((q, i) => (
           <View key={q._id} className="rounded-2xl border border-line p-3">
-            <Text className="text-[12px] font-semibold text-ink">문제 {i + 1}</Text>
-            <Text className="text-[13px] text-ink">{q.prompt}</Text>
+            <Text className="text-caption font-semibold text-ink">문제 {i + 1}</Text>
+            <Text className="text-footnote text-ink">{q.prompt}</Text>
             {open.includes(q._id) && (
               <Animated.View entering={ZoomIn} className="mt-2 rounded-xl bg-sun/25 px-3 py-2">
-                <Text className="text-[12px] font-semibold text-ink">문제 {i + 1} 정답</Text>
-                <Text className="text-[12px] text-ink">{q.answer}</Text>
+                <Text className="text-caption font-semibold text-ink">문제 {i + 1} 정답</Text>
+                <Text className="text-caption text-ink">{q.answer}</Text>
               </Animated.View>
             )}
             <View className="mt-2 flex-row gap-1.5">
@@ -732,7 +737,7 @@ export function QuizSimilarScreen() {
                   onPress={() => setOpen((p) => [...p, q._id])}
                   className="rounded-full bg-mint px-2.5 py-1"
                 >
-                  <Text className="text-[11px] text-brand">정답 보기</Text>
+                  <Text className="text-caption2 text-brand">정답 보기</Text>
                 </Pressable>
               )}
               <Pressable
@@ -740,7 +745,7 @@ export function QuizSimilarScreen() {
                 onPress={() => save.mutate(q)}
                 className="rounded-full bg-mint px-2.5 py-1"
               >
-                <Text className="text-[11px] text-brand">
+                <Text className="text-caption2 text-brand">
                   {saved.includes(q._id) ? '✓ 저장됨' : '플래시카드 저장'}
                 </Text>
               </Pressable>
@@ -765,8 +770,8 @@ export function FlashScreen() {
         onPress={() => router.back()}
         className="mt-3 flex-row items-center gap-2 self-start rounded-full border border-line px-3 py-1.5"
       >
-        <ArrowLeft size={16} color={C.ink} />
-        <Text className="text-[13px] text-ink">뒤로 가기</Text>
+        <ArrowLeft size={ICON.sm} color={C.ink} />
+        <Text className="text-footnote text-ink">뒤로 가기</Text>
       </Pressable>
       {c && (
         <View className="-mx-5 mt-10 bg-mint/70 px-8 py-1">
@@ -777,11 +782,11 @@ export function FlashScreen() {
             <Animated.Text
               key={`${i}-${back}`}
               entering={FadeIn}
-              className="text-center text-[16px] leading-6 font-bold text-ink"
+              className="text-center text-body leading-6 font-bold text-ink"
             >
               {back ? c.back : c.front}
             </Animated.Text>
-            <Text className="absolute bottom-4 text-[11px] text-sub">탭하여 뒤집기</Text>
+            <Text className="absolute bottom-4 text-caption2 text-sub">탭하여 뒤집기</Text>
           </Pressable>
         </View>
       )}
@@ -794,9 +799,9 @@ export function FlashScreen() {
           }}
           className={i === 0 ? 'opacity-30' : ''}
         >
-          <Text className="text-[13px] text-sub">‹ 이전</Text>
+          <Text className="text-footnote text-sub">‹ 이전</Text>
         </Pressable>
-        <Text className="text-[13px] text-sub">
+        <Text className="text-footnote text-sub">
           {i + 1} / {list.length}
         </Text>
         <Pressable
@@ -807,7 +812,7 @@ export function FlashScreen() {
           }}
           className={i >= list.length - 1 ? 'opacity-30' : ''}
         >
-          <Text className="text-[13px] text-sub">다음 ›</Text>
+          <Text className="text-footnote text-sub">다음 ›</Text>
         </Pressable>
       </View>
     </Screen>
@@ -846,14 +851,14 @@ export function CardsScreen() {
           onPress={() => router.back()}
           className="flex-row items-center gap-2 rounded-full border border-line px-3 py-1.5"
         >
-          <ArrowLeft size={16} color={C.ink} />
-          <Text className="text-[13px] text-ink">뒤로 가기</Text>
+          <ArrowLeft size={ICON.sm} color={C.ink} />
+          <Text className="text-footnote text-ink">뒤로 가기</Text>
         </Pressable>
         <Pressable
           onPress={() => setSelect((x) => !x)}
           className={cx('rounded-full px-3 py-1', select ? 'bg-ink' : 'border border-line')}
         >
-          <Text className={cx('text-[12px]', select ? 'text-white' : 'text-ink')}>
+          <Text className={cx('text-caption', select ? 'text-white' : 'text-ink')}>
             {select ? '취소' : '선택'}
           </Text>
         </Pressable>
@@ -872,7 +877,7 @@ export function CardsScreen() {
               sel.includes(c._id) ? 'border-2 border-brand' : 'border-line',
             )}
           >
-            <Text className="text-center text-[13px] font-semibold text-ink">{c.front}</Text>
+            <Text className="text-center text-footnote font-semibold text-ink">{c.front}</Text>
           </Pressable>
         ))}
       </View>
@@ -893,12 +898,12 @@ export function QuizBoxScreen() {
   return (
     <Screen footer={<Btn onPress={() => router.back()}>확인</Btn>}>
       <View className="flex-row items-center justify-between pt-5">
-        <Text className="text-[16px] font-bold text-ink">퀴즈 보관함</Text>
+        <Text className="text-body font-bold text-ink">퀴즈 보관함</Text>
         <Pressable
           onPress={() => setSelect((x) => !x)}
           className={cx('rounded-full px-3 py-1', select ? 'bg-ink' : 'border border-line')}
         >
-          <Text className={cx('text-[12px]', select ? 'text-white' : 'text-ink')}>
+          <Text className={cx('text-caption', select ? 'text-white' : 'text-ink')}>
             {select ? '완료' : '선택'}
           </Text>
         </Pressable>
@@ -908,13 +913,13 @@ export function QuizBoxScreen() {
           <View key={q._id} className="rounded-2xl bg-cream p-3">
             <View className="flex-row items-start gap-2">
               <View className="h-5 w-5 items-center justify-center rounded-full bg-brand">
-                <Text className="text-[10px] text-white">{n + 1}</Text>
+                <Text className="text-caption2 text-white">{n + 1}</Text>
               </View>
-              <Text className="flex-1 text-[13px] text-ink">Q. {q.prompt}</Text>
+              <Text className="flex-1 text-footnote text-ink">Q. {q.prompt}</Text>
             </View>
             {shown.includes(q._id) && (
               <Animated.View entering={ZoomIn} className="mt-2 rounded-lg bg-mint px-3 py-2">
-                <Text className="text-[12px] text-brand">A. {q.answer}</Text>
+                <Text className="text-caption text-brand">A. {q.answer}</Text>
               </Animated.View>
             )}
             <View className="mt-2 flex-row gap-1.5 pl-7">
@@ -923,14 +928,14 @@ export function QuizBoxScreen() {
                   onPress={() => setShown((p) => [...p, q._id])}
                   className="rounded-full bg-mint px-2.5 py-1"
                 >
-                  <Text className="text-[11px] text-brand">정답 보기</Text>
+                  <Text className="text-caption2 text-brand">정답 보기</Text>
                 </Pressable>
               )}
               <Pressable
                 onPress={() => router.push({ pathname: '/play/explain', params: { qid: q._id } })}
                 className="rounded-full bg-mint px-2.5 py-1"
               >
-                <Text className="text-[11px] text-brand">AI 설명 보기</Text>
+                <Text className="text-caption2 text-brand">AI 설명 보기</Text>
               </Pressable>
               {select && <Badge tone="gray">선택</Badge>}
             </View>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text } from '@/components/text';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { DDay } from '@notelink/shared';
@@ -57,8 +58,8 @@ export function DDayScreen() {
         </Text>
       </View>
       <View className="flex-1">
-        <Text className="text-[15px] font-semibold text-ink">{d.title}</Text>
-        <Text className="text-[12px] text-sub">
+        <Text className="text-callout font-semibold text-ink">{d.title}</Text>
+        <Text className="text-caption text-sub">
           {d.kind} · {d.source === 'todo' ? md(d.date) : d.date.replaceAll('-', '.')}
         </Text>
       </View>
@@ -99,7 +100,7 @@ export function DDayScreen() {
             </Btn>
           </View>
           {!!date && !validYmd(date) && (
-            <Text className="text-[12px] text-danger">날짜를 2026-12-24처럼 입력해 주세요</Text>
+            <Text className="text-caption text-danger">날짜를 2026-12-24처럼 입력해 주세요</Text>
           )}
         </View>
       ) : (
@@ -166,7 +167,7 @@ export function RepeatGoalScreen() {
       footer={
         <>
           {noDays && (
-            <Text className="mb-2 text-center text-[12px] text-danger">요일을 선택해주세요</Text>
+            <Text className="mb-2 text-center text-caption text-danger">요일을 선택해주세요</Text>
           )}
           <Btn
             disabled={noDays || !name.trim()}
@@ -177,7 +178,7 @@ export function RepeatGoalScreen() {
           </Btn>
           {g && (
             <Pressable onPress={() => setDel(true)} className="mt-3">
-              <Text className="text-center text-[13px] text-danger">목표 삭제</Text>
+              <Text className="text-center text-footnote text-danger">목표 삭제</Text>
             </Pressable>
           )}
         </>
@@ -204,7 +205,7 @@ export function RepeatGoalScreen() {
                 on ? 'bg-brand' : 'bg-cream',
               )}
             >
-              <Text className={cx('text-[13px] font-semibold', on ? 'text-white' : 'text-sub')}>
+              <Text className={cx('text-footnote font-semibold', on ? 'text-white' : 'text-sub')}>
                 {d}
               </Text>
             </Pressable>
@@ -218,27 +219,27 @@ export function RepeatGoalScreen() {
           onPress={() => setMin((m) => Math.max(10, m - 10))}
           className="h-10 w-10 items-center justify-center rounded-xl bg-cream"
         >
-          <Text className="text-[20px]">−</Text>
+          <Text className="text-title3">−</Text>
         </Pressable>
-        <Text className="flex-1 text-center text-[18px] font-bold text-ink">{min}분</Text>
+        <Text className="flex-1 text-center text-headline font-bold text-ink">{min}분</Text>
         <Pressable
           accessibilityLabel="늘리기"
           onPress={() => setMin((m) => m + 10)}
           className="h-10 w-10 items-center justify-center rounded-xl bg-cream"
         >
-          <Text className="text-[20px]">+</Text>
+          <Text className="text-title3">+</Text>
         </Pressable>
       </View>
       <Card tone="white" className="mt-3 flex-row items-center px-4 py-3">
         <View className="flex-1">
-          <Text className="text-[14px] font-semibold text-ink">리마인드 알림</Text>
-          <Text className="text-[12px] text-sub">매일 20:00에 알려드려요</Text>
+          <Text className="text-subhead font-semibold text-ink">리마인드 알림</Text>
+          <Text className="text-caption text-sub">매일 20:00에 알려드려요</Text>
         </View>
         <Toggle label="리마인드 알림" on={remind} onChange={setRemind} />
       </Card>
       {g && (
         <View className="mt-3 rounded-xl bg-sun/15 px-3 py-2.5">
-          <Text className="text-[13px] text-ink">🔥 연속 {g.streak}일 달성 중</Text>
+          <Text className="text-footnote text-ink">🔥 연속 {g.streak}일 달성 중</Text>
         </View>
       )}
       <Alert

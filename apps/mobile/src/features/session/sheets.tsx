@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text } from '@/components/text';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { toast } from '@/stores/toast';
@@ -57,8 +58,8 @@ export function AddItemSheet({ open, onClose }: { open: boolean; onClose: () => 
   const names = (subjects.data ?? []).slice(0, 4).map((s) => s.name);
   return (
     <Sheet open={open} onClose={onClose}>
-      <Text className="text-[18px] font-bold text-ink">공부할 항목 추가</Text>
-      <Text className="text-[12px] text-sub">추가한 항목마다 순공시간이 따로 쌓여요</Text>
+      <Text className="text-headline font-bold text-ink">공부할 항목 추가</Text>
+      <Text className="text-caption text-sub">추가한 항목마다 순공시간이 따로 쌓여요</Text>
       <Label>무엇을 공부하나요?</Label>
       <Input
         value={title}
@@ -99,11 +100,11 @@ export function AddItemSheet({ open, onClose }: { open: boolean; onClose: () => 
           onChangeText={(v) => setCustomMin(v.replace(/[^0-9]/g, ''))}
           placeholder="목표 시간 (분)"
           keyboardType="number-pad"
-          right={<Text className="text-[13px] text-sub">분</Text>}
+          right={<Text className="text-footnote text-sub">분</Text>}
         />
       )}
       {typeof input === 'string' && (title || subject === NEW_SUBJECT || goal === '직접 입력') && (
-        <Text className="mt-2 text-[12px] text-danger">{input}</Text>
+        <Text className="mt-2 text-caption text-danger">{input}</Text>
       )}
       <Btn
         className="mt-6"
@@ -123,7 +124,7 @@ const Step = ({ label, d, onPress }: { label: string; d: number; onPress: () => 
     onPress={onPress}
     className="h-10 w-10 items-center justify-center rounded-xl bg-cream"
   >
-    <Text className="text-[20px] text-ink">{d < 0 ? '−' : '+'}</Text>
+    <Text className="text-title3 text-ink">{d < 0 ? '−' : '+'}</Text>
   </Pressable>
 );
 
@@ -149,14 +150,14 @@ export function WeekGoalSheet({ open, onClose }: { open: boolean; onClose: () =>
   });
   return (
     <Sheet open={open} onClose={onClose}>
-      <Text className="text-[18px] font-bold text-ink">이번주 목표 시간</Text>
-      <Text className="text-[12px] text-sub">월요일마다 새로 시작돼요</Text>
+      <Text className="text-headline font-bold text-ink">이번주 목표 시간</Text>
+      <Text className="text-caption text-sub">월요일마다 새로 시작돼요</Text>
       <View className="mt-4 flex-row items-center rounded-2xl border border-brand/40 p-2">
         <Step label="줄이기" d={-0.5} onPress={() => setH((x) => Math.max(1, x - 0.5))} />
-        <Text className="flex-1 text-center text-[24px] font-bold text-ink">{h}시간</Text>
+        <Text className="flex-1 text-center text-title1 font-bold text-ink">{h}시간</Text>
         <Step label="늘리기" d={0.5} onPress={() => setH((x) => x + 0.5)} />
       </View>
-      <Text className="mt-2 text-[12px] text-sub">
+      <Text className="mt-2 text-caption text-sub">
         30분 단위로 조절돼요 · 하루 평균 {Math.round((h / 7) * 10) / 10}시간
       </Text>
       <Label>빠른 선택</Label>
@@ -171,12 +172,12 @@ export function WeekGoalSheet({ open, onClose }: { open: boolean; onClose: () =>
         </View>
       </View>
       <View className="mt-4 rounded-xl bg-sun/15 px-3 py-2.5">
-        <Text className="text-[12px] text-ink">📈 최근 4주 평균은 18시간 30분이에요</Text>
+        <Text className="text-caption text-ink">📈 최근 4주 평균은 18시간 30분이에요</Text>
       </View>
       <Card className="mt-3 flex-row items-center px-4 py-3">
         <View className="flex-1">
-          <Text className="text-[14px] font-semibold text-ink">목표 달성 알림</Text>
-          <Text className="text-[12px] text-sub">80%를 넘으면 알려드려요</Text>
+          <Text className="text-subhead font-semibold text-ink">목표 달성 알림</Text>
+          <Text className="text-caption text-sub">80%를 넘으면 알려드려요</Text>
         </View>
         <Toggle label="목표 달성 알림" on={alarm} onChange={setAlarm} />
       </Card>

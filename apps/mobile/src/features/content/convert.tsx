@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { AppState, Pressable, Text, View } from 'react-native';
+import { AppState, Pressable, View } from 'react-native';
+import { Text } from '@/components/text';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronRight, FileText } from 'lucide-react-native';
@@ -28,7 +29,7 @@ import {
   Toggle,
   cx,
 } from '@/components/ui';
-import { C } from '@/theme';
+import { C, ICON } from '@/theme';
 import { Player } from './player';
 
 // p.66 AI 변환 중 · 정리 완료 / p.98 업로드 · 변환 중 연결 끊김 / p.99 LLM 오류
@@ -173,15 +174,15 @@ export function ConvertScreen() {
       <Screen>
         {phase === 'ai' && net !== 'ok' && (
           <View className="mt-3 rounded-xl border border-brand/30 bg-mint px-4 py-2.5">
-            <Text className="text-[13px] font-semibold text-brand">
+            <Text className="text-footnote font-semibold text-brand">
               ● 앱을 닫아도 서버에서 계속 변환돼요
             </Text>
           </View>
         )}
         {phase === 'ai' && attempts > 1 && (
           <View className="mt-3 rounded-xl bg-sun/20 px-4 py-2.5">
-            <Text className="text-[13px] font-semibold text-ink">AI 응답이 늦어지고 있어요</Text>
-            <Text className="text-[12px] text-sub">
+            <Text className="text-footnote font-semibold text-ink">AI 응답이 늦어지고 있어요</Text>
+            <Text className="text-caption text-sub">
               자동으로 다시 시도하는 중이에요 · 자동 재시도 {attempts} / 3
             </Text>
           </View>
@@ -191,16 +192,16 @@ export function ConvertScreen() {
             onPress={() => setCancel(true)}
             className="rounded-full border border-danger/30 px-3 py-1"
           >
-            <Text className="text-[13px] text-danger">취소</Text>
+            <Text className="text-footnote text-danger">취소</Text>
           </Pressable>
         </View>
         <View className="mt-10 items-center">
           <View className="h-36 w-36 items-center justify-center rounded-full border-4 border-mint">
             <Pie value={pct} size={112} />
           </View>
-          <Text className="mt-2 text-[22px] font-bold text-brand">{pct}%</Text>
-          <Text className="mt-3 text-[16px] font-bold text-ink">{TITLE[draft.kind]}</Text>
-          <Text className="text-[13px] text-sub">
+          <Text className="mt-2 text-title2 font-bold text-brand">{pct}%</Text>
+          <Text className="mt-3 text-body font-bold text-ink">{TITLE[draft.kind]}</Text>
+          <Text className="text-footnote text-sub">
             {phase === 'upload'
               ? `원본을 올리는 중이에요 · ${uploadPct}%`
               : '잠시만 기다려주세요...'}
@@ -211,7 +212,7 @@ export function ConvertScreen() {
             <Text
               key={s}
               className={cx(
-                'text-[14px]',
+                'text-subhead',
                 i < step ? 'text-brand' : i === step ? 'font-bold text-ink' : 'text-sub',
               )}
             >
@@ -221,14 +222,14 @@ export function ConvertScreen() {
         </View>
         {phase === 'ai' && (net !== 'ok' || inBg) && (
           <Card tone="white" className="mt-8 flex-row items-center px-4 py-3">
-            <Text className="flex-1 text-[13px] font-semibold text-ink">
+            <Text className="flex-1 text-footnote font-semibold text-ink">
               변환이 끝나면 알림으로{'\n'}알려드려요
             </Text>
             <Toggle label="완료 알림" on={notify} onChange={setNotify} />
           </Card>
         )}
         {attempts > 1 && (
-          <Text className="mt-6 text-center text-[11px] text-sub">
+          <Text className="mt-6 text-center text-caption2 text-sub">
             응답이 이상하면 1회 다시 요청한 뒤 안내해요
           </Text>
         )}
@@ -237,19 +238,19 @@ export function ConvertScreen() {
       <Sheet open={phase === 'paused'} onClose={() => router.back()}>
         <View className="rounded-xl border border-line p-3">
           <View className="flex-row justify-between">
-            <Text className="text-[15px] font-bold text-ink">업로드가 잠시 멈췄어요</Text>
-            <Text className="text-[12px] text-sub">
+            <Text className="text-callout font-bold text-ink">업로드가 잠시 멈췄어요</Text>
+            <Text className="text-caption text-sub">
               {uploaded + 1}/{draft.files.length}
             </Text>
           </View>
-          <Text className="text-[12px] text-sub">{draft.files[uploaded]?.name}</Text>
+          <Text className="text-caption text-sub">{draft.files[uploaded]?.name}</Text>
           <Progress value={uploadPct} className="mt-3" />
-          <Text className="mt-2 text-[12px] text-sub">
+          <Text className="mt-2 text-caption text-sub">
             {uploadPct}% 올렸어요 · 연결되면 끊긴 지점부터 이어서 올려요
           </Text>
         </View>
         <View className="mt-2 rounded-xl bg-mint px-3 py-2.5">
-          <Text className="text-[13px] text-brand">✓ 원본은 기기에 보관 중이에요</Text>
+          <Text className="text-footnote text-brand">✓ 원본은 기기에 보관 중이에요</Text>
         </View>
         <Btn className="mt-3" onPress={run}>
           지금 다시 시도
@@ -332,7 +333,7 @@ export function ResultScreen() {
         <>
           <Header title="노트 정리 완료" large={false} />
           <View className="mb-3 flex-row items-center gap-2">
-            <Text className="text-[19px] font-bold text-ink">이차방정식 풀이</Text>
+            <Text className="text-title3 font-bold text-ink">이차방정식 풀이</Text>
             <Badge>수학</Badge>
           </View>
           <NoteBody sections={mat.summary?.sections ?? []} />
@@ -346,8 +347,8 @@ export function ResultScreen() {
             }
             className="mt-3 flex-row items-center px-4 py-3"
           >
-            <Text className="flex-1 text-[13px] text-ink">🖼 원본 필기 보기</Text>
-            <ChevronRight size={16} color={C.sub} />
+            <Text className="flex-1 text-footnote text-ink">🖼 원본 필기 보기</Text>
+            <ChevronRight size={ICON.sm} color={C.sub} />
           </Card>
         </>
       )}
@@ -356,7 +357,9 @@ export function ResultScreen() {
           <Header title="녹음 요약 정리" />
           <View className="-mt-2 mb-3 flex-row items-center gap-2">
             <Badge>화학</Badge>
-            <Text className="text-[13px] font-semibold text-sub">이온화 에너지와 원자 반지름</Text>
+            <Text className="text-footnote font-semibold text-sub">
+              이온화 에너지와 원자 반지름
+            </Text>
           </View>
           <Player materialId={id} />
         </>
@@ -382,8 +385,8 @@ export const NoteBody = ({ sections }: { sections: { heading: string; body: stri
   <View className="gap-5 rounded-2xl bg-cream p-4">
     {sections.map((s) => (
       <View key={s.heading}>
-        <Text className="text-[14px] font-bold text-ink">{s.heading}</Text>
-        <Text className="mt-0.5 text-[12px] text-ink/70">{s.body}</Text>
+        <Text className="text-subhead font-bold text-ink">{s.heading}</Text>
+        <Text className="mt-0.5 text-caption text-ink/70">{s.body}</Text>
       </View>
     ))}
   </View>
@@ -405,21 +408,21 @@ export function DocSummary({
       {file && (
         <View className="flex-row items-center gap-3 rounded-2xl bg-cream p-3">
           <View className="h-11 w-11 items-center justify-center rounded-lg bg-mint">
-            <FileText size={18} color={C.sub} />
+            <FileText size={ICON.md} color={C.sub} />
           </View>
           <View className="flex-1">
-            <Text className="text-[15px] font-bold text-ink">{file.name}</Text>
-            <Text className="text-[12px] text-sub">{file.meta}</Text>
+            <Text className="text-callout font-bold text-ink">{file.name}</Text>
+            <Text className="text-caption text-sub">{file.meta}</Text>
           </View>
           <Badge>수학</Badge>
         </View>
       )}
-      <Text className="mt-5 mb-2 text-[14px] font-bold text-ink">📌 핵심 요약</Text>
+      <Text className="mt-5 mb-2 text-subhead font-bold text-ink">📌 핵심 요약</Text>
       <View className="gap-3 rounded-2xl bg-cream p-4">
         {points.map((p) => (
           <View key={p} className="flex-row gap-2">
             <Text className="text-brand">•</Text>
-            <Text className="flex-1 text-[13px] text-ink">{p}</Text>
+            <Text className="flex-1 text-footnote text-ink">{p}</Text>
           </View>
         ))}
       </View>
@@ -433,8 +436,8 @@ export function DocSummary({
       </View>
       {onOriginal && (
         <Card tone="white" onPress={onOriginal} className="mt-4 flex-row items-center px-4 py-3">
-          <Text className="flex-1 text-[14px] text-ink">📄 원본 문서 보기</Text>
-          <ChevronRight size={16} color={C.sub} />
+          <Text className="flex-1 text-subhead text-ink">📄 원본 문서 보기</Text>
+          <ChevronRight size={ICON.sm} color={C.sub} />
         </Card>
       )}
     </>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, View } from 'react-native';
+import { Text, TextInput } from '@/components/text';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -43,7 +44,7 @@ import {
 } from '@/components/ui';
 import { useAuth } from '@/stores/auth';
 import { useNet } from '@/stores/net';
-import { C } from '@/theme';
+import { C, ICON } from '@/theme';
 import { useLiveRoom } from '@/lib/livekit';
 
 // p.75 스터디룸 입장 · 만들기 / p.76 진입 · 채팅 / p.77 카드 / p.100 연결 끊김
@@ -69,15 +70,15 @@ export function RoomListScreen() {
   return (
     <View className="flex-1 bg-white">
       <Screen>
-        <Text className="pt-4 pb-3 text-[22px] font-bold text-ink">스터디룸</Text>
+        <Text className="pt-4 pb-3 text-title2 font-bold text-ink">스터디룸</Text>
         <View className="h-11 flex-row items-center rounded-xl bg-cream px-4">
-          <SearchIcon size={16} color={C.sub} />
+          <SearchIcon size={ICON.sm} color={C.sub} />
           <TextInput
             value={q}
             onChangeText={setQ}
             placeholder="스터디룸 검색"
             placeholderTextColor={C.sub}
-            className="ml-2 h-11 flex-1 text-[14px] text-ink"
+            className="ml-2 h-11 flex-1 text-subhead text-ink"
           />
         </View>
         {joined.length ? (
@@ -90,10 +91,10 @@ export function RoomListScreen() {
                 onPress={() => router.push({ pathname: '/room/[id]', params: { id: r._id } })}
                 className="mb-2 flex-row items-center gap-3 p-4"
               >
-                <Text className="text-[20px]">👥</Text>
+                <Text className="text-title3">👥</Text>
                 <View className="flex-1">
-                  <Text className="text-[15px] font-bold text-ink">{r.title}</Text>
-                  <Text className="text-[12px] text-sub">
+                  <Text className="text-callout font-bold text-ink">{r.title}</Text>
+                  <Text className="text-caption text-sub">
                     {r.memberCount}명 · 코드 {r.inviteCode}
                   </Text>
                 </View>
@@ -115,10 +116,12 @@ export function RoomListScreen() {
         ) : (
           <View className="items-center py-10">
             <View className="h-14 w-14 items-center justify-center rounded-full bg-mint">
-              <Text className="text-[24px]">👥</Text>
+              <Text className="text-title1">👥</Text>
             </View>
-            <Text className="mt-3 text-[15px] font-bold text-ink">참여 중인 스터디룸이 없어요</Text>
-            <Text className="text-[12px] text-sub">친구와 함께 모여 실시간으로 공부해보세요</Text>
+            <Text className="mt-3 text-callout font-bold text-ink">
+              참여 중인 스터디룸이 없어요
+            </Text>
+            <Text className="text-caption text-sub">친구와 함께 모여 실시간으로 공부해보세요</Text>
             <Btn
               className="mt-5 w-48"
               small
@@ -126,17 +129,17 @@ export function RoomListScreen() {
             >
               스터디룸 만들기
             </Btn>
-            <Text className="mt-2 text-[11px] text-sub">또는</Text>
+            <Text className="mt-2 text-caption2 text-sub">또는</Text>
             <Pressable
               onPress={() => setCode(true)}
               className="mt-1 rounded-full border border-brand/40 px-4 py-1.5"
             >
-              <Text className="text-[13px] text-brand">코드로 참여하기</Text>
+              <Text className="text-footnote text-brand">코드로 참여하기</Text>
             </Pressable>
           </View>
         )}
         <Label>
-          <Text className="text-[13px] font-bold text-ink">추천 스터디룸</Text>
+          <Text className="text-footnote font-bold text-ink">추천 스터디룸</Text>
         </Label>
         <View className="gap-2">
           {rec.data
@@ -149,7 +152,7 @@ export function RoomListScreen() {
                 className="p-4"
               >
                 <View className="flex-row items-center justify-between">
-                  <Text className="text-[14px] font-bold text-ink">{r.title}</Text>
+                  <Text className="text-subhead font-bold text-ink">{r.title}</Text>
                   <Badge>{`${r.memberCount}명 참여`}</Badge>
                 </View>
                 <View className="mt-1.5 flex-row gap-1">
@@ -157,17 +160,17 @@ export function RoomListScreen() {
                     <Badge key={t}>{t}</Badge>
                   ))}
                 </View>
-                <Text className="mt-1.5 text-[12px] text-sub">{r.description}</Text>
+                <Text className="mt-1.5 text-caption text-sub">{r.description}</Text>
               </Card>
             ))}
         </View>
       </Screen>
       <Dialog open={code} onClose={() => setCode(false)}>
         <View className="h-11 w-11 items-center justify-center rounded-full bg-mint">
-          <Lock size={18} color={C.brand} />
+          <Lock size={ICON.md} color={C.brand} />
         </View>
-        <Text className="mt-2 text-[16px] font-bold text-ink">코드 입력</Text>
-        <Text className="text-[12px] text-sub">코드를 입력해주세요</Text>
+        <Text className="mt-2 text-body font-bold text-ink">코드 입력</Text>
+        <Text className="text-caption text-sub">코드를 입력해주세요</Text>
         <TextInput
           autoFocus
           value={v}
@@ -182,7 +185,7 @@ export function RoomListScreen() {
           placeholder="예) AB3F9K"
           placeholderTextColor={C.sub}
           autoCapitalize="characters"
-          className="mt-4 h-14 w-full rounded-xl border-2 border-brand/30 text-center font-mono text-[20px] tracking-[6px] text-ink"
+          className="mt-4 h-14 w-full rounded-xl border-2 border-brand/30 text-center tabular-nums text-title3 tracking-[6px] text-ink"
         />
         <View className="mt-4 w-full">
           <Two>
@@ -221,11 +224,11 @@ export function RoomCreateScreen() {
     <Screen>
       <Header title="스터디룸 만들기" center />
       <Label>
-        <Text className="text-[13px] font-bold text-ink">스터디룸 이름</Text>
+        <Text className="text-footnote font-bold text-ink">스터디룸 이름</Text>
       </Label>
       <Input value={name} onChangeText={setName} placeholder="예) 파이썬 기초 스터디" autoFocus />
       <Label>
-        <Text className="text-[13px] font-bold text-ink">카테고리</Text>
+        <Text className="text-footnote font-bold text-ink">카테고리</Text>
       </Label>
       <View className="flex-row gap-2">
         {['코딩', '자격증', '수학', '영어'].map((c) => (
@@ -235,7 +238,7 @@ export function RoomCreateScreen() {
         ))}
       </View>
       <Label>
-        <Text className="text-[13px] font-bold text-ink">공개 여부</Text>
+        <Text className="text-footnote font-bold text-ink">공개 여부</Text>
       </Label>
       <View className="flex-row gap-3">
         {(
@@ -252,8 +255,8 @@ export function RoomCreateScreen() {
               pub === v ? 'border-brand bg-mint' : 'border-transparent bg-cream',
             )}
           >
-            <Text className="text-[26px]">{ic}</Text>
-            <Text className="text-[13px] font-semibold text-ink">{l}</Text>
+            <Text className="text-title1">{ic}</Text>
+            <Text className="text-footnote font-semibold text-ink">{l}</Text>
           </Pressable>
         ))}
       </View>
@@ -415,33 +418,33 @@ export function RoomScreen() {
     <Screen scroll={false} pad={false}>
       {conn === 'lost' && (
         <View className="bg-sun/25 px-5 py-2">
-          <Text className="text-[12px] font-semibold text-ink">
+          <Text className="text-caption font-semibold text-ink">
             ● 연결이 끊겼어요 · 다시 연결 중…
           </Text>
         </View>
       )}
       {conn === 'back' && (
         <View className="mx-4 mt-2 rounded-xl bg-ink px-4 py-2.5">
-          <Text className="text-[12px] font-bold text-white">다시 연결됐어요</Text>
-          <Text className="text-[12px] text-white/60">멤버 상태를 최신으로 맞췄어요</Text>
+          <Text className="text-caption font-bold text-white">다시 연결됐어요</Text>
+          <Text className="text-caption text-white/60">멤버 상태를 최신으로 맞췄어요</Text>
         </View>
       )}
       {!chat && (
         <View className="px-5">
           <View className="h-11 flex-row items-center justify-between">
             <Pressable accessibilityLabel="나가기" onPress={() => router.back()} hitSlop={10}>
-              <ArrowLeft size={22} color={C.ink} />
+              <ArrowLeft size={ICON.lg} color={C.ink} />
             </Pressable>
             <Pressable
               accessibilityLabel="세부 설정"
               onPress={() => router.push({ pathname: '/room/settings', params: { id } })}
               hitSlop={10}
             >
-              <Settings size={20} color={C.ink} />
+              <Settings size={ICON.md} color={C.ink} />
             </Pressable>
           </View>
           <View className="flex-row items-center justify-between">
-            <Text className="text-[19px] font-bold text-ink">{room.data.title}</Text>
+            <Text className="text-title3 font-bold text-ink">{room.data.title}</Text>
             <View className="flex-row gap-1">
               {timer && <Badge tone="dark">{`⏱ ${timer.label} ${hms(remain).slice(3)}`}</Badge>}
               <Badge tone="gray">{`${members.length}명 접속중`}</Badge>
@@ -466,13 +469,13 @@ export function RoomScreen() {
                 <View className="absolute top-2.5 right-2.5 h-1.5 w-1.5 rounded-full bg-sun" />
               )}
               {!camOn && (
-                <Text className={chat ? 'text-[20px]' : 'text-[30px]'}>{m.avatarUrl ?? '🙂'}</Text>
+                <Text className={chat ? 'text-title3' : 'text-large'}>{m.avatarUrl ?? '🙂'}</Text>
               )}
-              <Text className={cx('text-[13px] font-bold', camOn ? 'text-white' : 'text-ink')}>
+              <Text className={cx('text-footnote font-bold', camOn ? 'text-white' : 'text-ink')}>
                 {m.nickname}
               </Text>
               <Text
-                className={cx('font-mono text-[12px]', camOn ? 'text-white/70' : 'text-ink/60')}
+                className={cx('tabular-nums text-caption', camOn ? 'text-white/70' : 'text-ink/60')}
               >
                 {conn === 'lost' && !me
                   ? '연결 확인 중'
@@ -485,7 +488,7 @@ export function RoomScreen() {
               </Text>
               {!chat && !(me ? live.micOn : m.micOn) && (
                 <View className="absolute bottom-2.5 left-2.5">
-                  <MicOff size={12} color={camOn ? 'rgba(255,255,255,.5)' : C.sub} />
+                  <MicOff size={ICON.xs} color={camOn ? 'rgba(255,255,255,.5)' : C.sub} />
                 </View>
               )}
             </View>
@@ -505,12 +508,14 @@ export function RoomScreen() {
             const mine = m.senderId === myId;
             return (
               <View className={cx(mine && 'items-end')}>
-                {!mine && <Text className="mb-1 text-[11px] text-sub">💬 {m.senderNickname}</Text>}
+                {!mine && (
+                  <Text className="mb-1 text-caption2 text-sub">💬 {m.senderNickname}</Text>
+                )}
                 <View className="max-w-[78%] rounded-2xl bg-white px-3 py-2">
-                  <Text className="text-[13px] text-ink">{m.text}</Text>
+                  <Text className="text-footnote text-ink">{m.text}</Text>
                 </View>
                 {mine && conn === 'back' && m === msgs[msgs.length - 1] && (
-                  <Text className="mt-1 text-[10px] text-brand">자동으로 전송했어요</Text>
+                  <Text className="mt-1 text-caption2 text-brand">자동으로 전송했어요</Text>
                 )}
               </View>
             );
@@ -523,7 +528,11 @@ export function RoomScreen() {
               on={live.micOn}
               onPress={live.toggleMic}
               icon={
-                live.micOn ? <Mic size={16} color={C.ink} /> : <MicOff size={16} color={C.sub} />
+                live.micOn ? (
+                  <Mic size={ICON.sm} color={C.ink} />
+                ) : (
+                  <MicOff size={ICON.sm} color={C.sub} />
+                )
               }
               label={`내 마이크 ${live.micOn ? '켜짐' : '꺼짐'}`}
             />
@@ -532,9 +541,9 @@ export function RoomScreen() {
               onPress={live.toggleCam}
               icon={
                 live.camOn ? (
-                  <Camera size={16} color={C.ink} />
+                  <Camera size={ICON.sm} color={C.ink} />
                 ) : (
-                  <CameraOff size={16} color={C.sub} />
+                  <CameraOff size={ICON.sm} color={C.sub} />
                 )
               }
               label={`내 카메라 ${live.camOn ? '켜짐' : '꺼짐'}`}
@@ -543,7 +552,11 @@ export function RoomScreen() {
               on={hear}
               onPress={() => setHear((h) => !h)}
               icon={
-                hear ? <Volume2 size={16} color={C.ink} /> : <VolumeX size={16} color={C.sub} />
+                hear ? (
+                  <Volume2 size={ICON.sm} color={C.ink} />
+                ) : (
+                  <VolumeX size={ICON.sm} color={C.sub} />
+                )
               }
               label={`듣기 ${hear ? '켜짐' : '꺼짐'}`}
               sub="내 학습하는 소리만"
@@ -552,7 +565,7 @@ export function RoomScreen() {
           </View>
           <View className="mt-2 flex-row items-center rounded-2xl border border-line px-3 py-2.5">
             <Pressable onPress={() => setChat(true)} className="flex-1">
-              <Text numberOfLines={1} className="text-[12px] text-sub">
+              <Text numberOfLines={1} className="text-caption text-sub">
                 💬{' '}
                 {last
                   ? `${last.senderId === myId ? '나' : last.senderNickname}: ${last.text}`
@@ -567,7 +580,7 @@ export function RoomScreen() {
                 menu ? 'bg-ink' : 'bg-mint',
               )}
             >
-              {menu ? <X size={16} color="#fff" /> : <Plus size={16} color={C.brand} />}
+              {menu ? <X size={ICON.sm} color="#fff" /> : <Plus size={ICON.sm} color={C.brand} />}
             </Pressable>
           </View>
         </View>
@@ -575,7 +588,7 @@ export function RoomScreen() {
       <View className="flex-row items-center gap-2 px-4 pt-2 pb-3">
         <View className="flex-1 flex-row items-center gap-2 rounded-full bg-cream px-3">
           <View className="h-6 w-6 items-center justify-center rounded-full bg-ink">
-            <Plus size={14} color="#fff" />
+            <Plus size={ICON.xs} color="#fff" />
           </View>
           <TextInput
             value={v}
@@ -585,16 +598,16 @@ export function RoomScreen() {
             returnKeyType="send"
             placeholder="채팅을 입력하는 중입"
             placeholderTextColor={C.sub}
-            className="h-11 flex-1 text-[13px] text-ink"
+            className="h-11 flex-1 text-footnote text-ink"
           />
-          <Smile size={18} color={C.sun} />
+          <Smile size={ICON.md} color={C.sun} />
         </View>
         <Pressable
           accessibilityLabel="전송"
           onPress={send}
           className="h-9 w-9 items-center justify-center rounded-lg bg-ink"
         >
-          <Send size={15} color="#fff" />
+          <Send size={ICON.sm} color="#fff" />
         </Pressable>
       </View>
       {chat && (
@@ -602,7 +615,7 @@ export function RoomScreen() {
           onPress={() => setChat(false)}
           className="absolute top-2 right-3 rounded-full bg-black/40 px-2 py-0.5"
         >
-          <Text className="text-[11px] text-white">캠 보기</Text>
+          <Text className="text-caption2 text-white">캠 보기</Text>
         </Pressable>
       )}
 
@@ -624,14 +637,14 @@ export function RoomScreen() {
               }}
               className="items-center rounded-xl px-3 py-1.5 active:bg-cream"
             >
-              <Text className="text-[18px]">{ic}</Text>
-              <Text className="text-[10px] text-ink">{l}</Text>
+              <Text className="text-headline">{ic}</Text>
+              <Text className="text-caption2 text-ink">{l}</Text>
             </Pressable>
           ))}
         </View>
       )}
       <Dialog open={pick} onClose={() => setPick(false)}>
-        <Text className="mb-4 text-[15px] font-bold text-ink">학습 자료 유형 선택</Text>
+        <Text className="mb-4 text-callout font-bold text-ink">학습 자료 유형 선택</Text>
         <View className="w-full flex-row gap-2">
           <Pressable
             onPress={() => {
@@ -640,7 +653,7 @@ export function RoomScreen() {
             }}
             className="h-20 flex-1 items-center justify-center rounded-2xl bg-mint"
           >
-            <Text className="text-[14px] font-semibold text-ink">📝 퀴즈</Text>
+            <Text className="text-subhead font-semibold text-ink">📝 퀴즈</Text>
           </Pressable>
           <Pressable
             onPress={() => {
@@ -649,7 +662,7 @@ export function RoomScreen() {
             }}
             className="h-20 flex-1 items-center justify-center rounded-2xl bg-mint"
           >
-            <Text className="text-[14px] font-semibold text-ink">🃏 플래시 카드</Text>
+            <Text className="text-subhead font-semibold text-ink">🃏 플래시 카드</Text>
           </Pressable>
         </View>
       </Dialog>
@@ -685,15 +698,15 @@ const Ctl = ({
     onPress={onPress}
     accessibilityState={{ selected: on }}
     className={cx(
-      'h-[58px] flex-1 items-center justify-center rounded-xl',
-      strong && on ? 'border border-brand/30 bg-mint' : 'bg-[#f2f4f8]',
+      'h-14 flex-1 items-center justify-center rounded-xl',
+      strong && on ? 'border border-brand/30 bg-mint' : 'bg-cream',
     )}
   >
     {icon}
-    <Text className={cx('mt-0.5 text-[10px] font-semibold', on ? 'text-ink' : 'text-sub')}>
+    <Text className={cx('mt-0.5 text-caption2 font-semibold', on ? 'text-ink' : 'text-sub')}>
       {label}
     </Text>
-    {sub && <Text className="text-[9px] text-sub">{sub}</Text>}
+    {sub && <Text className="text-caption2 text-sub">{sub}</Text>}
   </Pressable>
 );
 
@@ -707,10 +720,12 @@ export function RoomCardsScreen() {
         onPress={() => router.back()}
         className="mt-3 flex-row items-center gap-2 self-start rounded-full border border-line px-3 py-1.5"
       >
-        <ArrowLeft size={16} color={C.ink} />
-        <Text className="text-[13px] text-ink">뒤로 가기</Text>
+        <ArrowLeft size={ICON.sm} color={C.ink} />
+        <Text className="text-footnote text-ink">뒤로 가기</Text>
       </Pressable>
-      <Text className="mt-3 text-[12px] text-sub">수민님이 공유한 플래시 카드 · 탭해서 뒤집기</Text>
+      <Text className="mt-3 text-caption text-sub">
+        수민님이 공유한 플래시 카드 · 탭해서 뒤집기
+      </Text>
       <View className="mt-3 flex-row flex-wrap justify-between gap-y-3">
         {shared.data?.flashcards.map((c) => {
           const on = flip.includes(c._id);
@@ -725,7 +740,7 @@ export function RoomCardsScreen() {
             >
               <Text
                 className={cx(
-                  'text-center text-[13px] font-semibold',
+                  'text-center text-footnote font-semibold',
                   on ? 'text-white' : 'text-ink',
                 )}
               >

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Image, Pressable, Text, TextInput, View } from 'react-native';
+import { Image, Pressable, View } from 'react-native';
+import { Text, TextInput } from '@/components/text';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
@@ -41,7 +42,7 @@ import {
   cx,
 } from '@/components/ui';
 import { useAuth } from '@/stores/auth';
-import { C } from '@/theme';
+import { C, ICON } from '@/theme';
 
 // p.78 신고 / p.79 타이머 / p.80 시간표 · OS 캘린더 / p.81 세부 설정 · 초대 · 나가기
 
@@ -112,50 +113,50 @@ export function ReportScreen() {
       >
         <Header title="신고" center />
         <View className="rounded-2xl border border-line p-4">
-          <Text className="mb-1.5 text-[12px] text-sub">신고 대상</Text>
+          <Text className="mb-1.5 text-caption text-sub">신고 대상</Text>
           <Pressable
             onPress={() => setSheet('target')}
-            className="flex-row items-center gap-3 rounded-xl bg-[#eef1f2] px-3 py-2.5"
+            className="flex-row items-center gap-3 rounded-xl bg-cream px-3 py-2.5"
           >
             {target ? (
               <>
                 <Avatar name={target.name} size={30} />
-                <Text className="flex-1 text-[13px] font-semibold text-ink">{target.name}</Text>
+                <Text className="flex-1 text-footnote font-semibold text-ink">{target.name}</Text>
               </>
             ) : (
-              <Text className="flex-1 text-[13px] text-sub">신고할 사람을 골라 주세요</Text>
+              <Text className="flex-1 text-footnote text-sub">신고할 사람을 골라 주세요</Text>
             )}
-            <ChevronDown size={16} color={C.sub} />
+            <ChevronDown size={ICON.sm} color={C.sub} />
           </Pressable>
-          <Text className="mt-4 mb-1.5 text-[12px] text-sub">신고 유형 선택</Text>
+          <Text className="mt-4 mb-1.5 text-caption text-sub">신고 유형 선택</Text>
           <Pressable
             onPress={() => setSheet('type')}
-            className="h-11 flex-row items-center justify-between rounded-xl bg-[#eef1f2] px-3"
+            className="h-11 flex-row items-center justify-between rounded-xl bg-cream px-3"
           >
-            <Text className={cx('text-[13px]', type ? 'text-ink' : 'text-sub')}>
+            <Text className={cx('text-footnote', type ? 'text-ink' : 'text-sub')}>
               {REPORT_TYPES.find((x) => x[0] === type)?.[1] ?? '신고 유형을 골라 주세요'}
             </Text>
-            <ChevronDown size={16} color={C.sub} />
+            <ChevronDown size={ICON.sm} color={C.sub} />
           </Pressable>
-          <Text className="mt-4 mb-1.5 text-[12px] text-sub">신고 내용</Text>
+          <Text className="mt-4 mb-1.5 text-caption text-sub">신고 내용</Text>
           <TextInput
             multiline
             value={body}
             onChangeText={setBody}
             placeholder="신고 사유를 자세히 입력해 주세요. (10자 이상)"
             placeholderTextColor={C.sub}
-            className="h-32 rounded-xl bg-[#eef1f2] p-3 text-[13px] text-ink"
+            className="h-32 rounded-xl bg-cream p-3 text-footnote text-ink"
             style={{ textAlignVertical: 'top' }}
           />
           <Text
             className={cx(
-              'mt-1 text-right text-[11px]',
+              'mt-1 text-right text-caption2',
               body.trim().length < MIN_REPORT_CHARS ? 'text-danger' : 'text-sub',
             )}
           >
             {body.trim().length}/{MIN_REPORT_CHARS}자 이상
           </Text>
-          <Text className="mt-4 mb-1.5 text-[12px] text-sub">사진 첨부</Text>
+          <Text className="mt-4 mb-1.5 text-caption text-sub">사진 첨부</Text>
           <View className="flex-row gap-2">
             {photos.map((u) => (
               <Image key={u} source={{ uri: u }} className="h-14 w-14 rounded-xl" />
@@ -165,21 +166,21 @@ export function ReportScreen() {
                 onPress={addPhoto}
                 className="h-14 w-14 items-center justify-center rounded-xl border border-line"
               >
-                <Camera size={16} color={C.sub} />
-                <Text className="text-[10px] text-sub">
+                <Camera size={ICON.sm} color={C.sub} />
+                <Text className="text-caption2 text-sub">
                   {photos.length}/{MAX_REPORT_PHOTOS}
                 </Text>
               </Pressable>
             )}
           </View>
           <View className="mt-4 rounded-xl bg-mint/60 p-3">
-            <Text className="mb-1 text-[11px] font-semibold text-ink">신고 안내</Text>
+            <Text className="mb-1 text-caption2 font-semibold text-ink">신고 안내</Text>
             {[
               '• 허위 신고 시 이용이 제한될 수 있습니다.',
               '• 신고는 검토 후 처리되며 1~3일이 소요됩니다.',
               '• 긴급 상황은 고객센터로 문의해 주세요.',
             ].map((t) => (
-              <Text key={t} className="text-[11px] text-sub">
+              <Text key={t} className="text-caption2 text-sub">
                 {t}
               </Text>
             ))}
@@ -195,7 +196,7 @@ export function ReportScreen() {
                 setChosen(m.userId);
                 setSheet(null);
               }}
-              right={target?.id === m.userId && <Check size={16} color={C.brand} />}
+              right={target?.id === m.userId && <Check size={ICON.sm} color={C.brand} />}
             >
               {m.nickname}
             </Row>
@@ -211,7 +212,7 @@ export function ReportScreen() {
                 setType(k);
                 setSheet(null);
               }}
-              right={type === k && <Check size={16} color={C.brand} />}
+              right={type === k && <Check size={ICON.sm} color={C.brand} />}
             >
               {l}
             </Row>
@@ -219,8 +220,8 @@ export function ReportScreen() {
         </Group>
       </Sheet>
       <Dialog open={done}>
-        <Text className="text-[16px] font-bold text-ink">신고 완료</Text>
-        <Text className="mt-1 text-[12px] text-sub">검토 후 1~3일 안에 결과를 알려드려요</Text>
+        <Text className="text-body font-bold text-ink">신고 완료</Text>
+        <Text className="mt-1 text-caption text-sub">검토 후 1~3일 안에 결과를 알려드려요</Text>
         <Btn
           small
           kind="outline"
@@ -294,20 +295,20 @@ export function TimerScreen() {
             onPress={() => router.back()}
             className="h-9 w-9 items-center justify-center rounded-full bg-cream"
           >
-            <ChevronLeft size={18} color={C.ink} />
+            <ChevronLeft size={ICON.md} color={C.ink} />
           </Pressable>
           <View className="flex-1">
-            <Text className="text-[16px] font-bold text-ink">방 시간 규칙</Text>
-            <Text className="text-[11px] text-sub">방장 전용 · 멤버 전원</Text>
+            <Text className="text-body font-bold text-ink">방 시간 규칙</Text>
+            <Text className="text-caption2 text-sub">방장 전용 · 멤버 전원</Text>
           </View>
           <Pressable accessibilityLabel="도움말" onPress={() => setHelp(true)}>
-            <HelpCircle size={20} color={C.sub} />
+            <HelpCircle size={ICON.md} color={C.sub} />
           </Pressable>
         </View>
         <View className="mt-5 flex-row items-start justify-between">
           <View className="flex-1">
-            <Text className="text-[18px] font-bold text-ink">함께 공부할 리듬을 정해요</Text>
-            <Text className="text-[12px] text-sub">
+            <Text className="text-headline font-bold text-ink">함께 공부할 리듬을 정해요</Text>
+            <Text className="text-caption text-sub">
               설정한 시간은 모든 참여자에게 동시에 적용돼요.
             </Text>
           </View>
@@ -315,7 +316,7 @@ export function TimerScreen() {
         </View>
         <View className={cx(!on && 'opacity-40')} pointerEvents={on ? 'auto' : 'none'}>
           <Label>
-            <Text className="text-[13px] font-bold text-ink">규칙 유형</Text>
+            <Text className="text-footnote font-bold text-ink">규칙 유형</Text>
           </Label>
           <View className="flex-row gap-2">
             {(
@@ -334,8 +335,8 @@ export function TimerScreen() {
               >
                 <Text>{ic}</Text>
                 <View className="flex-1">
-                  <Text className="text-[13px] font-semibold text-ink">{t}</Text>
-                  <Text className="text-[10px] text-sub">{d}</Text>
+                  <Text className="text-footnote font-semibold text-ink">{t}</Text>
+                  <Text className="text-caption2 text-sub">{d}</Text>
                 </View>
                 <View
                   className={cx(
@@ -350,8 +351,8 @@ export function TimerScreen() {
             <>
               <Label>
                 <View>
-                  <Text className="text-[13px] font-bold text-ink">뽀모도로 프리셋</Text>
-                  <Text className="text-[11px] text-sub">자주 쓰는 집중 리듬을 선택하세요</Text>
+                  <Text className="text-footnote font-bold text-ink">뽀모도로 프리셋</Text>
+                  <Text className="text-caption2 text-sub">자주 쓰는 집중 리듬을 선택하세요</Text>
                 </View>
               </Label>
               <View className="flex-row gap-2">
@@ -374,15 +375,15 @@ export function TimerScreen() {
                       preset === p ? 'border-brand/40 bg-mint' : 'border-line',
                     )}
                   >
-                    <Text className="text-[14px] font-bold text-ink">{p.replace('/', ' / ')}</Text>
-                    <Text className="text-[10px] text-sub">{d}</Text>
+                    <Text className="text-subhead font-bold text-ink">{p.replace('/', ' / ')}</Text>
+                    <Text className="text-caption2 text-sub">{d}</Text>
                   </Pressable>
                 ))}
               </View>
-              <View className="mt-3 rounded-xl bg-[#f2f4f8] p-3">
+              <View className="mt-3 rounded-xl bg-cream p-3">
                 <View className="flex-row justify-between">
-                  <Text className="text-[12px] font-bold text-ink">⚙ 직접 설정</Text>
-                  <Text className="text-[12px] text-brand">4회 반복</Text>
+                  <Text className="text-caption font-bold text-ink">⚙ 직접 설정</Text>
+                  <Text className="text-caption text-brand">4회 반복</Text>
                 </View>
                 <View className="mt-2 flex-row gap-2">
                   {(
@@ -392,15 +393,15 @@ export function TimerScreen() {
                     ] as const
                   ).map(([l, v, set]) => (
                     <View key={l} className="flex-1">
-                      <Text className="text-[11px] text-sub">{l}</Text>
+                      <Text className="text-caption2 text-sub">{l}</Text>
                       <View className="mt-1 h-10 flex-row items-center rounded-lg bg-white px-3">
                         <TextInput
                           value={v}
                           onChangeText={(t) => set(t.replace(/\D/g, ''))}
                           keyboardType="number-pad"
-                          className="flex-1 text-[14px] text-ink"
+                          className="flex-1 text-subhead text-ink"
                         />
-                        <Text className="text-[12px] text-sub">분</Text>
+                        <Text className="text-caption text-sub">분</Text>
                       </View>
                     </View>
                   ))}
@@ -414,16 +415,16 @@ export function TimerScreen() {
                 onPress={() => toast('교시 시간을 눌러 바꿀 수 있어요')}
                 className="rounded-full border border-brand/40 px-2 py-0.5"
               >
-                <Text className="text-[11px] text-brand">시간표 편집</Text>
+                <Text className="text-caption2 text-brand">시간표 편집</Text>
               </Pressable>
             }
           >
             <View>
-              <Text className="text-[13px] font-bold text-ink">교시별 시간표</Text>
-              <Text className="text-[11px] text-sub">교시제로 전환할 때 사용할 시간표예요</Text>
+              <Text className="text-footnote font-bold text-ink">교시별 시간표</Text>
+              <Text className="text-caption2 text-sub">교시제로 전환할 때 사용할 시간표예요</Text>
             </View>
           </Label>
-          <View className="gap-1.5 rounded-2xl bg-[#f6f7f5] p-2">
+          <View className="gap-1.5 rounded-2xl bg-cream p-2">
             {PERIODS.map((p, i) => (
               <View
                 key={p.start}
@@ -439,26 +440,26 @@ export function TimerScreen() {
                   )}
                 >
                   <Text
-                    className={cx('text-[12px] font-bold', i === 0 ? 'text-white' : 'text-ink')}
+                    className={cx('text-caption font-bold', i === 0 ? 'text-white' : 'text-ink')}
                   >
                     {i + 1}
                   </Text>
                 </View>
                 <View className="flex-1">
-                  <Text className="text-[13px] font-semibold text-ink">
+                  <Text className="text-footnote font-semibold text-ink">
                     {p.start} - {p.end}
                   </Text>
-                  <Text className="text-[11px] text-sub">{p.label}</Text>
+                  <Text className="text-caption2 text-sub">{p.label}</Text>
                 </View>
                 <Text className="text-sub">✎</Text>
               </View>
             ))}
           </View>
           <Label>
-            <Text className="text-[13px] font-bold text-ink">적용 일정 미리보기</Text>
+            <Text className="text-footnote font-bold text-ink">적용 일정 미리보기</Text>
           </Label>
           <View className="rounded-xl bg-cream px-3 py-2.5">
-            <Text className="text-[12px] text-sub">
+            <Text className="text-caption text-sub">
               {type === 'pomodoro'
                 ? `집중 ${focus}분 → 휴식 ${rest}분 × 4회 · 총 ${(Number(focus) + Number(rest)) * 4}분`
                 : '1교시 09:00 → 3교시 11:50 · 오전 3교시'}
@@ -510,31 +511,31 @@ export function ScheduleScreen() {
     <Screen>
       <View className="h-12 flex-row items-center gap-2 pt-2">
         <Pressable accessibilityLabel="뒤로" onPress={() => router.back()} hitSlop={10}>
-          <ArrowLeft size={22} color={C.ink} />
+          <ArrowLeft size={ICON.lg} color={C.ink} />
         </Pressable>
-        <Text className="flex-1 text-[18px] font-bold text-ink">시간표</Text>
+        <Text className="flex-1 text-headline font-bold text-ink">시간표</Text>
         <Pressable
           onPress={() =>
             s?.matches[0] && addToCalendar(s.matches[0].day, s.matches[0].start, s.matches[0].end)
           }
           className="rounded-full bg-mint px-3 py-1"
         >
-          <Text className="text-[11px] font-semibold text-brand">캘린더</Text>
+          <Text className="text-caption2 font-semibold text-brand">캘린더</Text>
         </Pressable>
-        <Settings size={20} color={C.sub} />
+        <Settings size={ICON.md} color={C.sub} />
       </View>
       <View className="mt-2 flex-row items-center rounded-2xl bg-mint p-4">
         <View className="flex-1">
-          <Text className="text-[11px] text-sub">{room.data?.title}</Text>
-          <Text className="text-[16px] font-bold text-ink">이번 주 공동 학습 가능 시간 조율</Text>
+          <Text className="text-caption2 text-sub">{room.data?.title}</Text>
+          <Text className="text-body font-bold text-ink">이번 주 공동 학습 가능 시간 조율</Text>
         </View>
         <Badge tone="gray">{`${s?.members.length ?? 0}명 연동중`}</Badge>
       </View>
-      <Text className="mt-4 mb-2 text-[12px] text-sub">스터디룸 멤버 일정 현황</Text>
+      <Text className="mt-4 mb-2 text-caption text-sub">스터디룸 멤버 일정 현황</Text>
       <View className="flex-row flex-wrap gap-1.5">
         {s?.members.map((m) => (
           <View key={m.nickname} className="rounded-full bg-cream px-2.5 py-1">
-            <Text className="text-[11px] text-ink">
+            <Text className="text-caption2 text-ink">
               {m.emoji} {m.nickname}
             </Text>
           </View>
@@ -543,14 +544,14 @@ export function ScheduleScreen() {
       <View className="mt-3 rounded-2xl border border-line p-3">
         <View className="flex-row pl-9">
           {['월', '화', '수', '목', '금', '토', '일'].map((d) => (
-            <Text key={d} className="flex-1 text-center text-[10px] text-sub">
+            <Text key={d} className="flex-1 text-center text-caption2 text-sub">
               {d}
             </Text>
           ))}
         </View>
         {s?.grid.map((row, r) => (
           <View key={r} className="mt-1 flex-row items-center">
-            <Text className="w-9 text-[9px] text-sub">{s.startHour + r}:00</Text>
+            <Text className="w-9 text-caption2 text-sub">{s.startHour + r}:00</Text>
             {row.map((c, i) => (
               <Pressable
                 key={i}
@@ -564,40 +565,38 @@ export function ScheduleScreen() {
                 }
                 className={cx(
                   'mx-0.5 h-6 flex-1 items-center justify-center rounded-md',
-                  c === 2
-                    ? 'border border-brand bg-mint'
-                    : c === 1
-                      ? 'bg-[#e1e5ea]'
-                      : 'bg-[#f3f5f8]',
+                  c === 2 ? 'border border-brand bg-mint' : c === 1 ? 'bg-cream-2' : 'bg-cream',
                 )}
               >
-                {c === 2 && <Text className="text-[10px]">🙌</Text>}
+                {c === 2 && <Text className="text-caption2">🙌</Text>}
               </Pressable>
             ))}
           </View>
         ))}
       </View>
       <View className="mt-3 rounded-2xl border border-line p-3">
-        <Text className="text-[13px] font-bold text-ink">🙌 실시간 매칭된 공통 가능 시간</Text>
+        <Text className="text-footnote font-bold text-ink">🙌 실시간 매칭된 공통 가능 시간</Text>
         {s?.matches.map((m) => (
           <Pressable
             key={m.label}
             onPress={() => addToCalendar(m.day, m.start, m.end)}
             className={cx(
               'mt-2 flex-row items-center rounded-xl px-3 py-2.5',
-              m.best ? 'bg-mint' : 'bg-[#f2f4f8]',
+              m.best ? 'bg-mint' : 'bg-cream',
             )}
           >
             <View className="flex-1">
-              <Text className={cx('text-[13px] font-semibold', m.best ? 'text-brand' : 'text-ink')}>
+              <Text
+                className={cx('text-footnote font-semibold', m.best ? 'text-brand' : 'text-ink')}
+              >
                 {m.label}
               </Text>
-              <Text className="text-[11px] text-sub">
+              <Text className="text-caption2 text-sub">
                 {m.start} - {m.end} ({Number(m.end.slice(0, 2)) - Number(m.start.slice(0, 2))}시간
                 {m.best ? ' 연속' : ''} 가능)
               </Text>
             </View>
-            {m.best && <Text className="text-[11px] font-semibold text-brand">가장 추천 ⭐</Text>}
+            {m.best && <Text className="text-caption2 font-semibold text-brand">가장 추천 ⭐</Text>}
           </Pressable>
         ))}
       </View>
@@ -626,35 +625,35 @@ export function RoomSettingsScreen() {
       <Screen>
         <Header title="" />
         <View className="gap-3 rounded-2xl border border-line p-3">
-          <View className="flex-row items-center gap-2 rounded-xl bg-[#eef1f4] px-4 py-4">
-            <Bell size={18} color={C.ink} />
-            <Text className="flex-1 text-[14px] font-semibold text-ink">알림</Text>
+          <View className="flex-row items-center gap-2 rounded-xl bg-cream px-4 py-4">
+            <Bell size={ICON.md} color={C.ink} />
+            <Text className="flex-1 text-subhead font-semibold text-ink">알림</Text>
             <Toggle label="알림" on={alarm} onChange={setAlarm} />
           </View>
           <Pressable
             onPress={() => router.push({ pathname: '/room/invite', params: { id } })}
-            className="flex-row items-center gap-2 rounded-xl bg-[#eef1f4] px-4 py-4"
+            className="flex-row items-center gap-2 rounded-xl bg-cream px-4 py-4"
           >
-            <UserPlus size={18} color={C.ink} />
-            <Text className="text-[14px] font-semibold text-ink">친구 초대</Text>
+            <UserPlus size={ICON.md} color={C.ink} />
+            <Text className="text-subhead font-semibold text-ink">친구 초대</Text>
           </Pressable>
           <Pressable
             onPress={() => setCode(true)}
-            className="flex-row items-center gap-2 rounded-xl bg-[#eef1f4] px-4 py-4"
+            className="flex-row items-center gap-2 rounded-xl bg-cream px-4 py-4"
           >
-            <Text className="text-[14px] font-semibold text-ink">🔑 스터디룸 코드</Text>
+            <Text className="text-subhead font-semibold text-ink">🔑 스터디룸 코드</Text>
           </Pressable>
           <Pressable
             onPress={() => setLeave(true)}
-            className="flex-row items-center gap-2 rounded-xl bg-[#eef1f4] px-4 py-4"
+            className="flex-row items-center gap-2 rounded-xl bg-cream px-4 py-4"
           >
-            <Text className="text-[14px] font-semibold text-danger">채팅방 나가기</Text>
+            <Text className="text-subhead font-semibold text-danger">채팅방 나가기</Text>
           </Pressable>
         </View>
       </Screen>
       <Dialog open={code} onClose={() => setCode(false)}>
-        <Text className="text-[12px] text-sub">스터디룸 초대 코드</Text>
-        <Text className="mt-1 font-mono text-[28px] font-bold tracking-[6px] text-ink">
+        <Text className="text-caption text-sub">스터디룸 초대 코드</Text>
+        <Text className="mt-1 tabular-nums text-title1 font-bold tracking-[6px] text-ink">
           {room.data?.inviteCode}
         </Text>
         <View className="mt-4 w-full">
@@ -677,10 +676,10 @@ export function RoomSettingsScreen() {
       </Dialog>
       <Dialog open={leave} onClose={() => setLeave(false)}>
         <View className="h-10 w-10 items-center justify-center rounded-full bg-mint">
-          <Lock size={16} color={C.brand} />
+          <Lock size={ICON.sm} color={C.brand} />
         </View>
-        <Text className="mt-2 text-[14px] font-bold text-ink">{room.data?.title}</Text>
-        <Text className="mt-3 text-[14px] text-sub">채팅방을 나가시겠어요?</Text>
+        <Text className="mt-2 text-subhead font-bold text-ink">{room.data?.title}</Text>
+        <Text className="mt-3 text-subhead text-sub">채팅방을 나가시겠어요?</Text>
         <View className="mt-5 w-full">
           <Two>
             <Btn small kind="outline" onPress={() => setLeave(false)}>
@@ -714,12 +713,14 @@ export function InviteScreen() {
   return (
     <Screen footer={<Btn onPress={() => router.back()}>스터디룸으로 돌아가기</Btn>}>
       <Header title="친구 초대" center />
-      <Text className="text-[16px] font-bold text-ink">{room.data?.title}</Text>
-      <Text className="text-[12px] text-sub">함께 공부할 친구를 스터디룸에 초대해 보세요.</Text>
+      <Text className="text-body font-bold text-ink">{room.data?.title}</Text>
+      <Text className="text-caption text-sub">함께 공부할 친구를 스터디룸에 초대해 보세요.</Text>
       <View className="mt-3 rounded-2xl bg-mint p-4">
-        <Text className="text-[11px] text-sub">스터디룸 초대 코드</Text>
+        <Text className="text-caption2 text-sub">스터디룸 초대 코드</Text>
         <View className="flex-row items-center justify-between">
-          <Text className="font-mono text-[20px] font-bold text-ink">{room.data?.inviteCode}</Text>
+          <Text className="tabular-nums text-title3 font-bold text-ink">
+            {room.data?.inviteCode}
+          </Text>
           <Pressable
             onPress={async () => {
               await Clipboard.setStringAsync(room.data?.inviteCode ?? '');
@@ -727,17 +728,19 @@ export function InviteScreen() {
             }}
             className="flex-row items-center gap-1 rounded-full bg-brand px-3 py-1"
           >
-            <Copy size={12} color="#fff" />
-            <Text className="text-[12px] text-white">복사</Text>
+            <Copy size={ICON.xs} color="#fff" />
+            <Text className="text-caption text-white">복사</Text>
           </Pressable>
         </View>
       </View>
-      <Text className="mt-1.5 text-[11px] text-sub">
+      <Text className="mt-1.5 text-caption2 text-sub">
         친구가 초대 코드를 입력하면 이 방에 참여할 수 있어요.
       </Text>
       <View className="mt-4 mb-2 flex-row justify-between">
-        <Text className="text-[13px] font-bold text-ink">내 친구 {friends.data?.length ?? 0}</Text>
-        <Text className="text-[13px] text-sub">{invited.length}명 초대됨</Text>
+        <Text className="text-footnote font-bold text-ink">
+          내 친구 {friends.data?.length ?? 0}
+        </Text>
+        <Text className="text-footnote text-sub">{invited.length}명 초대됨</Text>
       </View>
       <Search value={q} onChangeText={setQ} placeholder="친구 이름으로 검색" />
       <View className="mt-2 gap-2">
@@ -754,8 +757,8 @@ export function InviteScreen() {
             >
               <Avatar name={f.nickname} size={30} tone="mint" />
               <View className="flex-1">
-                <Text className="text-[13px] font-semibold text-ink">{f.nickname}</Text>
-                <Text className="text-[11px] text-sub">
+                <Text className="text-footnote font-semibold text-ink">{f.nickname}</Text>
+                <Text className="text-caption2 text-sub">
                   {inRoom.has(f.userId) ? '이 스터디룸에서 함께 공부 중' : '친구'}
                 </Text>
               </View>
@@ -769,7 +772,7 @@ export function InviteScreen() {
               >
                 <Text
                   className={cx(
-                    'text-[11px] font-semibold',
+                    'text-caption2 font-semibold',
                     st === '초대하기' ? 'text-brand' : 'text-sub',
                   )}
                 >
@@ -780,7 +783,7 @@ export function InviteScreen() {
           );
         })}
       </View>
-      <Text className="mt-3 text-center text-[11px] text-sub">
+      <Text className="mt-3 text-center text-caption2 text-sub">
         초대한 친구에게 스터디룸 초대 알림이 전송돼요.
       </Text>
     </Screen>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Modal, Pressable, Text, View } from 'react-native';
+import { Modal, Pressable, View } from 'react-native';
+import { Text } from '@/components/text';
 import Animated, { SlideInRight } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -8,7 +9,7 @@ import { Check, ChevronRight, MoreHorizontal } from 'lucide-react-native';
 import type { User } from '@notelink/shared';
 import { api } from '@/lib/api';
 import { Avatar, Btn, Sheet, cx } from '@/components/ui';
-import { C } from '@/theme';
+import { C, ICON } from '@/theme';
 
 // p.53 #18 소셜 드로어 / p.55 #24 내 상태 변경
 
@@ -22,7 +23,7 @@ export const STATUS: Record<User['status'], { label: string; dot: string }> = {
 export const StatusText = ({ status }: { status: User['status'] }) => (
   <View className="flex-row items-center">
     <View className={cx('mr-1 h-1.5 w-1.5 rounded-full', STATUS[status].dot)} />
-    <Text className="text-[11px] text-sub">{STATUS[status].label}</Text>
+    <Text className="text-caption2 text-sub">{STATUS[status].label}</Text>
   </View>
 );
 
@@ -65,15 +66,15 @@ export function SocialDrawer({ open, onClose }: { open: boolean; onClose: () => 
           >
             <Avatar name="형욱" size={36} tone="mint" />
             <View className="flex-1">
-              <Text className="text-[14px] font-semibold text-ink">{me.data?.nickname}</Text>
+              <Text className="text-subhead font-semibold text-ink">{me.data?.nickname}</Text>
               {me.data && (
                 <View className="flex-row items-center">
                   <StatusText status={me.data.status} />
-                  <Text className="text-[11px] text-sub"> · 눌러서 변경</Text>
+                  <Text className="text-caption2 text-sub"> · 눌러서 변경</Text>
                 </View>
               )}
             </View>
-            <ChevronRight size={16} color={C.sub} />
+            <ChevronRight size={ICON.sm} color={C.sub} />
           </Pressable>
           <Btn small className="mt-3" onPress={() => go('/friend-add')}>
             + 친구 추가
@@ -82,15 +83,15 @@ export function SocialDrawer({ open, onClose }: { open: boolean; onClose: () => 
             onPress={() => go('/requests')}
             className="mt-2 flex-row items-center rounded-xl bg-cream px-3 py-3"
           >
-            <Text className="flex-1 text-[14px] text-ink">받은 친구 요청</Text>
+            <Text className="flex-1 text-subhead text-ink">받은 친구 요청</Text>
             {!!requests.data?.length && (
               <View className="h-5 w-5 items-center justify-center rounded-full bg-danger">
-                <Text className="text-[11px] text-white">{requests.data.length}</Text>
+                <Text className="text-caption2 text-white">{requests.data.length}</Text>
               </View>
             )}
-            <ChevronRight size={16} color={C.sub} />
+            <ChevronRight size={ICON.sm} color={C.sub} />
           </Pressable>
-          <Text className="mt-4 mb-2 text-[12px] text-sub">친구 {friends.data?.length ?? 0}</Text>
+          <Text className="mt-4 mb-2 text-caption text-sub">친구 {friends.data?.length ?? 0}</Text>
           <View className="gap-2">
             {friends.data?.map((f) => (
               <Pressable
@@ -105,10 +106,10 @@ export function SocialDrawer({ open, onClose }: { open: boolean; onClose: () => 
               >
                 <Avatar name={f.nickname} size={32} tone="mint" />
                 <View className="flex-1">
-                  <Text className="text-[14px] font-semibold text-ink">{f.nickname}</Text>
+                  <Text className="text-subhead font-semibold text-ink">{f.nickname}</Text>
                   <StatusText status={f.status} />
                 </View>
-                <MoreHorizontal size={16} color={C.sub} />
+                <MoreHorizontal size={ICON.sm} color={C.sub} />
               </Pressable>
             ))}
           </View>
@@ -153,8 +154,8 @@ function StatusSheet({
             )}
           >
             <View className={cx('mr-2 h-2 w-2 rounded-full', STATUS[st].dot)} />
-            <Text className="flex-1 text-[14px] text-ink">{STATUS[st].label}</Text>
-            {current === st && <Check size={16} color={C.brand} />}
+            <Text className="flex-1 text-subhead text-ink">{STATUS[st].label}</Text>
+            {current === st && <Check size={ICON.sm} color={C.brand} />}
           </Pressable>
         ))}
       </View>

@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
-import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, View } from 'react-native';
+import { Text, TextInput } from '@/components/text';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MoreHorizontal, Search as SearchIcon } from 'lucide-react-native';
@@ -24,7 +25,7 @@ import {
   cx,
 } from '@/components/ui';
 import { useAuth } from '@/stores/auth';
-import { C } from '@/theme';
+import { C, ICON } from '@/theme';
 import { StatusText } from './drawer';
 
 // p.53~55 친구 추가 · 요청 · 채팅 · 삭제
@@ -56,19 +57,19 @@ export function FriendAddScreen() {
         placeholder="닉네임을 입력해주세요."
       />
       {!q && (
-        <Text className="mt-4 text-center text-[12px] text-sub">
+        <Text className="mt-4 text-center text-caption text-sub">
           닉네임으로 친구를 찾아보세요 · 예) 홍길동
         </Text>
       )}
       {q.trim() && result.isSuccess && found.length === 0 && (
         <Card className="mt-3 items-center py-10">
-          <SearchIcon size={22} color={C.sub} />
-          <Text className="mt-2 text-[14px] font-semibold text-ink">해당 친구는 없습니다.</Text>
-          <Text className="text-[12px] text-sub">닉네임을 정확히 입력했는지 확인해주세요</Text>
+          <SearchIcon size={ICON.lg} color={C.sub} />
+          <Text className="mt-2 text-subhead font-semibold text-ink">해당 친구는 없습니다.</Text>
+          <Text className="text-caption text-sub">닉네임을 정확히 입력했는지 확인해주세요</Text>
         </Card>
       )}
       {found.length > 0 && (
-        <Text className="mt-4 text-[12px] text-sub">검색 결과 {found.length}</Text>
+        <Text className="mt-4 text-caption text-sub">검색 결과 {found.length}</Text>
       )}
       {found.map((u) => {
         const done = sent.includes(u.userId);
@@ -77,8 +78,8 @@ export function FriendAddScreen() {
             <View className="flex-row items-center gap-3">
               <Avatar name={u.nickname} size={40} tone="mint" />
               <View>
-                <Text className="text-[15px] font-semibold text-ink">{u.nickname}</Text>
-                <Text className="text-[12px] text-sub">
+                <Text className="text-callout font-semibold text-ink">{u.nickname}</Text>
+                <Text className="text-caption text-sub">
                   {u.handle} · 함께 아는 친구 {u.mutualCount ?? 0}명
                 </Text>
               </View>
@@ -115,7 +116,7 @@ export function RequestsScreen() {
     <Screen>
       <Header title={`받은 친구 요청 (${reqs.data?.length ?? 0})`} />
       {reqs.data?.length === 0 && (
-        <Text className="py-16 text-center text-[13px] text-sub">받은 친구 요청이 없어요</Text>
+        <Text className="py-16 text-center text-footnote text-sub">받은 친구 요청이 없어요</Text>
       )}
       <View className="gap-5">
         {reqs.data?.map((r) => (
@@ -123,8 +124,8 @@ export function RequestsScreen() {
             <View className="flex-row items-center gap-3">
               <Avatar name={r.requester.nickname} size={36} tone="mint" />
               <View>
-                <Text className="text-[15px] font-semibold text-ink">{r.requester.nickname}</Text>
-                <Text className="text-[12px] text-sub">
+                <Text className="text-callout font-semibold text-ink">{r.requester.nickname}</Text>
+                <Text className="text-caption text-sub">
                   {r.requester.handle} · {timeAgo(r.requestedAt)} 요청
                 </Text>
               </View>
@@ -221,10 +222,10 @@ export function ChatScreen() {
             returnKeyType="send"
             placeholder="메시지 보내기"
             placeholderTextColor={C.sub}
-            className="h-11 flex-1 text-[14px] text-ink"
+            className="h-11 flex-1 text-subhead text-ink"
           />
           <Pressable onPress={send} hitSlop={8}>
-            <Text className="text-[13px] font-semibold text-brand">전송</Text>
+            <Text className="text-footnote font-semibold text-brand">전송</Text>
           </Pressable>
         </View>
       }
@@ -232,14 +233,14 @@ export function ChatScreen() {
       <Header
         right={
           <Pressable accessibilityLabel="더보기" onPress={() => setMenu(true)} hitSlop={10}>
-            <MoreHorizontal size={20} color={C.sub} />
+            <MoreHorizontal size={ICON.md} color={C.sub} />
           </Pressable>
         }
       />
       <View className="-mt-2 mb-4 flex-row items-center gap-2">
         <Avatar name={name} size={34} tone="mint" />
         <View>
-          <Text className="text-[15px] font-bold text-ink">{name}</Text>
+          <Text className="text-callout font-bold text-ink">{name}</Text>
           <StatusText status={status} />
         </View>
       </View>
@@ -259,7 +260,7 @@ export function ChatScreen() {
                   mine ? 'bg-brand' : 'bg-cream',
                 )}
               >
-                <Text className={cx('text-[13px]', mine ? 'text-white' : 'text-ink')}>
+                <Text className={cx('text-footnote', mine ? 'text-white' : 'text-ink')}>
                   {m.text}
                 </Text>
               </View>
@@ -289,8 +290,8 @@ export function ChatScreen() {
         </Group>
       </Sheet>
       <Dialog open={del} onClose={() => setDel(false)}>
-        <Text className="text-[16px] font-bold text-ink">{name}님을 친구에서 삭제할까요?</Text>
-        <Text className="mt-1.5 text-[12px] text-sub">
+        <Text className="text-body font-bold text-ink">{name}님을 친구에서 삭제할까요?</Text>
+        <Text className="mt-1.5 text-caption text-sub">
           대화 내용과 공유한 시간표도 함께 사라져요
         </Text>
         <View className="mt-5 w-full">

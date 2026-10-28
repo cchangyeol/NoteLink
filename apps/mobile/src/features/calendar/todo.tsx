@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text } from '@/components/text';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check } from 'lucide-react-native';
 import type { Todo, TodoType } from '@notelink/shared';
@@ -7,6 +8,7 @@ import { api } from '@/lib/api';
 import { md, today } from '@/lib/dates';
 import { toast } from '@/stores/toast';
 import { Badge, Btn, Chip, Dashed, Input, Label, Sheet, cx } from '@/components/ui';
+import { ICON } from '@/theme';
 
 // p.50 #11 날짜별 할 일 / p.51 #12 할 일 추가
 
@@ -47,15 +49,15 @@ export function TodoSheet({
   return (
     <Sheet open={open} onClose={onClose}>
       <View className="flex-row items-center justify-between">
-        <Text className="text-[18px] font-bold text-ink">{md(date)}</Text>
+        <Text className="text-headline font-bold text-ink">{md(date)}</Text>
         {date === today() && <Badge>오늘</Badge>}
       </View>
-      <Text className="text-[12px] text-sub">
+      <Text className="text-caption text-sub">
         할 일 {list.length}개 · {list.filter((t) => t.done).length}개 완료
       </Text>
       <View className="mt-3 gap-2">
         {list.length === 0 && (
-          <Text className="py-6 text-center text-[13px] text-sub">이 날은 할 일이 없어요</Text>
+          <Text className="py-6 text-center text-footnote text-sub">이 날은 할 일이 없어요</Text>
         )}
         {list.map((t) => (
           <Pressable
@@ -69,13 +71,13 @@ export function TodoSheet({
                 t.done ? 'border-brand bg-brand' : 'border-cream-2',
               )}
             >
-              {t.done && <Check size={14} color="#fff" />}
+              {t.done && <Check size={ICON.xs} color="#fff" />}
             </View>
             <View>
-              <Text className={cx('text-[14px]', t.done ? 'text-sub line-through' : 'text-ink')}>
+              <Text className={cx('text-subhead', t.done ? 'text-sub line-through' : 'text-ink')}>
                 {t.content}
               </Text>
-              <Text className="text-[11px] text-sub">
+              <Text className="text-caption2 text-sub">
                 {t.subjectName ?? '일반'} · {slotLabel(t)}
               </Text>
             </View>
@@ -139,11 +141,11 @@ export function AddTodoSheet({
       title="할 일 추가"
       right={
         <Pressable onPress={onClose} hitSlop={10}>
-          <Text className="text-[13px] text-sub">취소</Text>
+          <Text className="text-footnote text-sub">취소</Text>
         </Pressable>
       }
     >
-      <Text className="-mt-2 text-[12px] text-sub">
+      <Text className="-mt-2 text-caption text-sub">
         과제 · 시험으로 고르면 홈 화면에 D-day로 표시돼요
       </Text>
       <Label>할 일</Label>
@@ -164,8 +166,8 @@ export function AddTodoSheet({
       </View>
       <Label>날짜</Label>
       <View className="h-12 flex-row items-center rounded-xl border border-line px-4">
-        <Text className="flex-1 text-[14px] text-ink">📅 {md(date)}</Text>
-        <Text className="text-[12px] text-brand">변경</Text>
+        <Text className="flex-1 text-subhead text-ink">📅 {md(date)}</Text>
+        <Text className="text-caption text-brand">변경</Text>
       </View>
       <Label>시간 (선택)</Label>
       <View className="flex-row flex-wrap gap-2">

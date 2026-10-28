@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Pressable, Share, Text, View } from 'react-native';
+import { Pressable, Share, View } from 'react-native';
+import { Text } from '@/components/text';
 import { router } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
@@ -24,7 +25,7 @@ import {
   Toggle,
   cx,
 } from '@/components/ui';
-import { C } from '@/theme';
+import { C, ICON } from '@/theme';
 import { Month } from '../progress/record';
 import { validYmd } from '../progress/goals';
 
@@ -69,8 +70,10 @@ export function HolidayScreen() {
       <Header title="공휴일 설정" />
       <Card tone="white" className="flex-row items-center px-4 py-3">
         <View className="flex-1">
-          <Text className="text-[14px] font-semibold text-ink">공휴일 자동 연동</Text>
-          <Text className="text-[12px] text-sub">대한민국 공휴일을 캘린더에 자동으로 표시해요</Text>
+          <Text className="text-subhead font-semibold text-ink">공휴일 자동 연동</Text>
+          <Text className="text-caption text-sub">
+            대한민국 공휴일을 캘린더에 자동으로 표시해요
+          </Text>
         </View>
         <Toggle label="공휴일 자동 연동" on={auto} onChange={setAuto} />
       </Card>
@@ -79,10 +82,10 @@ export function HolidayScreen() {
         {upcoming.map((h) => (
           <Card key={h._id} tone="white" className="flex-row items-center px-4 py-3">
             <View className="flex-1">
-              <Text className="text-[11px] text-sub">
+              <Text className="text-caption2 text-sub">
                 {Number(h._id.slice(5, 7))}월 {Number(h._id.slice(8))}일
               </Text>
-              <Text className="text-[15px] font-semibold text-ink">{h.name}</Text>
+              <Text className="text-callout font-semibold text-ink">{h.name}</Text>
             </View>
             <Pressable
               disabled={!auto}
@@ -96,7 +99,7 @@ export function HolidayScreen() {
       <Label>사용자 정의 휴일</Label>
       {custom.data?.map((c) => (
         <Card key={c._id} tone="mint" className="mb-2 flex-row items-center px-4 py-3">
-          <Text className="flex-1 text-[14px] text-ink">
+          <Text className="flex-1 text-subhead text-ink">
             📌 {c.name} ({Number(c.date.slice(5, 7))}/{Number(c.date.slice(8))})
           </Text>
           <Pressable
@@ -104,7 +107,7 @@ export function HolidayScreen() {
             onPress={() => removeCustom.mutate(c._id)}
             hitSlop={10}
           >
-            <X size={16} color={C.sub} />
+            <X size={ICON.sm} color={C.sub} />
           </Pressable>
         </Card>
       ))}
@@ -161,10 +164,10 @@ export function CalShareScreen() {
       <Header title="캘린더 공유" />
       <Label>공유 범위 선택</Label>
       <Card tone="white" className="flex-row items-center px-4 py-3">
-        <Text className="flex-1 text-[14px] text-ink">
+        <Text className="flex-1 text-subhead text-ink">
           {start.replaceAll('-', '.')} ~ {end.replaceAll('-', '.')}
         </Text>
-        <ChevronRight size={16} color={C.sub} />
+        <ChevronRight size={ICON.sm} color={C.sub} />
       </Card>
       <Label>유효기간</Label>
       <View className="flex-row gap-2">
@@ -186,14 +189,14 @@ export function CalShareScreen() {
       {link && (
         <>
           <View className="mt-3 flex-row items-center rounded-xl bg-cream px-4 py-3">
-            <Text className="flex-1 text-[13px] text-sub">{link}</Text>
+            <Text className="flex-1 text-footnote text-sub">{link}</Text>
             <Pressable
               onPress={async () => {
                 await Clipboard.setStringAsync(`https://${link}`);
                 toast('링크를 복사했어요');
               }}
             >
-              <Text className="text-[13px] font-semibold text-brand">복사</Text>
+              <Text className="text-footnote font-semibold text-brand">복사</Text>
             </Pressable>
           </View>
           {/* 카카오톡 SDK 연동 전까지 OS 공유 시트로 카카오톡을 고를 수 있다 */}
@@ -211,13 +214,13 @@ export function CalShareScreen() {
         {shares.data?.map((s) => (
           <Card key={s._id} tone="white" className="flex-row items-center px-4 py-3">
             <View className="flex-1">
-              <Text className="text-[14px] text-ink">
+              <Text className="text-subhead text-ink">
                 {s.rangeStart.replaceAll('-', '.')} ~ {s.rangeEnd.slice(5).replace('-', '.')}
               </Text>
-              <Text className="text-[11px] text-sub">{timeAgo(s.createdAt)} 생성</Text>
+              <Text className="text-caption2 text-sub">{timeAgo(s.createdAt)} 생성</Text>
             </View>
             <Pressable onPress={() => revoke.mutate(s._id)} hitSlop={8}>
-              <Text className="text-[13px] text-danger">삭제</Text>
+              <Text className="text-footnote text-danger">삭제</Text>
             </Pressable>
           </Card>
         ))}
@@ -227,8 +230,8 @@ export function CalShareScreen() {
         onPress={() => router.push('/cal-shared')}
         className="mt-3 flex-row items-center px-4 py-3.5"
       >
-        <Text className="flex-1 text-[14px] font-semibold text-ink">👥 공유받은 캘린더 보기</Text>
-        <ChevronRight size={16} color={C.sub} />
+        <Text className="flex-1 text-subhead font-semibold text-ink">👥 공유받은 캘린더 보기</Text>
+        <ChevronRight size={ICON.sm} color={C.sub} />
       </Card>
     </Screen>
   );
@@ -264,20 +267,20 @@ export function CalSharedScreen() {
           <Card tone="white" className="flex-row items-center gap-3 px-4 py-3">
             <Avatar name={s.ownerNickname} size={34} tone="mint" />
             <View className="flex-1">
-              <Text className="text-[14px] font-semibold text-ink">
+              <Text className="text-subhead font-semibold text-ink">
                 {s.ownerNickname}님이 공유한 캘린더
               </Text>
-              <Text className="text-[11px] text-sub">
+              <Text className="text-caption2 text-sub">
                 {s.rangeStart.replaceAll('-', '.')} ~ {s.rangeEnd.slice(5).replace('-', '.')} 공유됨
               </Text>
             </View>
             <Badge tone="gray">읽기 전용</Badge>
           </Card>
-          <Text className="mt-5 mb-3 text-center text-[15px] font-bold text-ink">
+          <Text className="mt-5 mb-3 text-center text-callout font-bold text-ink">
             {ym.slice(0, 4)}년 {Number(ym.slice(5))}월
           </Text>
           <Month ym={ym} shared={new Set(s.days)} />
-          <Text className="mt-3 text-[11px] text-sub">● 공유자의 일정 ● 내 일정</Text>
+          <Text className="mt-3 text-caption2 text-sub">● 공유자의 일정 ● 내 일정</Text>
         </>
       )}
     </Screen>
@@ -316,13 +319,13 @@ export function TimetableScreen() {
               onPress={() => setSheet('share')}
               className="rounded-full bg-mint px-3 py-1.5"
             >
-              <Text className="text-[12px] font-semibold text-brand">👥 공유</Text>
+              <Text className="text-caption font-semibold text-brand">👥 공유</Text>
             </Pressable>
           }
         />
         <View className="flex-row pl-6">
           {WEEK.map((d) => (
-            <Text key={d} className="flex-1 text-center text-[12px] text-sub">
+            <Text key={d} className="flex-1 text-center text-caption text-sub">
               {d}
             </Text>
           ))}
@@ -334,7 +337,7 @@ export function TimetableScreen() {
               className="absolute left-0 right-0 border-t border-line"
               style={{ top: i * H }}
             >
-              <Text className="text-[9px] text-sub">{String(9 + i).padStart(2, '0')}</Text>
+              <Text className="text-caption2 text-sub">{String(9 + i).padStart(2, '0')}</Text>
             </View>
           ))}
           <View className="absolute inset-0 left-6 flex-row">
@@ -353,8 +356,10 @@ export function TimetableScreen() {
                         backgroundColor: c.color,
                       }}
                     >
-                      <Text className="text-[10px] font-bold text-ink">{c.subjectName}</Text>
-                      {!!c.location && <Text className="text-[9px] text-ink/70">{c.location}</Text>}
+                      <Text className="text-caption2 font-bold text-ink">{c.subjectName}</Text>
+                      {!!c.location && (
+                        <Text className="text-caption2 text-ink/70">{c.location}</Text>
+                      )}
                     </Pressable>
                   ))}
               </View>
@@ -363,7 +368,7 @@ export function TimetableScreen() {
         </View>
         <Dashed onPress={() => setSheet('add')}>+ 수업 추가</Dashed>
         <View className="mt-3 rounded-xl bg-cream px-3 py-2.5">
-          <Text className="text-[12px] text-sub">
+          <Text className="text-caption text-sub">
             시간표를 넣으면 학습 기록 주간 보기에 자동으로 표시돼요
           </Text>
         </View>
@@ -371,7 +376,7 @@ export function TimetableScreen() {
       <AddClassSheet open={sheet === 'add'} onClose={() => setSheet(null)} />
       <ShareTimetableSheet open={sheet === 'share'} onClose={() => setSheet(null)} />
       <Sheet open={!!pick} onClose={() => setPick(null)} title={pick?.subjectName}>
-        <Text className="text-[13px] text-sub">
+        <Text className="text-footnote text-sub">
           {pick?.days.map((d) => WEEK[d - 1]).join(' · ')} · {pick?.startTime} – {pick?.endTime}
           {pick?.location ? ` · ${pick.location}` : ''}
         </Text>
@@ -420,7 +425,7 @@ function AddClassSheet({ open, onClose }: { open: boolean; onClose: () => void }
     name.trim();
   return (
     <Sheet open={open} onClose={onClose}>
-      <Text className="text-[18px] font-bold text-ink">수업 추가</Text>
+      <Text className="text-headline font-bold text-ink">수업 추가</Text>
       <Label>과목명</Label>
       <Input value={name} onChangeText={setName} />
       <Label>요일</Label>
@@ -436,7 +441,7 @@ function AddClassSheet({ open, onClose }: { open: boolean; onClose: () => void }
                 on ? 'bg-brand' : 'bg-cream',
               )}
             >
-              <Text className={cx('text-[13px] font-semibold', on ? 'text-white' : 'text-sub')}>
+              <Text className={cx('text-footnote font-semibold', on ? 'text-white' : 'text-sub')}>
                 {d}
               </Text>
             </Pressable>
@@ -476,7 +481,7 @@ function AddClassSheet({ open, onClose }: { open: boolean; onClose: () => void }
             )}
             style={{ backgroundColor: c }}
           >
-            {color === c && <Check size={14} color={C.brand} />}
+            {color === c && <Check size={ICON.xs} color={C.brand} />}
           </Pressable>
         ))}
       </View>
@@ -503,8 +508,8 @@ function ShareTimetableSheet({ open, onClose }: { open: boolean; onClose: () => 
   });
   return (
     <Sheet open={open} onClose={onClose}>
-      <Text className="text-[18px] font-bold text-ink">시간표 공유</Text>
-      <Text className="text-[12px] text-sub">
+      <Text className="text-headline font-bold text-ink">시간표 공유</Text>
+      <Text className="text-caption text-sub">
         공유하면 친구의 학습 기록 주간 보기에 내 수업이 함께 표시돼요.
       </Text>
       <Label>공유 방식</Label>
@@ -531,8 +536,8 @@ function ShareTimetableSheet({ open, onClose }: { open: boolean; onClose: () => 
             >
               <Avatar name={f.nickname} size={30} tone="mint" />
               <View className="flex-1">
-                <Text className="text-[14px] font-semibold text-ink">{f.nickname}</Text>
-                {f.nickname === '지우' && <Text className="text-[11px] text-sub">공유 중</Text>}
+                <Text className="text-subhead font-semibold text-ink">{f.nickname}</Text>
+                {f.nickname === '지우' && <Text className="text-caption2 text-sub">공유 중</Text>}
               </View>
               <View
                 className={cx(
@@ -540,7 +545,7 @@ function ShareTimetableSheet({ open, onClose }: { open: boolean; onClose: () => 
                   on ? 'border-brand bg-brand' : 'border-cream-2',
                 )}
               >
-                {on && <Check size={14} color="#fff" />}
+                {on && <Check size={ICON.xs} color="#fff" />}
               </View>
             </Pressable>
           );

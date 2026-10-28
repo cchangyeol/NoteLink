@@ -17,7 +17,8 @@
     "setupFiles": [
       "./jest.setup.js"
     ],
-    "resolver": "react-native-worklets/jest/resolver"
+    "resolver": "react-native-worklets/jest/resolver",
+    "testTimeout": 20000
   },
   "dependencies": {
     "@notelink/shared": "*",

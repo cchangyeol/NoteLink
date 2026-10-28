@@ -16,3 +16,11 @@ export function renderScreen(ui: ReactElement, qc = new QueryClient()) {
     </SafeAreaProvider>,
   );
 }
+
+declare global {
+  var mockParams: Record<string, string | undefined>;
+}
+/** useLocalSearchParams가 돌려줄 값 (jest.setup.js의 expo-router 목) */
+export const setParams = (p: Record<string, string | undefined>) => {
+  globalThis.mockParams = p;
+};

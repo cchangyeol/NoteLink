@@ -26,6 +26,7 @@ import {
 } from '@/components/ui';
 import { C } from '@/theme';
 import { Month } from '../progress/record';
+import { validYmd } from '../progress/goals';
 
 // p.52 공휴일 · 캘린더 공유 · 공유받은 캘린더 / p.56 시간표
 
@@ -43,17 +44,18 @@ export function HolidayScreen() {
   });
   const [adding, setAdding] = useState(false);
   const [v, setV] = useState('');
+  const [date, setDate] = useState('');
   const hide = useMutation({
     mutationFn: ({ date, hidden }: { date: string; hidden: boolean }) =>
       api.calendar.setHolidayHidden(date, hidden),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['holidays', year] }),
   });
   const addCustom = useMutation({
-    mutationFn: () =>
-      api.calendar.addCustomHoliday({ name: v.trim(), date: ymd(addDays(seoul(), 20)) }),
+    mutationFn: () => api.calendar.addCustomHoliday({ name: v.trim(), date }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['holidays', 'custom'] });
       setV('');
+      setDate('');
       setAdding(false);
     },
   });
@@ -107,17 +109,29 @@ export function HolidayScreen() {
         </Card>
       ))}
       {adding ? (
-        <View className="flex-row gap-2">
-          <Input
-            className="flex-1"
-            value={v}
-            onChangeText={setV}
-            placeholder="예) 학교 개교기념일"
-            autoFocus
-          />
-          <Btn small className="w-20" disabled={!v.trim()} onPress={() => addCustom.mutate()}>
-            추가
-          </Btn>
+        <View className="gap-2">
+          <Input value={v} onChangeText={setV} placeholder="예) 학교 개교기념일" autoFocus />
+          <View className="flex-row gap-2">
+            <Input
+              className="flex-1"
+              value={date}
+              onChangeText={setDate}
+              placeholder="쉬는 날 YYYY-MM-DD"
+              keyboardType="numbers-and-punctuation"
+              maxLength={10}
+              invalid={!!date && !validYmd(date)}
+              accessibilityLabel="휴일 날짜"
+            />
+            <Btn
+              small
+              className="w-20"
+              disabled={!v.trim() || !validYmd(date)}
+              loading={addCustom.isPending}
+              onPress={() => addCustom.mutate()}
+            >
+              추가
+            </Btn>
+          </View>
         </View>
       ) : (
         <Dashed onPress={() => setAdding(true)}>+ 휴일 추가</Dashed>
@@ -476,13 +490,15 @@ function AddClassSheet({ open, onClose }: { open: boolean; onClose: () => void }
 function ShareTimetableSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const friends = useQuery({ queryKey: ['friends'], queryFn: api.social.friends, enabled: open });
   const [mode, setMode] = useState<'전체 공개' | '비는 시간만'>('전체 공개');
-  const [pick, setPick] = useState<string[]>(['u-jiwoo', 'u-sumin']);
+  // 아무도 고르지 않은 상태로 시작하고, 지금 친구 목록에 있는 사람만 보낸다
+  const [pick, setPick] = useState<string[]>([]);
+  const chosen = pick.filter((id) => friends.data?.some((f) => f.userId === id));
   const share = useMutation({
     mutationFn: () =>
-      api.timetable.share({ friendIds: pick, mode: mode === '전체 공개' ? 'full' : 'free_only' }),
+      api.timetable.share({ friendIds: chosen, mode: mode === '전체 공개' ? 'full' : 'free_only' }),
     onSuccess: () => {
       onClose();
-      toast(`${pick.length}명에게 시간표를 공유했어요`);
+      toast(`${chosen.length}명에게 시간표를 공유했어요`);
     },
   });
   return (
@@ -532,10 +548,10 @@ function ShareTimetableSheet({ open, onClose }: { open: boolean; onClose: () => 
       </View>
       <Btn
         className="mt-5"
-        disabled={!pick.length}
+        disabled={!chosen.length}
         loading={share.isPending}
         onPress={() => share.mutate()}
-      >{`${pick.length}명에게 공유하기`}</Btn>
+      >{`${chosen.length}명에게 공유하기`}</Btn>
     </Sheet>
   );
 }

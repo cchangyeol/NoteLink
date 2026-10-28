@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { DDay } from '@notelink/shared';
 import { api } from '@/lib/api';
-import { addDays, dLabel, md, ymd, seoul } from '@/lib/dates';
+import { addDays, dLabel, md, parse, ymd, seoul } from '@/lib/dates';
 import { toast } from '@/stores/toast';
 import {
   Alert,
@@ -22,14 +22,18 @@ import {
 
 // p.51 #13 D-day 관리 / #14 반복 목표 설정
 
+/** 'YYYY-MM-DD'이면서 실제 있는 날짜인지 (2026-02-30 같은 값은 거른다) */
+export const validYmd = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && ymd(parse(s)) === s;
+
 export function DDayScreen() {
   const qc = useQueryClient();
   const ddays = useQuery({ queryKey: ['ddays'], queryFn: api.calendar.ddays });
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState('');
+  // 날짜는 사용자가 정한다. 처음엔 한 달 뒤를 채워 두고 고치게 한다
+  const [date, setDate] = useState(() => ymd(addDays(seoul(), 30)));
   const add = useMutation({
-    mutationFn: () =>
-      api.calendar.addDday({ title: title.trim(), date: ymd(addDays(seoul(), 50)) }),
+    mutationFn: () => api.calendar.addDday({ title: title.trim(), date }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ddays'] });
       setTitle('');
@@ -71,23 +75,32 @@ export function DDayScreen() {
       <Label>직접 등록</Label>
       {ddays.data?.filter((d) => d.source === 'manual').map(row)}
       {adding ? (
-        <View className="mt-3 flex-row gap-2">
-          <Input
-            className="flex-1"
-            value={title}
-            onChangeText={setTitle}
-            placeholder="예) 기말고사"
-            autoFocus
-          />
-          <Btn
-            small
-            className="w-20"
-            disabled={!title.trim()}
-            loading={add.isPending}
-            onPress={() => add.mutate()}
-          >
-            추가
-          </Btn>
+        <View className="mt-3 gap-2">
+          <Input value={title} onChangeText={setTitle} placeholder="예) 기말고사" autoFocus />
+          <View className="flex-row gap-2">
+            <Input
+              className="flex-1"
+              value={date}
+              onChangeText={setDate}
+              placeholder="YYYY-MM-DD"
+              keyboardType="numbers-and-punctuation"
+              maxLength={10}
+              invalid={!!date && !validYmd(date)}
+              accessibilityLabel="D-day 날짜"
+            />
+            <Btn
+              small
+              className="w-20"
+              disabled={!title.trim() || !validYmd(date)}
+              loading={add.isPending}
+              onPress={() => add.mutate()}
+            >
+              추가
+            </Btn>
+          </View>
+          {!!date && !validYmd(date) && (
+            <Text className="text-[12px] text-danger">날짜를 2026-12-24처럼 입력해 주세요</Text>
+          )}
         </View>
       ) : (
         <Dashed onPress={() => setAdding(true)}>+ D-day 추가</Dashed>
@@ -103,7 +116,8 @@ export function RepeatGoalScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const qc = useQueryClient();
   const goals = useQuery({ queryKey: ['goals', 'recurring'], queryFn: api.study.recurringGoals });
-  const g = goals.data?.find((x) => x._id === id) ?? goals.data?.[0];
+  // id가 없으면 새 목표 — 첫 번째 목표를 고치는 화면이 되지 않게 한다
+  const g = id ? goals.data?.find((x) => x._id === id) : undefined;
   const [name, setName] = useState('');
   const [days, setDays] = useState<number[]>([]);
   const [min, setMin] = useState(30);
@@ -118,16 +132,20 @@ export function RepeatGoalScreen() {
     setMin(g.targetMin);
     setRemind(g.remindEnabled);
   }
+  const noDays = days.length === 0;
   const save = useMutation({
-    mutationFn: () =>
-      api.study.saveRecurringGoal({
+    mutationFn: () => {
+      // 요일이 없으면 저장하지 않는다 (FR-11-04) — 버튼과 별도로 저장 경로에서도 막는다
+      if (noDays) throw new Error('요일을 선택해주세요');
+      return api.study.saveRecurringGoal({
         _id: g?._id,
         name,
         days,
         targetMin: min,
         remindEnabled: remind,
         remindTime: '20:00',
-      }),
+      });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['goals'] });
       router.back();
@@ -147,7 +165,14 @@ export function RepeatGoalScreen() {
     <Screen
       footer={
         <>
-          <Btn loading={save.isPending} onPress={() => save.mutate()}>
+          {noDays && (
+            <Text className="mb-2 text-center text-[12px] text-danger">요일을 선택해주세요</Text>
+          )}
+          <Btn
+            disabled={noDays || !name.trim()}
+            loading={save.isPending}
+            onPress={() => save.mutate()}
+          >
             저장하기
           </Btn>
           {g && (
@@ -168,6 +193,9 @@ export function RepeatGoalScreen() {
           return (
             <Pressable
               key={d}
+              accessibilityRole="checkbox"
+              accessibilityLabel={`${d}요일`}
+              accessibilityState={{ checked: on }}
               onPress={() =>
                 setDays((p) => (on ? p.filter((x) => x !== dayNum(i)) : [...p, dayNum(i)]))
               }

@@ -124,12 +124,12 @@ def key(name: str, subject: set[str] | frozenset[str] = frozenset()) -> str:
     return norm("".join(core(name, subject))) or norm(name)
 
 
-NUMBER = re.compile(r"(?<![0-9.])\d+(?:\.\d+)?|(?<![A-Za-z])[IVX]+(?![A-Za-z])")
+NUMBER = re.compile(r"(?<![0-9.])\d+(?:\.\d+)?|(?<![A-Za-z])[IVXivx]+(?![A-Za-z])")
 
 
 def numbers(name: str) -> set[str]:
-    """이름의 숫자 · 로마 숫자('Type II' → {'II'}, 'Phase 1 대사' → {'1'})."""
-    return set(NUMBER.findall(name))
+    """이름의 숫자 · 로마 숫자('Type II' · 'type ii' → {'II'}, 'Phase 1 대사' → {'1'})."""
+    return {n.upper() for n in NUMBER.findall(name)}
 
 
 def numbered_apart(a: str, b: str) -> bool:

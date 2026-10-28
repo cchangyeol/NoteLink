@@ -25,6 +25,22 @@ from app.worker.runner import run_forever
 log = logging.getLogger("app.worker")
 
 
+STOP_SIGNALS = (signal.SIGINT, signal.SIGTERM)
+
+
+def stop_on_signal(stop: threading.Event) -> None:
+    """첫 멈춤 신호는 stop을 켜고(지금 작업을 끝낸 뒤 멈춤), 다음 신호는 기본 처리(바로 끝남)."""
+
+    def on_signal(signum: int, frame: object) -> None:
+        log.info("멈춤 신호: 처리 중인 작업을 끝낸 뒤 멈춥니다(한 번 더 보내면 바로 끝남)")
+        stop.set()
+        for sig in STOP_SIGNALS:
+            signal.signal(sig, signal.SIG_DFL)
+
+    for sig in STOP_SIGNALS:
+        signal.signal(sig, on_signal)
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     uri = settings.mongodb_uri.get_secret_value()
@@ -44,15 +60,7 @@ def main() -> None:
         retry_delay_sec=settings.ai_job_retry_delay_sec,
     )
     stop = threading.Event()
-
-    def on_signal(signum: int, frame: object) -> None:
-        log.info("멈춤 신호: 처리 중인 작업을 끝낸 뒤 멈춥니다(한 번 더 보내면 바로 끝남)")
-        stop.set()
-        for sig in (signal.SIGINT, signal.SIGTERM):
-            signal.signal(sig, signal.SIG_DFL)
-
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        signal.signal(sig, on_signal)
+    stop_on_signal(stop)
     log.info("ai_jobs 처리기 시작: %s", ", ".join(HANDLERS) or "-")
     try:
         run_forever(store, HANDLERS, poll_sec=settings.ai_job_poll_sec, stop=stop)

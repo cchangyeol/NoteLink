@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     quiz_check_model: str = "qwen-27b"  # 만든 문제를 직접 풀어 보는 검사
     llm_call_gap_sec: float = 2.2  # 분당 30회 한도 아래로 유지
 
+    # 노트 쪽: OCR(Azure Document Intelligence) · 파일(Blob). 키는 .env에만.
+    azure_docint_endpoint: str = ""
+    azure_docint_key: SecretStr = SecretStr("")
+    azure_storage_connection_string: SecretStr = SecretStr("")
+
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"

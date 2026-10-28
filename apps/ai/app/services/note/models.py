@@ -1,0 +1,81 @@
+"""노트 결과에서 주고받는 모양. 좌표는 쪽 크기 대비 0~1, 단어 상자(polygon)만 OCR 원래 단위."""
+
+from typing import Literal, TypedDict
+
+
+class Word(TypedDict):
+    """OCR 단어. 한국어는 음절 하나가 단어 하나."""
+
+    text: str
+    start: int  # 줄 글자 안 위치
+    end: int
+    polygon: list[float]
+    confidence: float
+
+
+class Line(TypedDict):
+    id: int  # 쪽 안 OCR 줄 번호(1부터)
+    page: int
+    text: str
+    x0: float
+    x1: float
+    y0: float
+    y1: float
+    hand: bool  # 손글씨 줄
+    words: list[Word]
+
+
+class Row(TypedDict):
+    """읽는 순서로 놓은 줄. 같은 높이의 OCR 줄 여러 개를 합친 것일 수 있음."""
+
+    page: int
+    lineIds: list[int]
+    text: str
+    x0: float
+    x1: float
+    y0: float
+    y1: float
+    hand: bool
+    words: list[Word]
+
+
+class PageLayout(TypedDict):
+    pageNo: int
+    twoColumn: bool
+    rows: list[Row]
+
+
+class PageText(TypedDict):
+    """① 쪽별 원본 글자 (materials.pages)."""
+
+    pageNo: int
+    ocrText: str  # OCR 원문 + 흐린 낱말 앞 [?]
+
+
+class OcrLine(TypedDict):
+    """② OCR 줄 결과의 줄 하나."""
+
+    text: str
+    x0: float
+    x1: float
+    y: float  # 세로 가운데
+    handwritten: bool
+    conf: float  # 줄 안 낱말 신뢰도의 최솟값
+
+
+class MarkBox(TypedDict):
+    kind: Literal["check", "circle"]
+    x0: float
+    x1: float
+    y0: float
+    y1: float
+
+
+class PageLines(TypedDict):
+    """② OCR 줄 결과 한 쪽."""
+
+    pageNo: int
+    twoColumn: bool
+    lines: list[OcrLine]
+    marks: list[MarkBox]
+    marksChecked: bool  # False = 찾지 않음 ('표시 없음'과 구분)

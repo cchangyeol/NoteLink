@@ -49,6 +49,9 @@ const guessType = (name: string) => {
   );
 };
 
+/** 올릴 수 없는 파일이거나 Blob이 2xx가 아닌 응답을 준 경우 */
+export class UploadError extends Error {}
+
 export async function uploadToBlob(
   kind: Kind,
   f: LocalFile,
@@ -58,6 +61,9 @@ export async function uploadToBlob(
   const file = new File(f.uri);
   const contentType = f.mimeType ?? guessType(f.name);
   const sizeBytes = f.size ?? file.size ?? 0;
+  // 호출하는 화면이 빠뜨려도 형식 · 용량 검사를 거친다
+  const check = checkFile(kind, { ...f, size: sizeBytes });
+  if (!check.ok) throw new UploadError(check.reason);
   const sas = await api.upload.getSas({ kind, fileName: f.name, contentType, sizeBytes });
   if (env.useMock) {
     // 목업: 실제 전송 대신 진행률만 흉내 낸다
@@ -76,6 +82,9 @@ export async function uploadToBlob(
     onProgress: ({ bytesSent, totalBytes }) =>
       onProgress?.(Math.round((bytesSent / Math.max(1, totalBytes)) * 100)),
   });
-  await task.uploadAsync();
+  // uploadAsync는 403(SAS 만료 등)도 resolve하므로 상태 코드를 직접 확인한다
+  const res = await task.uploadAsync();
+  if (res.status < 200 || res.status >= 300)
+    throw new UploadError(`업로드에 실패했어요 (HTTP ${res.status})`);
   return sas.blobUrl;
 }

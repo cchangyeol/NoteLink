@@ -41,6 +41,8 @@ import {
   Two,
   cx,
 } from '@/components/ui';
+import { useAuth } from '@/stores/auth';
+import { useNet } from '@/stores/net';
 import { C } from '@/theme';
 import { useLiveRoom } from '@/lib/livekit';
 
@@ -268,6 +270,7 @@ export function RoomCreateScreen() {
 }
 
 export function RoomScreen() {
+  const myId = useAuth((s) => s.userId);
   const { id } = useLocalSearchParams<{ id: string }>();
   const room = useQuery({ queryKey: ['room', id], queryFn: () => api.rooms.get(id) });
   const chatId = useQuery({ queryKey: ['room-chat', id], queryFn: () => api.rooms.chatRoomId(id) });
@@ -335,29 +338,33 @@ export function RoomScreen() {
   );
 
   // p.100 연결 끊김 시나리오: 끊김 → (재연결 | 5분 넘으면 자동 퇴장). 목업에서는 설정 > 예외 시나리오로 켠다
+  // 실제 소켓이 끊기면 useNet이 'unstable' · 'offline'이 된다. 목업 스위치도 같은 경로로 들어온다
   const disconnect = useMockFlags((s) => s.roomDisconnect);
-  const [wasDisconnect, setWasDisconnect] = useState(false);
-  if (disconnect !== wasDisconnect) {
-    setWasDisconnect(disconnect);
-    if (disconnect) setConn('lost');
-  }
+  const netLost = useNet((s) => s.state === 'unstable' || s.state === 'offline');
+  const lost = disconnect || netLost;
+  // 끊김 ↔ 복구 전이 (렌더 중 상태 조정)
+  if (lost && conn !== 'lost' && conn !== 'kicked') setConn('lost');
+  if (!lost && conn === 'lost') setConn('back');
+  // 목업: 6초 뒤 다시 연결된 것으로 친다
   useEffect(() => {
     if (!disconnect) return;
-    const back = setTimeout(() => {
-      setConn('back');
+    const t = setTimeout(() => useMockFlags.setState({ roomDisconnect: false }), 6000);
+    return () => clearTimeout(t);
+  }, [disconnect]);
+  // 다시 연결되면 끊긴 동안 쓴 메시지를 보내고 잠시 뒤 안내를 닫는다
+  useEffect(() => {
+    if (conn !== 'back') return;
+    const roomId = chatId.data;
+    if (roomId)
       pending.current.forEach((t) =>
-        socket.emit(
-          'chat:send',
-          { chatRoomId: chatId.data!, text: t, clientId: `c${Date.now()}` },
-          (m) => setMsgs((p) => [...p, m]),
+        socket.emit('chat:send', { chatRoomId: roomId, text: t, clientId: `c${Date.now()}` }, (m) =>
+          setMsgs((p) => [...p, m]),
         ),
       );
-      pending.current = [];
-      useMockFlags.setState({ roomDisconnect: false });
-      setTimeout(() => setConn('ok'), 2600);
-    }, 6000);
-    return () => clearTimeout(back);
-  }, [disconnect]); // eslint-disable-line react-hooks/exhaustive-deps
+    pending.current = [];
+    const t = setTimeout(() => setConn('ok'), 2600);
+    return () => clearTimeout(t);
+  }, [conn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 5분 넘게 끊기면 자동 퇴장 (공부 시간 기록은 서버에 저장돼 있다)
   const kick = useMockFlags((s) => s.roomKick);
@@ -380,7 +387,7 @@ export function RoomScreen() {
         {
           _id: `p${Date.now()}`,
           chatRoomId: chatId.data!,
-          senderId: 'u-me',
+          senderId: myId ?? '',
           type: 'text',
           text: v.trim(),
           sharedItemId: null,
@@ -400,7 +407,7 @@ export function RoomScreen() {
   const tiles = chat ? members.slice(0, 2) : members;
   const remain = timer ? Math.max(0, Math.floor((timer.endsAt - now) / 1000)) : 0;
   const mySec =
-    (members.find((m) => m.userId === 'u-me')?.todaySec ?? 0) +
+    (members.find((m) => m.userId === myId)?.todaySec ?? 0) +
     Math.floor((now - started) / 1000) +
     (myItem.since ? 0 : 0);
 
@@ -444,7 +451,7 @@ export function RoomScreen() {
       )}
       <View className="flex-row flex-wrap justify-between gap-y-2.5 px-4 pt-3">
         {tiles.map((m) => {
-          const me = m.userId === 'u-me';
+          const me = m.userId === myId;
           const camOn = me ? live.camOn : m.camOn;
           return (
             <View
@@ -495,7 +502,7 @@ export function RoomScreen() {
           className="mt-2 flex-1 bg-cream"
           contentContainerClassName="gap-3 px-4 py-3"
           renderItem={({ item: m }) => {
-            const mine = m.senderId === 'u-me';
+            const mine = m.senderId === myId;
             return (
               <View className={cx(mine && 'items-end')}>
                 {!mine && <Text className="mb-1 text-[11px] text-sub">💬 {m.senderNickname}</Text>}
@@ -548,7 +555,7 @@ export function RoomScreen() {
               <Text numberOfLines={1} className="text-[12px] text-sub">
                 💬{' '}
                 {last
-                  ? `${last.senderId === 'u-me' ? '나' : last.senderNickname}: ${last.text}`
+                  ? `${last.senderId === myId ? '나' : last.senderNickname}: ${last.text}`
                   : '채팅을 시작해 보세요'}
               </Text>
             </Pressable>

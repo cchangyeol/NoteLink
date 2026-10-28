@@ -40,6 +40,7 @@ import {
   Two,
   cx,
 } from '@/components/ui';
+import { useAuth } from '@/stores/auth';
 import { C } from '@/theme';
 
 // p.78 신고 / p.79 타이머 / p.80 시간표 · OS 캘린더 / p.81 세부 설정 · 초대 · 나가기
@@ -52,14 +53,21 @@ const REPORT_TYPES: [ReportType, string][] = [
   ['other', '기타'],
 ];
 
+export const MIN_REPORT_CHARS = 10;
+export const MAX_REPORT_PHOTOS = 5;
+/** 신고 대상 · 유형(필수) · 내용 10자 이상을 채워야 보낼 수 있다 (FR-33-02 · 03) */
+export const reportReady = (p: { target?: string; type: ReportType | null; body: string }) =>
+  !!p.target && !!p.type && p.body.trim().length >= MIN_REPORT_CHARS;
+
 export function ReportScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, target: picked } = useLocalSearchParams<{ id: string; target?: string }>();
+  const myId = useAuth((s) => s.userId);
   const room = useQuery({ queryKey: ['room', id], queryFn: () => api.rooms.get(id) });
-  const others = (room.data?.members ?? []).filter((m) => m.userId !== 'u-me');
-  const [target, setTarget] = useState<{ id: string; name: string }>({
-    id: 'u-minjun',
-    name: '김민준',
-  });
+  // 신고 대상은 이 방의 다른 멤버 중에서만 고른다. 방에서 사람을 골라 들어오면 그 사람이 기본값
+  const others = (room.data?.members ?? []).filter((m) => m.userId !== myId);
+  const [chosen, setChosen] = useState<string | undefined>(picked);
+  const t = others.find((m) => m.userId === chosen);
+  const target = t ? { id: t.userId, name: t.nickname } : null;
   const [type, setType] = useState<ReportType | null>(null);
   const [body, setBody] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
@@ -68,10 +76,12 @@ export function ReportScreen() {
   const addPhoto = async () => {
     const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
     const uri = r.canceled ? undefined : r.assets[0]?.uri;
-    if (uri) setPhotos((p) => [...p, uri].slice(0, 3));
+    if (uri) setPhotos((p) => [...p, uri].slice(0, MAX_REPORT_PHOTOS));
   };
   const send = useMutation({
     mutationFn: async () => {
+      if (!target || !reportReady({ target: target.id, type, body }))
+        throw new Error('입력을 확인해 주세요');
       const urls = await Promise.all(
         photos.map((uri, i) =>
           uploadToBlob('image', { uri, name: `report_${i}.jpg`, mimeType: 'image/jpeg' }),
@@ -91,7 +101,11 @@ export function ReportScreen() {
     <View className="flex-1">
       <Screen
         footer={
-          <Btn disabled={!type} loading={send.isPending} onPress={() => send.mutate()}>
+          <Btn
+            disabled={!reportReady({ target: target?.id, type, body })}
+            loading={send.isPending}
+            onPress={() => send.mutate()}
+          >
             신고하기
           </Btn>
         }
@@ -103,11 +117,14 @@ export function ReportScreen() {
             onPress={() => setSheet('target')}
             className="flex-row items-center gap-3 rounded-xl bg-[#eef1f2] px-3 py-2.5"
           >
-            <Avatar name={target.name} size={30} />
-            <View className="flex-1">
-              <Text className="text-[13px] font-semibold text-ink">{target.name}</Text>
-              <Text className="text-[11px] text-sub">{'"스터디 자료 공유해드립니다..."'}</Text>
-            </View>
+            {target ? (
+              <>
+                <Avatar name={target.name} size={30} />
+                <Text className="flex-1 text-[13px] font-semibold text-ink">{target.name}</Text>
+              </>
+            ) : (
+              <Text className="flex-1 text-[13px] text-sub">신고할 사람을 골라 주세요</Text>
+            )}
             <ChevronDown size={16} color={C.sub} />
           </Pressable>
           <Text className="mt-4 mb-1.5 text-[12px] text-sub">신고 유형 선택</Text>
@@ -116,7 +133,7 @@ export function ReportScreen() {
             className="h-11 flex-row items-center justify-between rounded-xl bg-[#eef1f2] px-3"
           >
             <Text className={cx('text-[13px]', type ? 'text-ink' : 'text-sub')}>
-              {REPORT_TYPES.find((t) => t[0] === type)?.[1] ?? '부적절한 언어 사용'}
+              {REPORT_TYPES.find((x) => x[0] === type)?.[1] ?? '신고 유형을 골라 주세요'}
             </Text>
             <ChevronDown size={16} color={C.sub} />
           </Pressable>
@@ -125,23 +142,33 @@ export function ReportScreen() {
             multiline
             value={body}
             onChangeText={setBody}
-            placeholder="신고 사유를 자세히 입력해 주세요."
+            placeholder="신고 사유를 자세히 입력해 주세요. (10자 이상)"
             placeholderTextColor={C.sub}
             className="h-32 rounded-xl bg-[#eef1f2] p-3 text-[13px] text-ink"
             style={{ textAlignVertical: 'top' }}
           />
+          <Text
+            className={cx(
+              'mt-1 text-right text-[11px]',
+              body.trim().length < MIN_REPORT_CHARS ? 'text-danger' : 'text-sub',
+            )}
+          >
+            {body.trim().length}/{MIN_REPORT_CHARS}자 이상
+          </Text>
           <Text className="mt-4 mb-1.5 text-[12px] text-sub">사진 첨부</Text>
           <View className="flex-row gap-2">
             {photos.map((u) => (
               <Image key={u} source={{ uri: u }} className="h-14 w-14 rounded-xl" />
             ))}
-            {photos.length < 3 && (
+            {photos.length < MAX_REPORT_PHOTOS && (
               <Pressable
                 onPress={addPhoto}
                 className="h-14 w-14 items-center justify-center rounded-xl border border-line"
               >
                 <Camera size={16} color={C.sub} />
-                <Text className="text-[10px] text-sub">{photos.length}/3</Text>
+                <Text className="text-[10px] text-sub">
+                  {photos.length}/{MAX_REPORT_PHOTOS}
+                </Text>
               </Pressable>
             )}
           </View>
@@ -161,14 +188,14 @@ export function ReportScreen() {
       </Screen>
       <Sheet open={sheet === 'target'} onClose={() => setSheet(null)} title="신고 대상">
         <Group>
-          {[{ userId: 'u-minjun', nickname: '김민준' }, ...others].map((m) => (
+          {others.map((m) => (
             <Row
               key={m.userId}
               onPress={() => {
-                setTarget({ id: m.userId, name: m.nickname });
+                setChosen(m.userId);
                 setSheet(null);
               }}
-              right={target.id === m.userId && <Check size={16} color={C.brand} />}
+              right={target?.id === m.userId && <Check size={16} color={C.brand} />}
             >
               {m.nickname}
             </Row>

@@ -113,12 +113,34 @@ function ErrorAlert({ retry }: { retry: () => void }) {
   );
 }
 
+/** 퀴즈는 노트(자료) 하나로 만든다 (FR-38-02) — 폴더마다 정리가 끝난 자료를 모은다 */
+async function quizNotes() {
+  const folders = await api.content.folders();
+  const lists = await Promise.all(
+    folders.map(async (f) =>
+      (await api.content.materials(f._id))
+        .filter((m) => !m.processing || m.processing.status === 'done')
+        .map((m) => ({ ...m, subjectName: f.subjectName })),
+    ),
+  );
+  return lists.flat();
+}
+
 export function QuizNotesScreen() {
-  const folders = useQuery({ queryKey: ['folders'], queryFn: api.content.folders });
+  const notes = useQuery({ queryKey: ['quiz-notes'], queryFn: quizNotes });
+  const [picked, setPicked] = useState<string | null>(null);
   const offline = useNet((s) => s.state === 'offline');
   const [q, setQ] = useState('');
   const [menu, setMenu] = useState(false);
-  const list = (folders.data ?? []).filter((f) => f.title.includes(q));
+  const list = (notes.data ?? []).filter((f) => f.title.includes(q));
+  const chosen = list.find((f) => f._id === picked);
+  const make = () =>
+    chosen
+      ? router.push({
+          pathname: '/play/gen',
+          params: { materialId: chosen._id, title: chosen.title },
+        })
+      : toast('퀴즈를 만들 노트를 먼저 골라 주세요');
   return (
     <View className="flex-1 bg-white">
       <Screen>
@@ -127,7 +149,7 @@ export function QuizNotesScreen() {
           어떤 노트로 퀴즈를 만들까요?
         </Text>
         <Search value={q} onChangeText={setQ} placeholder="노트 검색" />
-        {folders.isSuccess && folders.data.length === 0 && (
+        {notes.isSuccess && notes.data.length === 0 && (
           <View className="items-center py-16">
             <Text className="text-[13px] text-sub">아직 노트가 없어요</Text>
             <Btn small className="mt-4 w-44" onPress={() => router.navigate('/(tabs)/note')}>
@@ -143,12 +165,9 @@ export function QuizNotesScreen() {
               onPress={() =>
                 offline
                   ? toast('연결되면 퀴즈를 만들 수 있어요 · 노트는 그대로 볼 수 있어요')
-                  : router.push({
-                      pathname: '/play/gen',
-                      params: { materialId: f._id, title: f.title },
-                    })
+                  : setPicked(f._id)
               }
-              className="w-[48.5%] p-2.5"
+              className={cx('w-[48.5%] p-2.5', picked === f._id && 'border-2 border-blue')}
             >
               <View className="h-16 rounded-xl bg-white">
                 {offline && (
@@ -188,16 +207,7 @@ export function QuizNotesScreen() {
                 ['플래시 카드', '🗂', () => router.push('/play/flash')],
                 ['퀴즈 보관함', '🗃', () => router.push('/play/box')],
                 ['새 노트 올리고 만들기', '📄', () => router.navigate('/(tabs)/note')],
-                [
-                  '퀴즈 만들기',
-                  '✏️',
-                  () =>
-                    list[0] &&
-                    router.push({
-                      pathname: '/play/gen',
-                      params: { materialId: list[0]._id, title: list[0].title },
-                    }),
-                ],
+                ['퀴즈 만들기', '✏️', make],
               ] as const
             ).map(([l, ic, fn], i) => (
               <Animated.View key={l} entering={ZoomIn.delay(i * 30)}>
@@ -543,7 +553,8 @@ export function QuizReviewScreen() {
   const qc = useQueryClient();
   const [reward, setReward] = useState(Number(points) > 0);
   const [select, setSelect] = useState(false);
-  const [sel, setSel] = useState<string[]>([]);
+  // 선택 모드에서는 문제 하나를 골라 AI 설명을 본다 (FR-52-01 ~ 05)
+  const [sel, setSel] = useState<string | null>(null);
   useEffect(() => {
     if (points) qc.invalidateQueries({ queryKey: ['me'] });
   }, [points]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -553,15 +564,18 @@ export function QuizReviewScreen() {
       <Screen
         footer={
           <>
-            <Btn
-              onPress={() =>
-                select && sel.length
-                  ? (toast(`${sel.length}문제를 보관함에 담았어요`), setSelect(false), setSel([]))
-                  : router.dismissTo('/(tabs)/quiz')
-              }
-            >
-              {select && sel.length ? `${sel.length}문제 보관함에 담기` : '확인'}
-            </Btn>
+            {select ? (
+              <Btn
+                disabled={!sel}
+                onPress={() =>
+                  sel && router.push({ pathname: '/play/explain', params: { qid: sel } })
+                }
+              >
+                AI 설명 보기
+              </Btn>
+            ) : (
+              <Btn onPress={() => router.dismissTo('/(tabs)/quiz')}>확인</Btn>
+            )}
             <Pressable
               onPress={() => router.push({ pathname: '/play/similar', params: { setId } })}
               className="mt-2 self-center rounded-full border border-line px-3 py-1"
@@ -573,7 +587,10 @@ export function QuizReviewScreen() {
       >
         <View className="items-end pt-3">
           <Pressable
-            onPress={() => setSelect((x) => !x)}
+            onPress={() => {
+              setSelect((x) => !x);
+              setSel(null);
+            }}
             className={cx('rounded-full px-3 py-1', select ? 'bg-ink' : 'border border-line')}
           >
             <Text className={cx('text-[12px]', select ? 'text-white' : 'text-ink')}>
@@ -592,15 +609,10 @@ export function QuizReviewScreen() {
               key={q._id}
               onPress={() =>
                 select
-                  ? setSel((p) =>
-                      p.includes(q._id) ? p.filter((x) => x !== q._id) : [...p, q._id],
-                    )
+                  ? setSel(q._id)
                   : router.push({ pathname: '/play/explain', params: { qid: q._id } })
               }
-              className={cx(
-                'rounded-2xl bg-cream p-3',
-                sel.includes(q._id) && 'border-2 border-brand',
-              )}
+              className={cx('rounded-2xl bg-cream p-3', sel === q._id && 'border-2 border-brand')}
             >
               <View className="flex-row items-start gap-2">
                 <View className="h-5 w-5 items-center justify-center rounded-full bg-brand">
@@ -679,11 +691,14 @@ export function QuizSimilarScreen() {
   });
   const [open, setOpen] = useState<string[]>([]);
   const [saved, setSaved] = useState<string[]>([]);
+  const qc = useQueryClient();
   const save = useMutation({
     mutationFn: (q: Question) =>
       api.quiz.saveFlashcard({ front: q.prompt, back: q.answer, sourceQuestionId: q._id }),
     onSuccess: (_, q) => {
       setSaved((p) => [...p, q._id]);
+      // 플래시 카드 화면을 다시 열면 새 카드가 보이게
+      qc.invalidateQueries({ queryKey: ['flashcards'] });
       toast('플래시카드에 저장했어요');
     },
   });

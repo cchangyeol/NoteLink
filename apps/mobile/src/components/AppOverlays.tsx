@@ -1,10 +1,40 @@
 import { Text, View } from 'react-native';
 import Animated, { FadeInUp, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { useToast } from '@/stores/toast';
+import { useAuth } from '@/stores/auth';
+import { Alert } from './ui';
 
-/** 전역 토스트 */
+/** 전역 오버레이: 로그인 만료 안내 + 토스트 */
 export function AppOverlays() {
+  return (
+    <>
+      <ExpiredDialog />
+      <Toast />
+    </>
+  );
+}
+
+/** 토큰 갱신까지 실패하면 다시 로그인하게 한다. 같은 계정으로 들어오면 풀던 퀴즈 · 설정을 이어 간다 (p.101, FR-67-01) */
+function ExpiredDialog() {
+  const expired = useAuth((s) => s.expired);
+  return (
+    <Alert
+      open={expired}
+      tone="sun"
+      title="로그인이 만료됐어요"
+      body={'보안을 위해 다시 로그인해 주세요.\n하던 작업은 그대로 이어 갈 수 있어요.'}
+      primary="다시 로그인"
+      onPrimary={async () => {
+        await useAuth.getState().expire();
+        router.replace('/(auth)/login');
+      }}
+    />
+  );
+}
+
+function Toast() {
   const msg = useToast((s) => s.msg);
   const insets = useSafeAreaInsets();
   if (!msg) return null;

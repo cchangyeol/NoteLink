@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronRight, ExternalLink } from 'lucide-react-native';
+import { ChevronRight, CircleAlert, ExternalLink } from 'lucide-react-native';
 import type { PlanTier, UserSettings } from '@notelink/shared';
 import { api } from '@/lib/api';
 import { env } from '@/lib/env';
@@ -28,6 +28,7 @@ import {
   Title,
   Toggle,
   cx,
+  Empty,
 } from '@/components/ui';
 import { C } from '@/theme';
 
@@ -65,6 +66,22 @@ export function SettingsScreen() {
     await useAuth.getState().signOut();
     router.replace('/(auth)/login');
   };
+  // 내 정보를 못 불러와도 다시 시도 · 로그아웃은 할 수 있게 한다
+  if (me.isError)
+    return (
+      <Screen>
+        <Title>설정</Title>
+        <Empty
+          icon={<CircleAlert size={32} color={C.danger} />}
+          title="내 정보를 불러오지 못했어요"
+        >
+          <Btn onPress={() => me.refetch()}>다시 시도</Btn>
+          <Btn kind="cream" className="mt-2" onPress={() => signOut(false)}>
+            로그아웃
+          </Btn>
+        </Empty>
+      </Screen>
+    );
   if (!me.data) return <Loading />;
   const u = me.data;
   const s = u.settings;

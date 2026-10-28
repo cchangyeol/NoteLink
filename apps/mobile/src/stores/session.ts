@@ -46,9 +46,13 @@ export const useSession = create<Session>((set, get) => ({
   start: async (itemId, mode = 'personal') => {
     const cur = get();
     if (cur.itemId === itemId && cur.pausedAt) return get().resume();
-    if (cur.itemId && cur.itemId !== itemId) await get().end('switch');
-    const g = ++gen;
+    // 계정 세대는 어떤 기다림보다 먼저 잡는다 — 앞 세션을 끝내는 사이 로그아웃 · 계정 전환되면 새로 시작하지 않는다
     const e = epoch;
+    if (cur.itemId && cur.itemId !== itemId) {
+      await get().end('switch');
+      if (e !== epoch) return;
+    }
+    const g = ++gen;
     set({ itemId, since: Date.now(), banked: 0, pausedAt: null, mode, sessionId: null });
     let s;
     try {
@@ -58,7 +62,12 @@ export const useSession = create<Session>((set, get) => ({
       if (g === gen) set(idle);
       throw err;
     }
-    if (g === gen) return set({ sessionId: s._id });
+    if (g === gen) {
+      set({ sessionId: s._id });
+      // 응답을 기다리는 사이 일시정지 · 재개했으면 서버도 맞춘다
+      if (get().pausedAt) api.study.pauseSession(s._id).catch(() => {});
+      return;
+    }
     // 기다리는 사이 측정이 끝났거나 다른 항목으로 바뀌었다 → 같은 계정이면 서버에 남은 세션을 닫는다
     if (e === epoch)
       api.study.endSession(s._id, { clientDurationSec: 0, endReason: 'cancelled' }).catch(() => {});

@@ -44,7 +44,10 @@ export function HomeScreen() {
   const toggle = async (id: string) => {
     Haptics.selectionAsync();
     if (s.itemId === id && running) return s.pause();
+    // 다른 항목으로 바꾸면 start()가 앞 세션을 끝낸다 → 서버 누적을 다시 받아 방금 공부한 시간이 빠지지 않게
+    const switching = !!s.itemId && s.itemId !== id;
     await s.start(id);
+    if (switching) await qc.invalidateQueries({ queryKey: ['study'] });
   };
   const finish = async (reason = 'manual') => {
     const r = await s.end(reason);
@@ -227,7 +230,7 @@ export function HomeScreen() {
                   {hms(live(it._id, it.accumulatedSec))}
                 </Text>
                 <Pressable
-                  accessibilityLabel={play ? '일시정지' : '시작'}
+                  accessibilityLabel={`${it.title} ${play ? '일시정지' : '시작'}`}
                   onPress={() => toggle(it._id)}
                   className={cx(
                     'h-9 w-9 items-center justify-center rounded-full',

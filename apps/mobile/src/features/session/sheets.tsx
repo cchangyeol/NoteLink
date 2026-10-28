@@ -7,24 +7,50 @@ import { Btn, Card, Chip, Input, Label, Sheet, Toggle } from '@/components/ui';
 
 // p.47 #2 공부할 항목 추가 / p.49 #7 이번주 목표 시간
 
-const GOALS = { '30분': 30, '1시간': 60, '1시간 30분': 90, '직접 입력': 45 } as const;
+const GOALS = { '30분': 30, '1시간': 60, '1시간 30분': 90, '직접 입력': null } as const;
+const NEW_SUBJECT = '+ 새 과목';
+const MAX_GOAL_MIN = 24 * 60; // 하루 24시간을 넘게 정할 수 없다 (FR-06-23)
+
+/** 바텀시트 입력을 저장할 값으로 바꾼다. 잘못된 입력이면 안내 문구를 돌려준다 */
+export function itemInput(p: {
+  title: string;
+  subject: string;
+  newSubject: string;
+  goal: keyof typeof GOALS | null;
+  customMin: string;
+}): { title: string; subjectName: string; goalMin: number | null } | string {
+  const title = p.title.trim();
+  if (!title) return '공부할 내용을 입력해 주세요';
+  const subjectName = (p.subject === NEW_SUBJECT ? p.newSubject : p.subject).trim();
+  if (!subjectName) return '과목 이름을 입력해 주세요';
+  if (subjectName.length > 20) return '과목 이름은 20자까지 쓸 수 있어요';
+  if (p.goal !== '직접 입력') return { title, subjectName, goalMin: p.goal ? GOALS[p.goal] : null };
+  const min = Number(p.customMin);
+  if (!Number.isInteger(min) || min < 1 || min > MAX_GOAL_MIN)
+    return `목표 시간은 1 ~ ${MAX_GOAL_MIN}분으로 입력해 주세요`;
+  return { title, subjectName, goalMin: min };
+}
 
 export function AddItemSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const qc = useQueryClient();
   const subjects = useQuery({ queryKey: ['subjects'], queryFn: api.study.subjects });
   const [title, setTitle] = useState('');
   const [subject, setSubject] = useState('수학');
-  const [goal, setGoal] = useState<keyof typeof GOALS>('1시간');
+  const [newSubject, setNewSubject] = useState('');
+  // 목표 시간은 생략할 수 있다 (FR-06-01) — 같은 칩을 다시 누르면 해제
+  const [goal, setGoal] = useState<keyof typeof GOALS | null>('1시간');
+  const [customMin, setCustomMin] = useState('');
+  const input = itemInput({ title, subject, newSubject, goal, customMin });
   const add = useMutation({
-    mutationFn: () =>
-      api.study.addItem({
-        title: title.trim() || '이차방정식 풀이',
-        subjectName: subject,
-        goalMin: GOALS[goal],
-      }),
+    mutationFn: () => {
+      if (typeof input === 'string') throw new Error(input);
+      return api.study.addItem(input);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['study', 'today'] });
+      qc.invalidateQueries({ queryKey: ['subjects'] });
       setTitle('');
+      setNewSubject('');
       onClose();
     },
   });
@@ -43,21 +69,48 @@ export function AddItemSheet({ open, onClose }: { open: boolean; onClose: () => 
       />
       <Label>과목</Label>
       <View className="flex-row flex-wrap gap-2">
-        {[...names, '+ 새 과목'].map((x) => (
+        {[...names, NEW_SUBJECT].map((x) => (
           <Chip key={x} on={subject === x} onPress={() => setSubject(x)}>
             {x}
           </Chip>
         ))}
       </View>
+      {subject === NEW_SUBJECT && (
+        <Input
+          className="mt-2"
+          value={newSubject}
+          onChangeText={setNewSubject}
+          placeholder="새 과목 이름 (20자까지)"
+          maxLength={20}
+        />
+      )}
       <Label>오늘 목표 시간 (선택)</Label>
       <View className="flex-row flex-wrap gap-2">
         {(Object.keys(GOALS) as (keyof typeof GOALS)[]).map((x) => (
-          <Chip key={x} on={goal === x} onPress={() => setGoal(x)}>
+          <Chip key={x} on={goal === x} onPress={() => setGoal(goal === x ? null : x)}>
             {x}
           </Chip>
         ))}
       </View>
-      <Btn className="mt-6" loading={add.isPending} onPress={() => add.mutate()}>
+      {goal === '직접 입력' && (
+        <Input
+          className="mt-2"
+          value={customMin}
+          onChangeText={(v) => setCustomMin(v.replace(/[^0-9]/g, ''))}
+          placeholder="목표 시간 (분)"
+          keyboardType="number-pad"
+          right={<Text className="text-[13px] text-sub">분</Text>}
+        />
+      )}
+      {typeof input === 'string' && (title || subject === NEW_SUBJECT || goal === '직접 입력') && (
+        <Text className="mt-2 text-[12px] text-danger">{input}</Text>
+      )}
+      <Btn
+        className="mt-6"
+        disabled={typeof input === 'string'}
+        loading={add.isPending}
+        onPress={() => add.mutate()}
+      >
         추가하기
       </Btn>
     </Sheet>

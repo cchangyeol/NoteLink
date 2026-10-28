@@ -93,6 +93,41 @@ def test_stalled_job_is_taken_again_after_its_lock_ends(col: Any, clock: Clock) 
     assert col.find_one({"_id": "j1"})["lockedBy"] == "w2"
 
 
+def test_taking_a_stalled_job_again_clears_the_old_progress(col: Any, clock: Clock) -> None:
+    add(col, "j1")
+    w1 = store(col, clock, "w1")
+    job = w1.claim(["quiz_generate"])
+    assert job is not None
+    w1.progress(job, 80, "검사")  # 여기서 w1이 멈춤
+    clock.tick(61)
+    store(col, clock, "w2").claim(["quiz_generate"])
+    doc = col.find_one({"_id": "j1"})
+    assert doc["progress"] == 0
+    assert "step" not in doc
+
+
+def test_stalled_jobs_are_given_up_once_a_minute_not_on_every_poll(col: Any, clock: Clock) -> None:
+    s = store(col, clock)
+    assert s.claim(["quiz_generate"]) is None  # 첫 가져오기에서 정리
+    add(col, "j1", status="running", attempts=3, lockedBy="w0", lockedUntil=T0 - timedelta(1))
+    clock.tick(30)
+    assert s.claim(["quiz_generate"]) is None
+    assert col.find_one({"_id": "j1"})["status"] == "running"
+    clock.tick(30)
+    assert s.claim(["quiz_generate"]) is None
+    assert col.find_one({"_id": "j1"})["status"] == "failed"
+
+
+def test_canceled_job_put_back_by_nestjs_is_taken_at_once(col: Any, clock: Clock) -> None:
+    add(col, "j1")
+    s = store(col, clock)
+    assert s.claim(["quiz_generate"]) is not None
+    col.update_one({"_id": "j1"}, {"$set": {"status": "canceled"}})  # 잠금 시간이 남은 채 취소
+    col.update_one({"_id": "j1"}, {"$set": {"status": "queued", "attempts": 0}})  # 앱의 다시 시도
+    job = store(col, clock, "w2").claim(["quiz_generate"])
+    assert job is not None and job.attempts == 1
+
+
 def test_job_stalled_up_to_the_limit_fails(col: Any, clock: Clock) -> None:
     add(col, "j1", status="running", attempts=3, lockedBy="w0", lockedUntil=T0 - timedelta(1))
     assert store(col, clock).claim(["quiz_generate"]) is None
@@ -110,6 +145,19 @@ def test_canceled_and_finished_jobs_are_not_taken(col: Any, clock: Clock) -> Non
 
 
 # ---------- 진행률 · 완료 ----------
+
+
+def test_touch_extends_lock_and_stops_when_canceled(col: Any, clock: Clock) -> None:
+    add(col, "j1")
+    s = store(col, clock)
+    job = s.claim(["quiz_generate"])
+    assert job is not None
+    clock.tick(40)
+    s.touch(job)
+    assert col.find_one({"_id": "j1"})["lockedUntil"] == T0 + timedelta(seconds=100)
+    col.update_one({"_id": "j1"}, {"$set": {"status": "canceled"}})
+    with pytest.raises(JobGoneError):
+        s.touch(job)
 
 
 def test_progress_writes_value_and_step_and_extends_lock(col: Any, clock: Clock) -> None:
@@ -182,7 +230,7 @@ def test_retry_requeues_with_growing_wait_until_the_limit(col: Any, clock: Clock
         assert (doc["progress"], doc["error"]) == (0, "AI 응답을 받지 못함(HTTP 503)")
         assert "step" not in doc
         wait = 30 * attempt
-        assert doc["lockedUntil"] == clock() + timedelta(seconds=wait)
+        assert (doc["lockedUntil"], doc["retryAt"]) == (None, clock() + timedelta(seconds=wait))
         clock.tick(wait - 1)
         assert s.claim(["quiz_generate"]) is None  # 기다리는 중
         clock.tick(1)
@@ -191,7 +239,7 @@ def test_retry_requeues_with_growing_wait_until_the_limit(col: Any, clock: Clock
     assert col.find_one({"_id": "j1"})["error"] is None  # 다시 가져가면 지난 오류를 지움
     assert s.fail(job, "AI 응답을 받지 못함(JSON)", retry=True) == "failed"
     doc = col.find_one({"_id": "j1"})
-    assert (doc["status"], doc["lockedUntil"]) == ("failed", None)
+    assert (doc["status"], doc["lockedUntil"], doc["retryAt"]) == ("failed", None, None)
 
 
 def test_fail_without_retry_ends_at_once_keeping_progress(col: Any, clock: Clock) -> None:

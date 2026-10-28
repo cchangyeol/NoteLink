@@ -131,6 +131,43 @@ def test_canceled_while_failing_is_left_canceled(col: Any) -> None:
     assert (doc["status"], doc["error"]) == ("canceled", None)
 
 
+def test_db_error_while_running_leaves_the_job_for_retry_not_failed(col: Any) -> None:
+    class DropOnProgress(JobStore):
+        def progress(self, job: Any, value: int, step: str | None = None) -> None:
+            raise AutoReconnect("연결 끊김")
+
+    flaky = DropOnProgress(
+        col, "w1", lock_sec=60, max_attempts=3, retry_delay_sec=30, now=lambda: T0
+    )
+
+    def handler(inp: JsonObject, report: Report) -> JsonObject:
+        report(50)
+        return {}
+
+    with pytest.raises(AutoReconnect):
+        run_once(flaky, {"quiz_generate": handler})
+    doc = col.find_one({"_id": "j1"})
+    assert (doc["status"], doc["error"]) == ("running", None)  # 잠금이 끝나면 다시 가져감
+
+
+def test_heartbeat_extends_lock_while_handler_is_quiet(col: Any) -> None:
+    touched = threading.Event()
+
+    class Counting(JobStore):
+        def touch(self, job: Any) -> None:
+            super().touch(job)
+            touched.set()
+
+    s = Counting(col, "w1", lock_sec=60, max_attempts=3, retry_delay_sec=30, now=lambda: T0)
+
+    def handler(inp: JsonObject, report: Report) -> JsonObject:
+        assert touched.wait(2)  # 진행률을 쓰지 않는 긴 LLM 호출 동안
+        return {"ok": True}
+
+    assert run_once(s, {"quiz_generate": handler}, heartbeat_sec=0.01)
+    assert col.find_one({"_id": "j1"})["status"] == "succeeded"
+
+
 def test_run_forever_keeps_going_after_db_error_and_stops_on_request(col: Any) -> None:
     stop = threading.Event()
     calls: list[str] = []

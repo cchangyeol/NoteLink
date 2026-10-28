@@ -269,10 +269,11 @@ def test_retag_reuses_listed_name_equal_to_new_one() -> None:
     )
 
 
-def test_unify_keeps_answers_numbered_differently_apart() -> None:
+@pytest.mark.parametrize("first, second", [("Type I", "Type II"), ("type i", "type ii")])
+def test_unify_keeps_answers_numbered_differently_apart(first: str, second: str) -> None:
     sets = [
-        [question("a1", "Type I hypersensitivity", "Type I 과민반응")],
-        [question("b1", "Type II hypersensitivity", "Type II 과민반응")],
+        [question("a1", f"{first} hypersensitivity", "Type I 과민반응")],
+        [question("b1", f"{second} hypersensitivity", "Type II 과민반응")],
     ]
     concepts = ["Type I 과민반응", "Type II 과민반응"]
     changes, names = c.unify(sets, concepts, created=["Type II 과민반응"])

@@ -33,9 +33,13 @@ export const useAuth = create<Auth>((set, get) => ({
   expired: false,
   load: async () => {
     const raw = await SecureStore.getItemAsync(KEY);
-    const saved = raw
-      ? (JSON.parse(raw) as Saved & { onboarded?: boolean; userId?: string })
-      : null;
+    let saved: (Saved & { onboarded?: boolean; userId?: string }) | null = null;
+    try {
+      saved = raw ? JSON.parse(raw) : null;
+    } catch {
+      // 저장 값이 깨졌으면 로그아웃 상태로 시작한다
+      await SecureStore.deleteItemAsync(KEY);
+    }
     set({
       ready: true,
       tokens: saved?.accessToken

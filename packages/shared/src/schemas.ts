@@ -4,8 +4,8 @@ import { z } from 'zod';
 // ObjectId·Date는 JSON으로 오가므로 string(ISO)으로 표현한다.
 
 const id = z.string();
-const date = z.string(); // ISO 8601 (UTC)
-const ymd = z.string(); // 'YYYY-MM-DD' (서울 기준 날짜)
+const date = z.iso.datetime(); // ISO 8601 (UTC, 끝이 Z)
+const ymd = z.iso.date(); // 'YYYY-MM-DD' (서울 기준 날짜)
 
 /* ── 1. 회원 · 인증 ─────────────────────────────── */
 

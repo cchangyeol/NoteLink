@@ -20,13 +20,14 @@ type Opts = {
   retry?: boolean;
 };
 
-let refreshing: Promise<boolean> | null = null;
+type Tokens = NonNullable<ReturnType<typeof useAuth.getState>['tokens']>;
+// 같은 토큰으로 동시에 만료된 요청들은 갱신 한 번을 같이 기다린다. 토큰이 다르면(다른 계정 · 이미 갱신됨) 따로 갱신한다
+let refreshing: { from: Tokens; p: Promise<boolean> } | null = null;
 
-/** 액세스 토큰이 만료되면 한 번만 갱신하고 원래 요청을 다시 보낸다 */
-async function refresh(): Promise<boolean> {
-  const t = useAuth.getState().tokens;
-  if (!t) return false;
-  refreshing ??= (async () => {
+/** 토큰 t를 갱신한다. 갱신하는 동안 토큰이 바뀌었으면 결과를 쓰지 않는다 */
+function refresh(t: Tokens): Promise<boolean> {
+  if (refreshing?.from === t) return refreshing.p;
+  const p = (async () => {
     try {
       const res = await fetch(env.apiUrl + PATHS.refresh, {
         method: 'POST',
@@ -44,10 +45,13 @@ async function refresh(): Promise<boolean> {
     } catch {
       return false;
     } finally {
-      setTimeout(() => (refreshing = null));
+      setTimeout(() => {
+        if (refreshing?.from === t) refreshing = null;
+      });
     }
   })();
-  return refreshing;
+  refreshing = { from: t, p };
+  return p;
 }
 
 export async function request<T>(
@@ -63,7 +67,10 @@ export async function request<T>(
         .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
         .join('&')
     : '';
-  const token = useAuth.getState().tokens?.accessToken;
+  // 요청을 보낸 계정 · 토큰. 401이 늦게 와도 이 계정 기준으로만 갱신 · 재전송한다
+  const sent = useAuth.getState().tokens;
+  const sentUser = useAuth.getState().userId;
+  const token = sent?.accessToken;
   let res: Response;
   try {
     res = await fetch(env.apiUrl + path + qs, {
@@ -88,9 +95,16 @@ export async function request<T>(
   if (res.ok) return json.data as T;
 
   const code = json.code ?? 'UNKNOWN';
-  if (res.status === 401 && code === ERROR_CODES.TOKEN_EXPIRED && opts.retry !== false) {
-    if (await refresh()) return request<T>(method, path, body, { ...opts, retry: false });
-    useAuth.getState().setExpired(true);
+  if (res.status === 401 && code === ERROR_CODES.TOKEN_EXPIRED && opts.retry !== false && sent) {
+    const sameUser = () => useAuth.getState().userId === sentUser;
+    const retry = () => request<T>(method, path, body, { ...opts, retry: false });
+    // 그 사이 다른 계정으로 바뀌었으면 새 계정 권한으로 다시 보내지 않는다
+    if (!sameUser()) throw new ApiError(code, json.message ?? '로그인이 바뀌었어요', res.status);
+    // 같은 계정의 다른 요청이 이미 갱신했으면 새 토큰으로 바로 다시 보낸다
+    if (useAuth.getState().tokens !== sent) return retry();
+    if ((await refresh(sent)) && sameUser()) return retry();
+    // 갱신 실패를 만료로 알리는 것도 시작한 토큰이 아직 쓰이고 있을 때만
+    if (useAuth.getState().tokens === sent) useAuth.getState().setExpired(true);
   }
   if (code === ERROR_CODES.MAINTENANCE) useNet.getState().set('maintenance');
   if (code === ERROR_CODES.AI_MAINTENANCE) useNet.getState().set('aiMaintenance');

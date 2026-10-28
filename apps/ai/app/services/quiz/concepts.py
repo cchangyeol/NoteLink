@@ -124,13 +124,26 @@ def key(name: str, subject: set[str] | frozenset[str] = frozenset()) -> str:
     return norm("".join(core(name, subject))) or norm(name)
 
 
+NUMBER = re.compile(r"(?<![0-9.])\d+(?:\.\d+)?|(?<![A-Za-z])[IVX]+(?![A-Za-z])")
+
+
+def numbers(name: str) -> set[str]:
+    """이름의 숫자 · 로마 숫자('Type II' → {'II'}, 'Phase 1 대사' → {'1'})."""
+    return set(NUMBER.findall(name))
+
+
 def same_name(a: str, b: str, subject: set[str] | frozenset[str] = frozenset()) -> bool:
     """짧은 이름의 낱말이 모두 긴 이름에 있고 긴 이름의 절반 이상이면 같은 이름.
 
     'advice 불가산 명사' = 'advice의 불가산 명사 성질',
     'Clindamycin D-test' = '…D-test를 통한 유도 내성 확인',
     'divide, separate, arrange의 의미' ≠ 'wipe, mop, sweep, clear의 의미'.
+    번호가 다른 이름은 다른 이름: 'Type I hypersensitivity' ≠ 'Type II hypersensitivity',
+    'Stage I' ≠ 'Stage IV'(뇌파 노트). 유사도만 보면 합쳐졌음.
     """
+    na, nb = numbers(a), numbers(b)
+    if na and nb and na != nb:
+        return False
     x, y = sorted(
         ({norm(w) for w in core(a, subject)}, {norm(w) for w in core(b, subject)}), key=len
     )

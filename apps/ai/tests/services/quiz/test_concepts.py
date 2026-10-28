@@ -90,6 +90,29 @@ def test_dedupe_keeps_first_of_same_names() -> None:
     assert c.dedupe(names) == ["advice 불가산 명사", "Clindamycin D-test"]
 
 
+def test_names_numbered_differently_are_different() -> None:
+    names = ["Type I hypersensitivity", "Type II hypersensitivity", "Stage I 수면", "Stage IV 수면"]
+    assert c.dedupe(names) == names
+    assert not c.same_name("Phase 1 대사", "Phase 2 대사")
+    # 번호가 같거나 한쪽에만 있으면 전처럼 비교
+    assert c.same_name("Type I hypersensitivity", "Type I 과민반응 hypersensitivity")
+    assert c.same_name("be being V-ed 상태 표현", "be being V-ed 상태 표현의 쓰임")
+
+
+def test_retag_keeps_differently_numbered_new_name() -> None:
+    llm = FakeLlm(
+        {
+            "Concept": [{"concept": c.NONE}, {"concept": "Type II hypersensitivity"}],
+            "Names": [verdicts()],
+        }
+    )
+    q = question("q1", "IgE 매개")
+    assert c.retag(llm, q, ["Type I hypersensitivity"], "면역학") == (
+        "Type II hypersensitivity",
+        "Type II hypersensitivity",
+    )
+
+
 def test_for_text_finds_names_of_a_page_or_falls_back_to_all() -> None:
     names = ["be being V-ed 상태 표현", "enough의 수식 위치", "Clindamycin D-test"]
     page = "be being p.p. 상태 표현\nenough는 형용사 뒤에서 수식"

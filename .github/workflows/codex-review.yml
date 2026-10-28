@@ -1,8 +1,10 @@
 # develop · main으로 가는 PR에 Codex 리뷰를 자동으로 남깁니다 (scripts/codex-review.sh).
 # 리뷰 전용 컴퓨터(self-hosted runner, 라벨 codex)에서 돌고, 댓글은 그 컴퓨터의 gh에 로그인한 계정으로 남습니다.
 # GITHUB_TOKEN은 넘기지 않습니다. 넘기면 댓글 작성자가 봇이 되어 지난 리뷰를 찾지 못합니다(재리뷰가 깨짐).
-# pull_request_target: 이 파일과 스크립트는 대상 브랜치의 것을 씁니다. PR이 이 워크플로나 스크립트를 바꿔도
-# 리뷰 컴퓨터에서는 실행되지 않습니다. PR 코드(AGENTS.md 포함)는 Codex가 읽기 전용으로 보지만 Codex의 입력이
+# pull_request_target: 이 파일과 스크립트는 PR의 대상 브랜치와 상관없이 기본 브랜치(main)의 것을 씁니다.
+# 이 파일이 main에 있어야 develop으로 가는 PR에서도 돌고, 고친 내용도 main에 들어가야 적용됩니다.
+# PR이 이 워크플로나 스크립트를 바꿔도 리뷰 컴퓨터에서는 실행되지 않습니다.
+# PR 코드(AGENTS.md 포함)는 Codex가 읽기 전용으로 보지만 Codex의 입력이
 # 되므로, 리뷰 댓글은 참고용으로 보고 최종 판단은 리뷰어가 합니다.
 # 필수 검사가 아니므로 리뷰 컴퓨터가 꺼져 있어도 병합은 막히지 않습니다(그때는 리뷰어가 직접 돌립니다).
 name: Codex 리뷰
@@ -35,7 +37,8 @@ jobs:
       run:
         shell: bash
     steps:
-      # 대상 브랜치를 받습니다. 재리뷰 때 지난 리뷰 커밋과 비교하도록 기록 전체를 받습니다.
+      # 기본 브랜치(main)를 받습니다. 리뷰할 PR과 대상 브랜치는 스크립트가 직접 받습니다.
+      # 재리뷰 때 지난 리뷰 커밋과 비교하도록 기록 전체를 받습니다.
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0

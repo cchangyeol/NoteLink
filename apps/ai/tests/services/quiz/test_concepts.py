@@ -269,6 +269,17 @@ def test_retag_reuses_listed_name_equal_to_new_one() -> None:
     )
 
 
+def test_unify_keeps_answers_numbered_differently_apart() -> None:
+    sets = [
+        [question("a1", "Type I hypersensitivity", "Type I 과민반응")],
+        [question("b1", "Type II hypersensitivity", "Type II 과민반응")],
+    ]
+    concepts = ["Type I 과민반응", "Type II 과민반응"]
+    changes, names = c.unify(sets, concepts, created=["Type II 과민반응"])
+    assert changes == {}
+    assert names == concepts
+
+
 def test_unify_gives_same_short_answer_the_first_sets_name() -> None:
     sets = [
         [question("a1", "budget", "budget의 의미"), question("a2", "산소 없이 증식한다", "무산소")],

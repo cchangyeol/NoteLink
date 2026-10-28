@@ -132,6 +132,17 @@ def numbers(name: str) -> set[str]:
     return set(NUMBER.findall(name))
 
 
+def numbered_apart(a: str, b: str) -> bool:
+    """둘 다 번호가 있고 서로 다름: 나머지가 아무리 비슷해도 다른 것."""
+    na, nb = numbers(a), numbers(b)
+    return bool(na and nb and na != nb)
+
+
+def same_answer(a: str, b: str) -> bool:
+    """답 비교용 same_item. 'Type I …'과 'Type II …'는 따로 둡니다(unify)."""
+    return same_item(a, b) and not numbered_apart(a, b)
+
+
 def same_name(a: str, b: str, subject: set[str] | frozenset[str] = frozenset()) -> bool:
     """짧은 이름의 낱말이 모두 긴 이름에 있고 긴 이름의 절반 이상이면 같은 이름.
 
@@ -141,8 +152,7 @@ def same_name(a: str, b: str, subject: set[str] | frozenset[str] = frozenset()) 
     번호가 다른 이름은 다른 이름: 'Type I hypersensitivity' ≠ 'Type II hypersensitivity',
     'Stage I' ≠ 'Stage IV'(뇌파 노트). 유사도만 보면 합쳐졌음.
     """
-    na, nb = numbers(a), numbers(b)
-    if na and nb and na != nb:
+    if numbered_apart(a, b):
         return False
     x, y = sorted(
         ({norm(w) for w in core(a, subject)}, {norm(w) for w in core(b, subject)}), key=len
@@ -461,7 +471,7 @@ def unify(
                 _short(a)
                 and tag in concepts
                 and tag is not None
-                and not any(same_item(x, a) for x, _ in first)
+                and not any(same_answer(x, a) for x, _ in first)
             ):
                 first.append((a, tag))
     changes: dict[str, str] = {}
@@ -470,7 +480,7 @@ def unify(
         for q in qs:
             a, tag = q["answer"], _tag(q)
             if _short(a):
-                prev = next((t for x, t in first if same_item(x, a)), None)
+                prev = next((t for x, t in first if same_answer(x, a)), None)
                 if prev and prev != tag:
                     changes[q["id"]] = tag = prev
             used.add(tag)

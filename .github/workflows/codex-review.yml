@@ -64,4 +64,7 @@ jobs:
       - name: 리뷰
         env:
           PR: ${{ github.event.pull_request.number }}
+          # 스크립트의 임시 폴더(mktemp)를 러너 작업용 임시 폴더에 둡니다. 러너가 작업마다 비우므로
+          # 취소된 실행이 남긴 폴더도 쌓이지 않습니다.
+          TMPDIR: ${{ runner.temp }}
         run: scripts/codex-review.sh "$PR"

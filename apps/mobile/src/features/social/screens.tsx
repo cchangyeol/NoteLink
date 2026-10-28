@@ -23,6 +23,7 @@ import {
   Two,
   cx,
 } from '@/components/ui';
+import { useAuth } from '@/stores/auth';
 import { C } from '@/theme';
 import { StatusText } from './drawer';
 
@@ -30,7 +31,7 @@ import { StatusText } from './drawer';
 
 export function FriendAddScreen() {
   const [q, setQ] = useState('');
-  const [sent, setSent] = useState(false);
+  const [sent, setSent] = useState<string[]>([]);
   const result = useQuery({
     queryKey: ['user-search', q],
     queryFn: () => api.social.search(q),
@@ -38,12 +39,12 @@ export function FriendAddScreen() {
   });
   const send = useMutation({
     mutationFn: (userId: string) => api.social.sendRequest(userId),
-    onSuccess: () => {
-      setSent(true);
+    onSuccess: (_, userId) => {
+      setSent((p) => [...p, userId]);
       toast('친구 요청을 보냈어요');
     },
   });
-  const found = result.data?.[0];
+  const found = result.data ?? [];
   return (
     <Screen>
       <Header title="친구 추가" />
@@ -51,7 +52,6 @@ export function FriendAddScreen() {
         value={q}
         onChangeText={(v) => {
           setQ(v);
-          setSent(false);
         }}
         placeholder="닉네임을 입력해주세요."
       />
@@ -60,36 +60,41 @@ export function FriendAddScreen() {
           닉네임으로 친구를 찾아보세요 · 예) 홍길동
         </Text>
       )}
-      {q.trim() && result.isSuccess && !found && (
+      {q.trim() && result.isSuccess && found.length === 0 && (
         <Card className="mt-3 items-center py-10">
           <SearchIcon size={22} color={C.sub} />
           <Text className="mt-2 text-[14px] font-semibold text-ink">해당 친구는 없습니다.</Text>
           <Text className="text-[12px] text-sub">닉네임을 정확히 입력했는지 확인해주세요</Text>
         </Card>
       )}
-      {found && (
-        <>
-          <Text className="mt-4 text-[12px] text-sub">검색 결과 {result.data!.length}</Text>
-          <View className="mt-2 flex-row items-center gap-3 py-2">
-            <Avatar name={found.nickname} size={40} tone="mint" />
-            <View>
-              <Text className="text-[15px] font-semibold text-ink">{found.nickname}</Text>
-              <Text className="text-[12px] text-sub">
-                {found.handle} · 함께 아는 친구 {found.mutualCount ?? 0}명
-              </Text>
-            </View>
-          </View>
-          <Btn
-            small
-            kind={sent ? 'outline' : 'primary'}
-            disabled={sent}
-            loading={send.isPending}
-            onPress={() => send.mutate(found.userId)}
-          >
-            {sent ? '요청 보냄' : '친구 요청 보내기'}
-          </Btn>
-        </>
+      {found.length > 0 && (
+        <Text className="mt-4 text-[12px] text-sub">검색 결과 {found.length}</Text>
       )}
+      {found.map((u) => {
+        const done = sent.includes(u.userId);
+        return (
+          <View key={u.userId} className="mt-2 gap-2 border-b border-line py-2">
+            <View className="flex-row items-center gap-3">
+              <Avatar name={u.nickname} size={40} tone="mint" />
+              <View>
+                <Text className="text-[15px] font-semibold text-ink">{u.nickname}</Text>
+                <Text className="text-[12px] text-sub">
+                  {u.handle} · 함께 아는 친구 {u.mutualCount ?? 0}명
+                </Text>
+              </View>
+            </View>
+            <Btn
+              small
+              kind={done ? 'outline' : 'primary'}
+              disabled={done}
+              loading={send.isPending && send.variables === u.userId}
+              onPress={() => send.mutate(u.userId)}
+            >
+              {done ? '요청 보냄' : '친구 요청 보내기'}
+            </Btn>
+          </View>
+        );
+      })}
     </Screen>
   );
 }
@@ -153,6 +158,7 @@ export function RequestsScreen() {
 }
 
 export function ChatScreen() {
+  const myId = useAuth((s) => s.userId);
   const {
     id,
     name = '지우',
@@ -244,7 +250,7 @@ export function ChatScreen() {
         onContentSizeChange={() => list.current?.scrollToEnd({ animated: true })}
         contentContainerClassName="gap-3 pb-4"
         renderItem={({ item: m }) => {
-          const mine = m.senderId === 'u-me';
+          const mine = m.senderId === myId;
           return (
             <View className={cx('flex-row', mine && 'justify-end')}>
               <View

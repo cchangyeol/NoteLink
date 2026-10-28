@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { PATHS } from './contracts.js';
-import { Material, QuizSet } from './schemas.js';
+import { Material, Notification, QuizSet } from './schemas.js';
 
 describe('PATHS', () => {
   it('경로 조각을 인코딩해 다른 경로로 새지 않게 한다', () => {
@@ -36,5 +36,23 @@ describe('schemas', () => {
   it('알 수 없는 퀴즈 상태는 거절한다', () => {
     const r = QuizSet.shape.status.safeParse('unknown');
     expect(r.success).toBe(false);
+  });
+});
+
+describe('날짜 형식', () => {
+  it('UTC 시각과 서울 날짜 형식만 받는다', () => {
+    const n = {
+      _id: 'n1',
+      userId: 'u1',
+      type: 'x',
+      title: 't',
+      body: 'b',
+      data: null,
+      readAt: null,
+    };
+    expect(Notification.safeParse({ ...n, createdAt: '2026-10-27T03:00:00.000Z' }).success).toBe(
+      true,
+    );
+    expect(Notification.safeParse({ ...n, createdAt: '어제' }).success).toBe(false);
   });
 });

@@ -25,7 +25,6 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { cssInterop } from 'nativewind';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { router, useSegments } from 'expo-router';
@@ -46,33 +45,46 @@ export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Bool
 // ── 모션 ─────────────────────────────────────────────
 // 모든 움직임은 MOTION 토큰을 쓴다. Reanimated는 기본으로 시스템의 '동작 줄이기'를 따른다.
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-cssInterop(AnimatedPressable, { className: 'style' });
 const PRESS = { damping: MOTION.press.damping, stiffness: MOTION.press.stiffness };
+
+// 바깥(스케일이 걸리는 상자)에 둘 클래스: 위치 · 바깥 여백 · 너비 · 늘어남. 나머지는 안쪽 Pressable에 둔다
+const OUTER =
+  /^-?(m[trblxy]?-|flex-1$|flex-\[|basis-|grow|shrink|w-|min-w-|max-w-|self-|absolute$|relative$|inset-|top-|left-|right-|bottom-|z-)/;
+const splitClass = (className = '') => {
+  const all = className.split(/\s+/).filter(Boolean);
+  const outer = all.filter((c) => OUTER.test(c));
+  const inner = all.filter((c) => !OUTER.test(c));
+  // 바깥이 늘어나면 안쪽도 같이 채운다
+  if (outer.includes('flex-1')) inner.push('flex-1');
+  return [outer.join(' '), inner.join(' ')] as const;
+};
 
 /** 누르면 살짝 작아졌다 돌아오는 Pressable (버튼 · 카드 · 칩 공통 눌림 피드백) */
 export function Tap({
   scaleTo = MOTION.press.scale,
-  style,
+  className,
   onPressIn,
   onPressOut,
   ...props
 }: ComponentProps<typeof Pressable> & { scaleTo?: number; className?: string }) {
   const scale = useSharedValue(1);
   const anim = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const [outer, inner] = splitClass(className);
   return (
-    <AnimatedPressable
-      {...props}
-      onPressIn={(e) => {
-        scale.set(withSpring(scaleTo, PRESS));
-        onPressIn?.(e);
-      }}
-      onPressOut={(e) => {
-        scale.set(withSpring(1, PRESS));
-        onPressOut?.(e);
-      }}
-      style={[anim, style as object]}
-    />
+    <Animated.View className={outer} style={anim}>
+      <Pressable
+        {...props}
+        className={inner}
+        onPressIn={(e) => {
+          scale.set(withSpring(scaleTo, PRESS));
+          onPressIn?.(e);
+        }}
+        onPressOut={(e) => {
+          scale.set(withSpring(1, PRESS));
+          onPressOut?.(e);
+        }}
+      />
+    </Animated.View>
   );
 }
 

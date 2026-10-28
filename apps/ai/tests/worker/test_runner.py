@@ -1,5 +1,5 @@
 import threading
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import mongomock
@@ -131,23 +131,39 @@ def test_canceled_while_failing_is_left_canceled(col: Any) -> None:
     assert (doc["status"], doc["error"]) == ("canceled", None)
 
 
-def test_db_error_while_running_leaves_the_job_for_retry_not_failed(col: Any) -> None:
-    class DropOnProgress(JobStore):
-        def progress(self, job: Any, value: int, step: str | None = None) -> None:
-            raise AutoReconnect("연결 끊김")
+@pytest.mark.parametrize("broken", ["progress", "succeed"])
+def test_db_error_while_running_is_retried_after_the_lock_ends(col: Any, broken: str) -> None:
+    now = [T0]
+    drops = [broken]
 
-    flaky = DropOnProgress(
-        col, "w1", lock_sec=60, max_attempts=3, retry_delay_sec=30, now=lambda: T0
-    )
+    class Flaky(JobStore):
+        def progress(self, job: Any, value: int, step: str | None = None) -> None:
+            if "progress" in drops:
+                drops.clear()
+                raise AutoReconnect("연결 끊김")
+            super().progress(job, value, step)
+
+        def succeed(self, job: Any, result: JsonObject) -> None:
+            if "succeed" in drops:
+                drops.clear()
+                raise AutoReconnect("연결 끊김")
+            super().succeed(job, result)
+
+    s = Flaky(col, "w1", lock_sec=60, max_attempts=3, retry_delay_sec=30, now=lambda: now[0])
 
     def handler(inp: JsonObject, report: Report) -> JsonObject:
         report(50)
-        return {}
+        return {"questions": 2}
 
     with pytest.raises(AutoReconnect):
-        run_once(flaky, {"quiz_generate": handler})
+        run_once(s, {"quiz_generate": handler})
     doc = col.find_one({"_id": "j1"})
-    assert (doc["status"], doc["error"]) == ("running", None)  # 잠금이 끝나면 다시 가져감
+    assert (doc["status"], doc["error"]) == ("running", None)  # 실패로 쓰지 않음
+    assert not run_once(s, {"quiz_generate": handler})  # 잠금이 남아 있는 동안은 안 가져감
+    now[0] += timedelta(seconds=61)
+    assert run_once(s, {"quiz_generate": handler})
+    doc = col.find_one({"_id": "j1"})
+    assert (doc["status"], doc["result"], doc["attempts"]) == ("succeeded", {"questions": 2}, 2)
 
 
 def test_heartbeat_extends_lock_while_handler_is_quiet(col: Any) -> None:

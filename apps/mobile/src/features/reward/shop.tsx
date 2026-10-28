@@ -1,0 +1,528 @@
+import { useEffect, useState } from 'react';
+import { Pressable, Text, View } from 'react-native';
+import Animated, { FadeInUp } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import * as Haptics from 'expo-haptics';
+import { ArrowUpDown, Check, ChevronLeft, ChevronRight, Heart, X } from 'lucide-react-native';
+import { ERROR_CODES, type ShopItem } from '@notelink/shared';
+import { api, ApiError, NetworkError } from '@/lib/api';
+import { clock } from '@/lib/dates';
+import { BASE_AVATAR } from '@/lib/mock/seed';
+import { Alert, Badge, Btn, Dialog, Sheet, Two, cx } from '@/components/ui';
+import { C } from '@/theme';
+
+// p.91~95 상점 · 정렬 · 상세 · 구매 · 포인트 내역 · 보관함 / p.101 구매 중 연결 끊김
+
+type Sort = 'latest' | 'price' | 'popular';
+const SORT_LABEL: Record<Sort, string> = {
+  latest: '최신순',
+  price: '낮은 가격순',
+  popular: '인기순',
+};
+
+function Toast({ msg, onClose }: { msg: string; onClose: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 2600);
+    return () => clearTimeout(t);
+  }, [msg]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <Animated.View
+      entering={FadeInUp}
+      className="mt-2 flex-row items-center rounded-xl bg-ink px-4 py-2.5"
+    >
+      <Text className="flex-1 text-[13px] font-semibold text-white">{msg}</Text>
+      <Pressable accessibilityLabel="닫기" onPress={onClose} hitSlop={10}>
+        <X size={16} color="#fff" />
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+function useShopData() {
+  const me = useQuery({ queryKey: ['me'], queryFn: api.me.get });
+  const mine = useQuery({ queryKey: ['my-items'], queryFn: api.shop.myItems });
+  const owned = new Set((mine.data ?? []).filter((u) => u.isOwned).map((u) => u.itemId));
+  const wished = new Set((mine.data ?? []).filter((u) => u.isWished).map((u) => u.itemId));
+  const equipped = mine.data?.find((u) => u.isEquipped)?.itemId ?? 'base';
+  return { points: me.data?.pointBalance ?? 0, owned, wished, equipped };
+}
+
+export function ShopScreen() {
+  const insets = useSafeAreaInsets();
+  const qc = useQueryClient();
+  const [tab, setTab] = useState<'전체' | '아바타' | '테마' | '찜'>('전체');
+  const [sort, setSort] = useState<Sort>('latest');
+  const items = useQuery({
+    queryKey: ['shop', tab, sort],
+    queryFn: () =>
+      api.shop.items({
+        category: tab === '아바타' ? 'avatar' : tab === '테마' ? 'theme' : undefined,
+        sort,
+      }),
+  });
+  const { points, owned, wished } = useShopData();
+  const [sortOpen, setSortOpen] = useState(false);
+  const [detail, setDetail] = useState<ShopItem | null>(null);
+  const [confirm, setConfirm] = useState<ShopItem | null>(null);
+  const [poor, setPoor] = useState<ShopItem | null>(null);
+  const [fail, setFail] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const wish = useMutation({
+    mutationFn: api.shop.wish,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['my-items'] }),
+  });
+  const buy = useMutation({
+    mutationFn: (it: ShopItem) => api.shop.purchase(it._id),
+    onSuccess: (_, it) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ['me'] });
+      qc.invalidateQueries({ queryKey: ['my-items'] });
+      // 포인트 내역을 열어 둔 적이 있어도 새 구매 내역이 바로 보이게
+      qc.invalidateQueries({ queryKey: ['ledger'] });
+      setMsg(`🎉 구매 완료 · ${it.name}`);
+    },
+    // 서버가 원자적으로 처리하므로 실패하면 포인트는 차감되지 않는다 (p.101)
+    onError: (e, it) =>
+      e instanceof ApiError && e.code === ERROR_CODES.POINTS_INSUFFICIENT
+        ? setPoor(it)
+        : e instanceof NetworkError
+          ? setFail(true)
+          : setMsg('구매하지 못했어요'),
+  });
+  // 찜 탭도 고른 정렬을 따른다 — '찜'은 카테고리가 없으므로 items가 정렬된 전체 목록이다
+  const list =
+    tab === '찜' ? (items.data ?? []).filter((i) => wished.has(i._id)) : (items.data ?? []);
+  const tryBuy = (it: ShopItem) => {
+    setDetail(null);
+    if (it.price > points) setPoor(it);
+    else setConfirm(it);
+  };
+
+  return (
+    <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
+      <View className="flex-1 px-5">
+        {msg ? (
+          <Toast msg={msg} onClose={() => setMsg(null)} />
+        ) : (
+          <View className="h-12 flex-row items-center justify-between pt-2">
+            <Pressable onPress={() => router.back()} className="flex-row items-center">
+              <ChevronLeft size={18} color={C.ink} />
+              <Text className="text-[15px] font-bold text-ink">상점</Text>
+            </Pressable>
+            <Pressable onPress={() => router.push('/shop/box')} className="flex-row items-center">
+              <Text className="text-[14px] font-semibold text-ink">보관함</Text>
+              <ChevronRight size={16} color={C.ink} />
+            </Pressable>
+          </View>
+        )}
+        <Pressable
+          onPress={() => router.push('/shop/points')}
+          className="mt-2 rounded-2xl bg-mint px-4 py-3"
+        >
+          <Text className="text-[11px] text-sub">보유 포인트</Text>
+          <Text className="text-[18px] font-bold text-ink">{points.toLocaleString()} P</Text>
+        </Pressable>
+        <View className="mt-4 flex-row gap-1">
+          {(['전체', '아바타', '테마', '찜'] as const).map((t) => (
+            <Pressable
+              key={t}
+              onPress={() => setTab(t)}
+              className={cx('rounded-lg px-3 py-1.5', tab === t && 'bg-mint')}
+            >
+              <Text
+                className={cx('text-[13px]', tab === t ? 'font-semibold text-brand' : 'text-sub')}
+              >
+                {t}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        <Pressable
+          onPress={() => setSortOpen(true)}
+          className="mt-1 flex-row items-center gap-1 self-end"
+        >
+          <Text className="text-[12px] text-sub">{SORT_LABEL[sort]}</Text>
+          <ArrowUpDown size={12} color={C.sub} />
+        </Pressable>
+        {list.length === 0 && (items.isSuccess || tab === '찜') ? (
+          <View className="mt-3 items-center rounded-2xl border border-line py-12">
+            <Text className="text-[30px]">🧺</Text>
+            <Text className="mt-2 text-[14px] font-semibold text-ink">
+              {tab === '찜' ? '찜한 아이템이 없어요' : '준비 중인 아이템이에요'}
+            </Text>
+            <Text className="text-[12px] text-sub">
+              {tab === '찜'
+                ? '♡를 눌러 마음에 드는 아이템을 모아보세요'
+                : '곧 새로운 아이템이 추가될 예정이에요'}
+            </Text>
+          </View>
+        ) : (
+          <View className="mt-2 flex-row flex-wrap justify-between gap-y-2.5">
+            {list.map((it) => (
+              <View key={it._id} className="w-[48.5%] rounded-2xl bg-cream p-2">
+                <Pressable onPress={() => setDetail(it)}>
+                  <View className="h-24 items-center justify-center rounded-xl bg-white">
+                    <Text className="text-[46px]">{it.thumbnailUrl}</Text>
+                    {it.badge && (
+                      <View
+                        className={cx(
+                          'absolute top-1.5 left-1.5 rounded-md px-1.5',
+                          it.badge === 'NEW' ? 'bg-sun' : 'bg-[#e8902c]',
+                        )}
+                      >
+                        <Text className="text-[9px] font-bold text-white">{it.badge}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text className="mt-2 px-1 text-[13px] font-semibold text-ink">{it.name}</Text>
+                  <Text className="px-1 text-[11px] text-sub">
+                    {owned.has(it._id) ? '보유중' : `${it.price.toLocaleString()} P`}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  accessibilityLabel={wished.has(it._id) ? '찜 해제' : '찜'}
+                  onPress={() => wish.mutate(it._id)}
+                  hitSlop={8}
+                  className="absolute top-3.5 right-3.5"
+                >
+                  <Heart
+                    size={15}
+                    color={wished.has(it._id) ? C.danger : C.sub}
+                    fill={wished.has(it._id) ? C.danger : 'transparent'}
+                  />
+                </Pressable>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+
+      <Sheet open={sortOpen} onClose={() => setSortOpen(false)} title="정렬">
+        <View className="gap-1.5">
+          {(Object.keys(SORT_LABEL) as Sort[]).map((o) => (
+            <Pressable
+              key={o}
+              onPress={() => {
+                setSort(o);
+                setSortOpen(false);
+              }}
+              className={cx(
+                'h-11 flex-row items-center rounded-xl px-4',
+                sort === o ? 'bg-mint' : 'bg-cream',
+              )}
+            >
+              <Text className="flex-1 text-[14px] text-ink">{SORT_LABEL[o]}</Text>
+              {sort === o && <Check size={16} color={C.brand} />}
+            </Pressable>
+          ))}
+        </View>
+      </Sheet>
+      <Sheet open={!!detail} onClose={() => setDetail(null)}>
+        {detail && (
+          <>
+            <View className="h-36 items-center justify-center rounded-2xl bg-cream">
+              <Text className="text-[72px]">{detail.thumbnailUrl}</Text>
+            </View>
+            <View className="mt-3 flex-row items-center justify-between">
+              <Text className="text-[16px] font-bold text-ink">{detail.name}</Text>
+              {owned.has(detail._id) ? (
+                <Badge>보유중</Badge>
+              ) : (
+                <Pressable
+                  accessibilityLabel="찜"
+                  onPress={() => wish.mutate(detail._id)}
+                  className="h-8 w-8 items-center justify-center rounded-full border border-line"
+                >
+                  <Heart
+                    size={15}
+                    color={wished.has(detail._id) ? C.danger : C.sub}
+                    fill={wished.has(detail._id) ? C.danger : 'transparent'}
+                  />
+                </Pressable>
+              )}
+            </View>
+            {!owned.has(detail._id) && (
+              <Text className="text-[13px] text-sub">{detail.price.toLocaleString()} P</Text>
+            )}
+            <Text className="mt-1 text-[12px] text-sub">{detail.description}</Text>
+            {owned.has(detail._id) ? (
+              <Btn
+                className="mt-4"
+                onPress={() => {
+                  setDetail(null);
+                  router.push({ pathname: '/shop/box', params: { equip: detail._id } });
+                }}
+              >
+                장착하러 가기
+              </Btn>
+            ) : (
+              <Btn className="mt-4" onPress={() => tryBuy(detail)}>
+                구매
+              </Btn>
+            )}
+          </>
+        )}
+      </Sheet>
+      <Dialog open={!!confirm} onClose={() => setConfirm(null)}>
+        {confirm && (
+          <>
+            <Text className="text-[15px] font-bold text-ink">{confirm.name}를 구매할까요?</Text>
+            <View className="mt-4 w-full gap-1.5 rounded-xl bg-cream p-3">
+              <View className="flex-row justify-between">
+                <Text className="text-[13px] text-sub">차감 포인트</Text>
+                <Text className="text-[13px] font-bold text-ink">{confirm.price} P</Text>
+              </View>
+              <View className="flex-row justify-between">
+                <Text className="text-[13px] text-sub">구매 후 잔액</Text>
+                <Text className="text-[13px] font-bold text-ink">{points - confirm.price} P</Text>
+              </View>
+            </View>
+            <View className="mt-4 w-full">
+              <Two>
+                <Btn small kind="outline" onPress={() => setConfirm(null)}>
+                  취소
+                </Btn>
+                <Btn
+                  small
+                  loading={buy.isPending}
+                  onPress={() => {
+                    const it = confirm;
+                    setConfirm(null);
+                    buy.mutate(it);
+                  }}
+                >
+                  구매
+                </Btn>
+              </Two>
+            </View>
+          </>
+        )}
+      </Dialog>
+      <Dialog open={!!poor} onClose={() => setPoor(null)}>
+        {poor && (
+          <>
+            <Text className="text-[28px]">😢</Text>
+            <Text className="text-[15px] font-bold text-ink">포인트가 부족해요</Text>
+            <Text className="mt-1 text-[12px] text-sub">
+              {poor.name} 구매까지 {poor.price - points} P 더 필요해요
+            </Text>
+            <Btn
+              small
+              className="mt-4 w-full"
+              onPress={() => {
+                setPoor(null);
+                router.dismissAll();
+                router.navigate('/(tabs)/quiz');
+              }}
+            >
+              포인트 모으러 가기
+            </Btn>
+            <Btn small kind="outline" className="mt-2 w-full" onPress={() => setPoor(null)}>
+              닫기
+            </Btn>
+          </>
+        )}
+      </Dialog>
+      <Alert
+        open={fail}
+        title="구매하지 못했어요"
+        body={`연결이 끊겨 구매가 완료되지 않았어요.\n포인트는 차감되지 않았어요.`}
+        secondary="닫기"
+        onSecondary={() => setFail(false)}
+        primary="다시 시도"
+        onPrimary={() => {
+          setFail(false);
+          buy.variables && buy.mutate(buy.variables);
+        }}
+      />
+    </View>
+  );
+}
+
+export function PointsScreen() {
+  const insets = useSafeAreaInsets();
+  const { points } = useShopData();
+  const [tab, setTab] = useState<'전체' | '적립' | '사용'>('전체');
+  const ledger = useQuery({
+    queryKey: ['ledger', tab],
+    queryFn: () => api.shop.ledger(tab === '전체' ? undefined : tab === '적립' ? 'earn' : 'spend'),
+  });
+  return (
+    <View className="flex-1 bg-white px-5" style={{ paddingTop: insets.top }}>
+      <Pressable onPress={() => router.back()} className="h-12 flex-row items-center pt-2">
+        <ChevronLeft size={18} color={C.ink} />
+        <Text className="text-[15px] font-bold text-ink">포인트 내역</Text>
+      </Pressable>
+      <View className="mt-2 flex-row items-center justify-between rounded-2xl bg-mint px-4 py-3">
+        <Text className="text-[12px] text-sub">보유 포인트</Text>
+        <Text className="font-bold text-ink">{points.toLocaleString()} P</Text>
+      </View>
+      <View className="mt-3 flex-row gap-1">
+        {(['전체', '적립', '사용'] as const).map((t) => (
+          <Pressable
+            key={t}
+            onPress={() => setTab(t)}
+            className={cx('rounded-lg px-3 py-1.5', tab === t && 'bg-mint')}
+          >
+            <Text
+              className={cx('text-[13px]', tab === t ? 'font-semibold text-brand' : 'text-sub')}
+            >
+              {t}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      <View className="mt-2">
+        {ledger.data?.map((l) => (
+          <View key={l._id} className="flex-row items-center border-b border-line py-3">
+            <View className="flex-1">
+              <Text className="text-[14px] text-ink">{l.description}</Text>
+              <Text className="text-[11px] text-sub">{clock(l.createdAt)}</Text>
+            </View>
+            <Text
+              className={cx(
+                'text-[14px] font-semibold',
+                l.amount < 0 ? 'text-danger' : 'text-brand',
+              )}
+            >
+              {l.amount > 0 ? '+' : ''}
+              {l.amount} P
+            </Text>
+          </View>
+        ))}
+      </View>
+      {tab !== '전체' && (
+        <Pressable
+          onPress={() => ledger.refetch()}
+          className="mt-3 h-11 items-center justify-center rounded-xl border border-brand/30"
+        >
+          <Text className="text-[13px] text-sub">이전 내역 더 보기</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+export function BoxScreen() {
+  const insets = useSafeAreaInsets();
+  const qc = useQueryClient();
+  const { owned, equipped } = useShopData();
+  const all = useQuery({ queryKey: ['shop', 'all'], queryFn: () => api.shop.items({}) });
+  const [tab, setTab] = useState<'전체' | '아바타' | '테마'>('전체');
+  const [pick, setPick] = useState<ShopItem | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const { equip: eq } = useLocalSearchParams<{ equip?: string }>();
+  // 상점에서 '장착하러 가기'로 들어오면 그 아이템을 고른 상태로 연다 (렌더 중 상태 조정)
+  const [opened, setOpened] = useState<string>();
+  const key = eq && all.data ? `${eq}:${all.dataUpdatedAt}` : undefined;
+  if (key && key !== opened) {
+    setOpened(key);
+    setPick(all.data?.find((i) => i._id === eq) ?? null);
+  }
+  const items = [BASE_AVATAR, ...(all.data ?? []).filter((i) => owned.has(i._id))].filter(
+    (i) => tab === '전체' || (tab === '아바타' ? i.category === 'avatar' : i.category === 'theme'),
+  );
+  const cur = [BASE_AVATAR, ...(all.data ?? [])].find((i) => i._id === equipped) ?? BASE_AVATAR;
+  const equip = useMutation({
+    mutationFn: (it: ShopItem) => api.shop.equip(it._id),
+    onSuccess: (_, it) => {
+      qc.invalidateQueries({ queryKey: ['my-items'] });
+      setPick(null);
+      setMsg(`✓ 장착 완료 · ${it.name}`);
+    },
+  });
+  return (
+    <View className="flex-1 bg-white px-5" style={{ paddingTop: insets.top }}>
+      {msg ? (
+        <Toast msg={msg} onClose={() => setMsg(null)} />
+      ) : (
+        <Pressable onPress={() => router.back()} className="h-12 flex-row items-center pt-2">
+          <ChevronLeft size={18} color={C.ink} />
+          <Text className="text-[15px] font-bold text-ink">보관함</Text>
+        </Pressable>
+      )}
+      <View className="mt-3 h-32 items-center justify-center rounded-2xl bg-cream">
+        <Text className="text-[60px]">{cur.thumbnailUrl}</Text>
+        <View className="absolute right-3 bottom-3 rounded-full bg-white px-2 py-0.5">
+          <Text className="text-[10px] text-ink">현재 아바타</Text>
+        </View>
+      </View>
+      <View className="mt-3 flex-row gap-1">
+        {(['전체', '아바타', '테마'] as const).map((t) => (
+          <Pressable
+            key={t}
+            onPress={() => setTab(t)}
+            className={cx('rounded-lg px-3 py-1.5', tab === t && 'bg-mint')}
+          >
+            <Text
+              className={cx('text-[13px]', tab === t ? 'font-semibold text-brand' : 'text-sub')}
+            >
+              {t}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      {owned.size <= 1 ? (
+        <View className="mt-14 items-center">
+          <Text className="text-[40px]">📦</Text>
+          <Text className="mt-2 text-[14px] font-semibold text-ink">
+            아직 보유한 아이템이 없어요
+          </Text>
+          <Pressable
+            onPress={() => router.replace('/shop')}
+            className="mt-3 rounded-full bg-ink px-4 py-1.5"
+          >
+            <Text className="text-[13px] text-white">상점 둘러보기</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <View className="mt-2 flex-row flex-wrap justify-between gap-y-2.5">
+          {items.map((it) => (
+            <Pressable
+              key={it._id}
+              onPress={() => it._id !== equipped && setPick(it)}
+              className="w-[48.5%] rounded-2xl bg-cream p-2"
+            >
+              <View className="h-24 items-center justify-center rounded-xl bg-white">
+                <Text className="text-[46px]">{it.thumbnailUrl}</Text>
+              </View>
+              <Text className="mt-2 px-1 text-[13px] font-semibold text-ink">{it.name}</Text>
+              <View
+                className={cx(
+                  'ml-1 mt-0.5 self-start rounded-full px-2 py-0.5',
+                  it._id === equipped ? 'bg-brand' : 'bg-mint',
+                )}
+              >
+                <Text
+                  className={cx('text-[10px]', it._id === equipped ? 'text-white' : 'text-brand')}
+                >
+                  {it._id === equipped ? '장착중' : '보유중'}
+                </Text>
+              </View>
+            </Pressable>
+          ))}
+        </View>
+      )}
+      <Sheet open={!!pick} onClose={() => setPick(null)}>
+        {pick && (
+          <>
+            <View className="h-36 items-center justify-center rounded-2xl bg-cream">
+              <Text className="text-[72px]">{pick.thumbnailUrl}</Text>
+            </View>
+            <View className="mt-3 flex-row items-center justify-between">
+              <Text className="text-[16px] font-bold text-ink">{pick.name}</Text>
+              <Badge>보유중</Badge>
+            </View>
+            <Text className="mt-1 text-[12px] text-sub">{pick.description}</Text>
+            <Btn className="mt-4" loading={equip.isPending} onPress={() => equip.mutate(pick)}>
+              장착하기
+            </Btn>
+          </>
+        )}
+      </Sheet>
+    </View>
+  );
+}

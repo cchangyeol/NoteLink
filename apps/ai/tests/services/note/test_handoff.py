@@ -132,3 +132,19 @@ def test_photo_colors_are_not_applied_to_a_multi_page_pdf() -> None:
         {"pageNo": 1, "read": two_page_pdf("1. 첫 쪽", "2. 둘째 쪽"), "image": image}
     )
     assert all("color" not in w for ln in lines for w in ln["words"])
+
+
+def test_small_line_starting_with_a_printed_number_stays_in_the_result() -> None:
+    res_read = read(*[(f"손글씨 {i}", 0.9) for i in range(4)], ("1. 메모", 0.9))
+    last = res_read["pages"][0]["lines"][-1]
+    off, y = last["spans"][0]["offset"], last["polygon"][1]
+    last["polygon"] = [5, y, 60, y, 60, y + 1, 5, y + 1]  # 다른 줄의 절반 높이
+    # '1.'만 인쇄, '메모'는 손글씨 → 줄은 인쇄로 시작
+    res_read["styles"] = [
+        {
+            "isHandwritten": True,
+            "spans": [{"offset": 0, "length": off}, {"offset": off + 3, "length": 2}],
+        }
+    ]
+    res = note_result([{"pageNo": 1, "read": res_read}])
+    assert res["pages"][0]["ocrText"].endswith("\n1. 메모")

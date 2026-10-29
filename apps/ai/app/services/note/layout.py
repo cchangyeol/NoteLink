@@ -94,9 +94,16 @@ def drop_figure_labels(lines: list[Line]) -> tuple[list[Line], list[Line]]:
         return lines, []
     usual = statistics.median(ln["y1"] - ln["y0"] for ln in hand)
     small = [
-        ln for ln in lines if not ln["hand"] and (ln["y1"] - ln["y0"]) < FIGURE_LABEL_HEIGHT * usual
+        ln
+        for ln in lines
+        if not _has_hand(ln) and (ln["y1"] - ln["y0"]) < FIGURE_LABEL_HEIGHT * usual
     ]
     return [ln for ln in lines if ln not in small], small
+
+
+def _has_hand(ln: Line) -> bool:
+    # 인쇄 번호로 시작해도 손글씨 단어가 있으면 본문 (이름표로 지우지 않음)
+    return ln["hand"] or any(w.get("hand") for w in ln["words"])
 
 
 def find_gutter(lines: list[Line]) -> float | None:

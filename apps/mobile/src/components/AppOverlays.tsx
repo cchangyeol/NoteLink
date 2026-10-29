@@ -2,7 +2,7 @@ import { Text, View } from 'react-native';
 import Animated, { FadeInUp, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { useToast } from '@/stores/toast';
+import { toast, useToast } from '@/stores/toast';
 import { useAuth } from '@/stores/auth';
 import { Alert } from './ui';
 
@@ -27,8 +27,13 @@ function ExpiredDialog() {
       body={'보안을 위해 다시 로그인해 주세요.\n하던 작업은 그대로 이어 갈 수 있어요.'}
       primary="다시 로그인"
       onPrimary={async () => {
-        await useAuth.getState().expire();
-        router.replace('/(auth)/login');
+        try {
+          await useAuth.getState().expire();
+          router.replace('/(auth)/login');
+        } catch {
+          useAuth.getState().setExpired(true);
+          toast('기기의 로그인 정보를 저장하지 못했어요. 다시 시도해 주세요');
+        }
       }}
     />
   );

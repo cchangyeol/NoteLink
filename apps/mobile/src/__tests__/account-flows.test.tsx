@@ -111,13 +111,16 @@ describe('측정 세션 시작 대기', () => {
     expect(useSession.getState().itemId).toBeNull();
   });
 
-  it('응답 전에 일시정지했으면 응답이 오자마자 서버에도 일시정지한다', async () => {
+  it('응답 전에는 대기하고 시작 확인 뒤에만 일시정지한다', async () => {
     let answer!: (v: { _id: string }) => void;
     mockApi.study.startSession.mockReturnValueOnce(new Promise((r) => (answer = r)));
     const p = useSession.getState().start('i1');
     useSession.getState().pause();
+    expect(useSession.getState()).toMatchObject({ since: null, pausedAt: null });
     answer({ _id: 's-new' });
     await p;
+    expect(mockApi.study.pauseSession).not.toHaveBeenCalled();
+    useSession.getState().pause();
     expect(mockApi.study.pauseSession).toHaveBeenCalledWith('s-new');
   });
 });

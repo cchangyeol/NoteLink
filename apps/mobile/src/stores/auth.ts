@@ -32,14 +32,14 @@ export const useAuth = create<Auth>((set, get) => {
   // 마지막에 남는 값은 항상 마지막 상태다. 상태(set)는 저장을 기다리지 않고 바로 바꾼다.
   let writing: Promise<void> = Promise.resolve();
   const persist = () => {
-    writing = writing
-      .then(async () => {
-        const { tokens, onboarded, userId } = get();
-        if (!userId) await SecureStore.deleteItemAsync(KEY);
-        else await SecureStore.setItemAsync(KEY, JSON.stringify({ ...tokens, onboarded, userId }));
-      })
-      .catch(() => {});
-    return writing;
+    const operation = writing.then(async () => {
+      const { tokens, onboarded, userId } = get();
+      if (!userId) await SecureStore.deleteItemAsync(KEY);
+      else await SecureStore.setItemAsync(KEY, JSON.stringify({ ...tokens, onboarded, userId }));
+    });
+    // 큐는 실패 후에도 진행하지만, 이번 호출의 실패는 호출자에게 전달한다.
+    writing = operation.catch(() => {});
+    return operation;
   };
   return {
     ready: false,

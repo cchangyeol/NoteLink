@@ -172,3 +172,17 @@ def test_reuse_skips_answers_used_in_the_set_and_sentence_answers() -> None:
     assert similar.reuse_existing(q, [], [seen_question(q)], ["be"]) is None
     long = question("요청 동사 뒤에는 동사원형을 쓴다", qid="q9")
     assert similar.reuse_existing(long, [], [seen_question(long)], []) is None
+
+
+def test_reuse_skips_questions_no_longer_in_review() -> None:
+    q = question(qid="q1")
+    for state in ("moved", "mastered", "stopped", "flawed"):
+        old = question(qid="q2", prompt="요청 뒤 동사의 알맞은 형태를 고르시오")
+        old["srs"] = {
+            "step": 0, "dueAt": None, "lastResult": "wrong", "streak": 0, "reviews": 2,
+            "state": state,
+        }  # fmt: skip
+        got = similar.reuse_existing(
+            q, [draft("요청 뒤 동사의 알맞은 형태를 고르시오")], [seen_question(old)], []
+        )
+        assert got is None, state

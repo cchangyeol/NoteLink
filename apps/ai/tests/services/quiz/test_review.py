@@ -1,6 +1,6 @@
 import copy
 import re
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -14,8 +14,8 @@ request that he be informed
 쌓다 = stack
 # stock
 fasten - 고정하다"""
-DONE = datetime(2026, 10, 29, 6, 30)  # UTC
-TODAY = datetime(2026, 10, 29)
+DONE = datetime(2026, 10, 29, 6, 30)  # UTC = 서울 10/29 15:30
+TODAY = datetime(2026, 10, 28, 15)  # 서울 10/29 0시를 UTC로
 
 
 def q(qid: str, order: int, answer: str, concept: str, **more: Any) -> JsonObject:
@@ -239,7 +239,7 @@ def test_one_question_failing_does_not_fail_the_job() -> None:
     result, _ = run(llm, job_input())
     assert [t["made"] for t in result["targets"]] == [False, True]
     assert result["targets"][0]["why"] == ["HTTP 503"]
-    assert [x["order"] for x in result["reviewQuestions"]] == [2]
+    assert [x["order"] for x in result["reviewQuestions"]] == [1]  # 못 만든 문제 번호는 비우지 않음
 
 
 # ---------- input 확인 ----------
@@ -263,8 +263,6 @@ def broken(change: str) -> JsonObject:
         inp["sets"][0]["questions"][0]["choices"] = "be"
     elif change == "page":
         inp["notes"]["m1"][0]["pageNo"] = "첫 쪽"
-    elif change == "no notes":
-        inp["notes"] = {}
     return inp
 
 
@@ -279,7 +277,6 @@ def broken(change: str) -> JsonObject:
         "srs without step",
         "choices",
         "page",
-        "no notes",
     ],
 )
 def test_bad_input_fails_at_once(change: str) -> None:
@@ -295,13 +292,69 @@ def test_input_accepts_dates_and_page_numbers_as_written_by_other_tools() -> Non
     assert result["targets"][0]["pageNo"] == 1
 
 
-def test_finished_time_counts_in_utc_days() -> None:
+@pytest.mark.parametrize(
+    ("finished", "next_review"),
+    [
+        ("2026-10-29T23:00:00Z", "2026-10-31"),  # 서울 10/30 08:00
+        ("2026-10-30T01:00:00+09:00", "2026-10-31"),  # 서울 10/30 새벽 = UTC 10/29
+        ("2026-10-29T14:59:00Z", "2026-10-30"),  # 서울 10/29 23:59
+    ],
+)
+def test_review_days_change_at_seoul_midnight(finished: str, next_review: str) -> None:
     inp = job_input()
-    inp["finishedAt"] = "2026-10-30T01:00:00+09:00"  # 서울 10/30 새벽 = UTC 10/29
-    result, _ = run(happy_llm(), inp)
-    assert result["nextReview"] == "2026-10-30"
+    inp["finishedAt"] = finished
+    inp["history"] = []
+    llm = happy_llm()
+    llm.answers["Review"] = [BE, STACK]  # 지난 풀이를 빼서 순서가 q1 · q2
+    llm.answers["Line"] = [{"line": "x"}, {"line": "x"}]
+    result, _ = run(llm, inp)
+    assert result["nextReview"] == next_review
+    q3 = next(u["srs"] for u in result["srsUpdates"] if u["questionId"] == "q3")
+    assert q3["dueAt"] == review.seoul_midnight(date.fromisoformat(next_review))
 
 
 def test_new_id_looks_like_an_object_id() -> None:
     a, b = review.new_id(), review.new_id()
     assert re.fullmatch(r"[0-9a-f]{24}", a) and a != b
+
+
+def test_question_missed_for_the_last_time_is_not_asked_again() -> None:
+    inp = job_input()
+    inp["history"] = []
+    tired = {"step": 0, "streak": 0, "reviews": 4, "state": "active", "lastResult": "wrong"}
+    inp["sets"][0]["questions"][0]["srs"] = tired  # q1: 이번이 5번째
+    llm = FakeLlm({"Review": [STACK], "Check": [ok("A")], "Line": [{"line": "x"}, {"line": "x"}]})
+    result, _ = run(llm, inp)
+    assert [t["questionId"] for t in result["targets"]] == ["q2"]
+    q1 = next(u["srs"] for u in result["srsUpdates"] if u["questionId"] == "q1")
+    assert q1["state"] == "stopped"
+    # 대신 노트로 안내: 약한 개념 노트 줄에는 남음
+    assert "요청 동사 뒤 동사원형" in [n["concept"] for n in result["noteLines"]]
+
+
+def test_void_answers_in_this_attempt_are_left_out() -> None:
+    inp = job_input()
+    inp["history"] = []
+    inp["answers"][0]["void"] = True  # q1은 결함 문제라 무효
+    llm = FakeLlm({"Review": [STACK], "Check": [ok("A")], "Line": [{"line": "x"}]})
+    result, _ = run(llm, inp)
+    assert [a["questionId"] for a in result["answers"]] == ["q2", "q3"]
+    assert "q1" not in {u["questionId"] for u in result["srsUpdates"]}
+    assert [w["concept"] for w in result["weakConcepts"]] == ["stack의 뜻"]
+
+
+def test_without_note_text_review_dates_are_still_saved() -> None:
+    inp = job_input()
+    inp["notes"] = {"m1": [{"pageNo": 1, "ocrText": "[?] 흐린 줄"}]}  # 남는 줄이 없음
+    result, _ = run(FakeLlm(), inp)
+    assert [t["why"] for t in result["targets"]] == [["노트 글이 없음"]] * 2
+    assert all(t["materialId"] is None for t in result["targets"])
+    assert result["reviewQuestions"] == [] and result["noteLines"] == []
+    assert {u["questionId"] for u in result["srsUpdates"]} == {"q1", "q2", "q3"}
+
+
+def test_short_pieces_do_not_count_as_found_in_the_note() -> None:
+    llm = happy_llm()
+    llm.answers["Line"] = [{"line": "지어낸 설명 / of / —"}, {"line": "x"}]
+    result, _ = run(llm, job_input())
+    assert result["noteLines"][0]["line"] is None

@@ -336,7 +336,10 @@ def repair(
         return None
     raw = r.get("options")
     new = [o.strip() for o in raw if isinstance(o, str)] if isinstance(raw, list) else []
-    if len(new) != len(bad) or any(same_item(o, w) for o in new for w in no):
+    # 피할 말뿐 아니라 정답 · 남은 보기와 거의 같은 말('stacked'에 'stacking')도 버림.
+    # code_check는 대소문자 · 문장부호만 다른 같은 보기까지만 잡음
+    taken = [*no, *keep]
+    if len(new) != len(bad) or any(same_item(o, w) for o in new for w in taken):
         return None
     swap = dict(zip(bad, new, strict=True))
     return {**d, "options": strip_labels([swap.get(o, o) for o in d["options"]])}

@@ -234,6 +234,8 @@ def test_repair_gives_up_without_a_call(hits: set[str], new: None) -> None:
     "answer",
     [
         [{"options": ["stocks"]}],  # 피할 말의 변형
+        [{"options": ["stacking"]}],  # 정답과 거의 같음
+        [{"options": ["Fasten"]}],  # 남은 보기와 같음
         [{"options": ["a", "b"]}],  # 개수가 다름
         [{"options": [3]}],  # 모양이 틀림
         [LlmError("HTTP 503")],

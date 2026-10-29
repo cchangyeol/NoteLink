@@ -8,9 +8,9 @@ ai_jobs.type = 'similar_quiz' (공용 계약 AiJobType, 로컬 이름 review.age
 
 input — NestJS가 작업을 만들 때 담습니다. ObjectId는 문자열, 날짜는 Date 또는 ISO 문자열
   attemptId · quizSetId  이번 풀이와 그 세트
-  finishedAt             푼 시각. 복습 날짜는 이날(UTC) 0시부터 셉니다(로컬과 같음)
-  answers                [{questionId, correct, void?}] 이번 풀이. void(오늘의 복습이 결함 문제의
-                         풀이를 무효로 표시)는 약한 개념에서 빼고, 복습 날짜는 그대로 계산
+  finishedAt             푼 시각. 복습 날짜는 푼 날(서울 기준, AGENTS.md)의 0시부터 셉니다
+  answers                [{questionId, correct, void?}] 이번 풀이. void(결함 문제라 무효인 풀이)는
+                         없는 풀이로 봅니다: 판단 · 복습 상태 · 약한 개념에서 모두 뺌
   sets                   [{id, materialId, questions}] 사용자의 퀴즈 세트 전부(지운 것 제외,
                          이번 세트 포함). 오늘의 복습 세트는 노트를 섞으므로 겹침 검사 ·
                          약한 개념 · 기존 문제 다시 내기에 모두 씁니다
@@ -20,10 +20,11 @@ input — NestJS가 작업을 만들 때 담습니다. ObjectId는 문자열, �
 
 result — NestJS가 읽어 quiz_sets에 반영합니다
   answers · weakConcepts · targets · noteLines  판단 기록(앱 화면 · 확인용)
-  srsUpdates       [{quizSetId, questionId, srs}] 바꿀 복습 상태
+  srsUpdates       [{quizSetId, questionId, srs}] 바꿀 복습 상태. 날짜(dueAt 등)는 서울 0시를
+                   UTC 시각으로(10/30 복습 = 2026-10-29T15:00Z)
   reviewQuestions  다시 보기 세트에 넣을 새 문제(못 만들었으면 []). 세트 문서는 NestJS가
                    만듭니다. 로컬은 제목 '<세트 제목> · 다시 보기', sourceSetId = quizSetId
-  nextReview       다시 보기 세트의 복습 날짜(YYYY-MM-DD)
+  nextReview       다시 보기 세트의 복습 날짜(서울 날짜 YYYY-MM-DD)
 """
 
 import re
@@ -31,7 +32,7 @@ import secrets
 import time
 from collections import Counter, defaultdict
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta, timezone
 from typing import Any, Literal, Protocol, cast
 
 from app.clients.llm import JsonObject, Llm, LlmError
@@ -46,6 +47,7 @@ REVIEW_SET_SIZE = 5  # '5문제 다시 보기'
 WEAK_DAYS = 30  # 약한 개념은 최근 30일 풀이를 합쳐 셈
 NOTE_LINES = 3  # 노트 줄을 찾아 줄 약한 개념 수
 OTHER = "기타"  # 개념 이름이 없는 문제
+SEOUL = timezone(timedelta(hours=9))  # '오늘'은 서울 자정에 바뀜(AGENTS.md). 서머타임 없음
 # 서비스에는 보기별 ○ △ ✕ 표시가 없어(10/25에 뺌) 틀린 이유(개념 · 혼동 · 실수 · 찍음)를
 # 고른 보기만으로 알 수 없음: 틀린 답은 모두 'wrong'
 PRIORITY = {"wrong": 0}
@@ -91,8 +93,8 @@ class Judged:
     correct: bool
     reason: Reason | None
     concept: str
-    material: str = ""
-    page: int = 0
+    material: str | None = None  # 문제가 나온 쪽(노트 글이 없으면 None)
+    page: int | None = None
 
 
 # ---------------------------------------------------------------- input
@@ -134,7 +136,7 @@ def _srs(raw: object, where: str) -> srs.Srs | None:
         raise InputError(where)
     for key in ("step", "streak", "reviews"):
         _get(raw, key, int, where)
-    s = dict(raw)
+    s = {"dueAt": None, **raw}  # srs.moved가 dueAt을 dueBefore로 옮김
     for key in ("dueAt", "dueBefore"):
         if s.get(key) is not None:
             s[key] = _date(s[key], f"{where}.{key}")
@@ -238,6 +240,11 @@ def concept_of(q: Question) -> str:
     return (q.get("conceptTags") or [OTHER])[0]
 
 
+def seoul_midnight(d: date) -> datetime:
+    """서울 날짜 d의 0시를 UTC 시각으로(tzinfo 없음). 저장은 UTC, '오늘'은 서울 기준(AGENTS.md)."""
+    return datetime(d.year, d.month, d.day, tzinfo=SEOUL).astimezone(UTC).replace(tzinfo=None)
+
+
 def new_id() -> str:
     """ObjectId 모양의 24자리 16진수(만든 시각 4바이트 + 무작위 8바이트).
 
@@ -266,7 +273,8 @@ def note_line(llm: Llm, concept: str, keys: list[tuple[str, int]], notes: Notes)
     """약한 개념을 설명하는 노트 줄. keys는 그 개념의 문제가 나온 (materialId, pageNo).
 
     모델이 말한 쪽은 믿지 않고, 옮긴 줄이 어느 쪽에 정말 있는지 코드가 찾습니다. 모델이 여러 줄을
-    ' / '로 이어 붙이기도 해서 조각마다 따로 확인합니다.
+    ' / '로 이어 붙이기도 해서 조각마다 따로 확인합니다. 'of' · '1.' · '—'처럼 정리하면 3글자가 안
+    되는 조각은 어느 쪽에나 들어 있어 확인으로 치지 않습니다(로컬은 2글자 이상 원문이면 확인).
     """
     body = "\n".join(f'<노트 쪽="{n}">\n{notes[mid][n][:2000]}\n</노트>' for mid, n in keys)
     try:
@@ -282,7 +290,7 @@ def note_line(llm: Llm, concept: str, keys: list[tuple[str, int]], notes: Notes)
         raw, err = (got.strip() if isinstance(got, str) else ""), None
     except LlmError as e:
         raw, err = "", str(e)
-    pieces = [s.strip() for s in _JOINED.split(raw) if len(s.strip()) >= 2]
+    pieces = [s.strip() for s in _JOINED.split(raw) if len(norm(s)) >= 3]
     hits: list[tuple[str, tuple[str, int]]] = []
     for s in pieces:
         found = [k for k in keys if norm(s) in norm(notes[k[0]][k[1]])]
@@ -320,15 +328,18 @@ def run(llm: Llm, raw: JsonObject, report: Progress) -> JsonObject:
     quiz = sets[attempt.quiz_set_id]
     qmap = {q["id"]: q for q in quiz.questions}
     f = attempt.finished_at
-    today = datetime(f.year, f.month, f.day)
+    day = f.replace(tzinfo=UTC).astimezone(SEOUL).date()
+    today = seoul_midnight(day)
 
-    # 1. 코드: 문제마다 맞았는지
+    # 1. 코드: 문제마다 맞았는지, 복습 상태. 무효 풀이(결함 문제)는 없는 풀이로 봄
     judged = []
-    for qid, correct, _ in attempt.answers:
+    for qid, correct, void in attempt.answers:
         if qid not in qmap:
             raise InputError(f"input.answers의 {qid}가 이번 세트에 없음")
-        q = qmap[qid]
-        judged.append(Judged(q, correct, judge(correct), concept_of(q)))
+        if not void:
+            q = qmap[qid]
+            judged.append(Judged(q, correct, judge(correct), concept_of(q)))
+    after = {j.q["id"]: srs.update(j.q.get("srs"), j.correct, today) for j in judged}
     report(15, "틀린 문제 고르기")
 
     # 2. 코드: 약한 개념 — 이번 풀이와 같은 사용자의 최근 30일 풀이(노트를 가리지 않음)
@@ -356,15 +367,17 @@ def run(llm: Llm, raw: JsonObject, report: Progress) -> JsonObject:
     weak_rank = sorted(
         weak.items(), key=lambda kv: (-total[kv[0]], min(PRIORITY[r] for r in kv[1]))
     )
-    wrong = [j for j in judged if j.reason]
+    # 끝 조건: 5번 풀어도 못 익힌 문제(stopped)는 더 내지 않고 노트로 안내(noteLines)
+    wrong = [j for j in judged if j.reason and after[j.q["id"]]["state"] != "stopped"]
     targets = sorted(
         wrong,
         key=lambda j: (PRIORITY[j.reason or "wrong"], -total.get(j.concept, 0), j.q["order"]),
     )[:REVIEW_SET_SIZE]
-    if (targets or weak_rank) and not any(notes.values()):
-        raise InputError("input.notes에 노트 글이 없음")
-    for t in targets:
-        t.material, t.page = locate(t.q, notes, quiz.material_id)
+    # 노트 글이 없으면(모든 줄이 [?] 등) 문제 · 노트 줄만 건너뛰고 복습 상태는 저장
+    has_notes = any(notes.values())
+    if has_notes:
+        for t in targets:
+            t.material, t.page = locate(t.q, notes, quiz.material_id)
     report(25, "비슷한 문제 만들기")
 
     # 3. LLM: 틀린 문제마다 비슷한 문제 1개 (코드 · 검사 모델 검사, 3번까지)
@@ -373,6 +386,9 @@ def run(llm: Llm, raw: JsonObject, report: Progress) -> JsonObject:
     used: list[str] = []
     made: list[similar.Made] = []
     for i, t in enumerate(targets):
+        if t.material is None or t.page is None:
+            made.append(similar.Made(why=["노트 글이 없음"]))
+            continue
         text = notes[t.material][t.page]
         # 노트가 정답과 같은 묶음으로 적은 유의어는 오답 보기로 쓰지 않음
         avoid = quality.group_words(t.q["answer"], text) if short_answer(t.q["answer"]) else []
@@ -380,6 +396,9 @@ def run(llm: Llm, raw: JsonObject, report: Progress) -> JsonObject:
         m = similar.make_similar(llm, t.q, target, t.page, text, i, seen, avoid)
         if m.question is None and m.drafts:
             old = similar.reuse_existing(t.q, m.drafts, seen, used)
+            # 이번 풀이로 상태가 바뀐 문제(연속으로 맞혀 mastered 등)는 다시 내지 않음
+            if old is not None and old["id"] in after and after[old["id"]]["state"] != "active":
+                old = None
             d: Draft | None = None
             if old is not None and old["choices"] is not None:  # 객관식만 다시 냄
                 d = {
@@ -412,7 +431,7 @@ def run(llm: Llm, raw: JsonObject, report: Progress) -> JsonObject:
 
     # 4. LLM: 약한 개념(상위 3개)마다 노트 줄, 코드가 노트에 있는지 확인
     lines = []
-    for concept, _ in weak_rank[:NOTE_LINES]:
+    for concept, _ in weak_rank[:NOTE_LINES] if has_notes else []:
         qs = [t.q for t in targets if t.concept == concept] or [
             q for s in sets.values() for q in s.questions if concept_of(q) == concept
         ]
@@ -422,12 +441,11 @@ def run(llm: Llm, raw: JsonObject, report: Progress) -> JsonObject:
         lines.append(note_line(llm, concept, keys, notes))
     report(90, "복습 날짜")
 
-    # 5. 코드: 복습 상태 — 푼 문제부터, 그다음 다시 보기 문제로 넘겨줌
-    after = {j.q["id"]: srs.update(j.q.get("srs"), j.correct, today) for j in judged}
+    # 5. 코드: 복습 상태 — 푼 문제(1번에서 계산)를 다시 보기 문제로 넘겨줌
     holder = {q["id"]: (sid, q) for sid, s in sets.items() for q in s.questions}
     moved_old: dict[str, srs.Srs] = {}  # 다른 세트에 있는 기존 문제를 다시 냈을 때
     new_qs: list[JsonObject] = []
-    for i, (t, m) in enumerate(zip(targets, made, strict=True), 1):
+    for t, m in zip(targets, made, strict=True):
         if m.question is None:
             continue
         g = m.question
@@ -435,7 +453,7 @@ def run(llm: Llm, raw: JsonObject, report: Progress) -> JsonObject:
         new_qs.append(
             {
                 "id": qid,
-                "order": i,
+                "order": len(new_qs) + 1,  # 못 만든 문제는 건너뛰고 1부터 차례로
                 "type": "빈칸" if "____" in g["passage"] else m.type,  # 보이는 모양대로 저장
                 "prompt": g["stem"],
                 "passage": g["passage"] or None,
@@ -499,5 +517,5 @@ def run(llm: Llm, raw: JsonObject, report: Progress) -> JsonObject:
         "noteLines": lines,
         "srsUpdates": updates,
         "reviewQuestions": new_qs,
-        "nextReview": (today + timedelta(days=srs.REVIEW_STEPS_DAYS[0])).date().isoformat(),
+        "nextReview": (day + timedelta(days=srs.REVIEW_STEPS_DAYS[0])).isoformat(),
     }

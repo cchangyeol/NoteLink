@@ -85,3 +85,38 @@ def test_blurry_words_get_marks_in_every_output() -> None:
     assert res["pages"][0]["ocrText"] == "1. [?]로로드아메바\n포낭형"
     first = res["lineResults"][0]["lines"][0]
     assert first["text"] == "1. [?]로로드아메바" and first["conf"] == 0.3
+
+
+def two_page_pdf(first: str, second: str) -> dict[str, Any]:
+    """쪽 2개짜리 PDF의 Read 결과 (OCR pageNumber 1 · 2)."""
+    a, b = read((first, 0.9)), read((second, 0.9))
+    shift = len(a["content"]) + 1
+    for ln in b["pages"][0]["lines"]:
+        ln["spans"][0]["offset"] += shift
+    for w in b["pages"][0]["words"]:
+        w["span"]["offset"] += shift
+    b["pages"][0]["pageNumber"] = 2
+    content = f"{a['content']}\n{b['content']}"
+    return {
+        "content": content,
+        "styles": [{"isHandwritten": True, "spans": [{"offset": 0, "length": len(content)}]}],
+        "pages": a["pages"] + b["pages"],
+    }
+
+
+def test_multi_page_pdf_keeps_every_page_and_pushes_next_upload() -> None:
+    pages: list[NotePage] = [
+        {"pageNo": 1, "read": two_page_pdf("1. 첫 쪽", "2. 둘째 쪽")},
+        {"pageNo": 2, "read": read(("3. 사진 쪽", 0.9))},
+        {"pageNo": 3, "read": {}},
+    ]
+    res = note_result(pages)
+    # 고치기 전에는 PDF 둘째 쪽이 빠지고 사진이 2쪽이 됨
+    assert [p["ocrText"] for p in res["pages"]] == ["1. 첫 쪽", "2. 둘째 쪽", "3. 사진 쪽", ""]
+    assert [p["pageNo"] for p in res["pages"]] == [1, 2, 3, 4]
+    assert [p["pageNo"] for p in res["lineResults"]] == [1, 2, 3, 4]
+
+
+def test_gap_in_upload_numbers_is_kept() -> None:
+    res = note_result([{"pageNo": 1, "read": read(("내용", 0.9))}, {"pageNo": 3, "read": {}}])
+    assert [p["pageNo"] for p in res["pages"]] == [1, 3]

@@ -182,20 +182,18 @@ export function ChatScreen() {
     setLoaded(history.data);
     setMsgs(history.data);
   }
-  useSocket(
-    'chat:message',
-    (m) =>
-      m.chatRoomId === room.data?._id &&
-      setMsgs((p) => (p.some((x) => x._id === m._id) ? p : [...p, m])),
-    [room.data?._id],
-  );
+  const receiveMessage = (m: Message) =>
+    setMsgs((p) => (p.some((x) => x._id === m._id) ? p : [...p, m]));
+  useSocket('chat:message', (m) => m.chatRoomId === room.data?._id && receiveMessage(m), [
+    room.data?._id,
+  ]);
 
   const send = () => {
     if (!v.trim() || !room.data) return;
     socket.emit(
       'chat:send',
       { chatRoomId: room.data._id, text: v.trim(), clientId: `c${Date.now()}` },
-      (m) => setMsgs((p) => [...p, m]),
+      receiveMessage,
     );
     setV('');
   };

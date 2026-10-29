@@ -14,7 +14,7 @@ from app.services.note.uncertain import UNCERTAIN_MEAN, mark_uncertain
 
 
 class NotePage(TypedDict):
-    pageNo: int  # 업로드 순서
+    pageNo: int  # 업로드 순서 (여러 쪽 PDF면 첫 쪽 번호)
     read: dict[str, Any]  # OCR(Read) 결과. 빈 쪽은 빈 dict
 
 
@@ -33,17 +33,21 @@ def page_lines(
 def page_layouts(
     pages: list[NotePage], threshold: float = UNCERTAIN_MEAN, known: frozenset[str] = frozenset()
 ) -> list[PageLayout]:
-    """쪽 번호 순서의 읽는 순서. 글이 없는 쪽도 남김(쪽 번호를 당기지 않음)."""
-    lines = [
-        ln
-        for p in sorted(pages, key=lambda x: x["pageNo"])
-        for ln in page_lines(p, threshold, known)
-    ]
+    """쪽 번호 순서의 읽는 순서. 글이 없는 쪽도 남김(쪽 번호를 당기지 않음).
+
+    여러 쪽 PDF는 pageNo부터 쪽 수만큼 번호를 차지하고, 뒤 업로드는 그다음 번호로 밀림.
+    """
+    lines: list[Line] = []
+    numbers: list[int] = []
+    nxt = 1
+    for p in sorted(pages, key=lambda x: x["pageNo"]):
+        start = max(p["pageNo"], nxt)
+        count = max(1, len(p["read"].get("pages") or []))
+        lines += page_lines({**p, "pageNo": start}, threshold, known)
+        numbers += range(start, start + count)
+        nxt = start + count
     laid = {p["pageNo"]: p for p in layout_pages(lines)}
-    return [
-        laid.get(n, {"pageNo": n, "twoColumn": False, "rows": []})
-        for n in sorted({p["pageNo"] for p in pages})
-    ]
+    return [laid.get(n, {"pageNo": n, "twoColumn": False, "rows": []}) for n in numbers]
 
 
 def note_result(

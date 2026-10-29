@@ -28,7 +28,8 @@ def read_url(
         permission=BlobSasPermissions(read=True),
         expiry=datetime.now(UTC) + timedelta(minutes=minutes),
     )
-    return f"{blobs.url}{container}/{name}?{sas}"
+    # 이름의 # · 공백 등은 SDK가 인코딩한 주소를 씀
+    return f"{blobs.get_blob_client(container, name).url}?{sas}"
 
 
 def ocr(

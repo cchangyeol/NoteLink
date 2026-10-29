@@ -95,6 +95,23 @@ def test_one_column_has_no_gutter() -> None:
     assert find_gutter([]) is None
 
 
+def test_two_wide_titles_do_not_hide_the_gutter() -> None:
+    # 고치기 전: 가로 제목 2줄이 허용 교차 수(1)를 넘겨 두 단을 못 찾고 L0 R0 L1 R1 …로 읽음
+    titles = [line(f"제목 {i}", 0.03, 0.83, 0.02 + i * 0.04, lid=90 + i) for i in range(2)]
+    left = [line(f"L{i}", 0.03, 0.43, 0.2 + i * 0.05, lid=i) for i in range(3)]
+    right = [line(f"R{i}", 0.53, 0.83, 0.2 + i * 0.05, lid=10 + i) for i in range(3)]
+    lines = titles + left + right
+    assert find_gutter(lines) is not None
+    texts = [r["text"] for r in reading_order(lines)]
+    assert texts == ["제목 0", "제목 1", "L0", "L1", "L2", "R0", "R1", "R2"]
+
+
+def test_short_lines_on_one_side_are_not_two_columns() -> None:
+    lines = [line(f"줄 {i}", 0.05, 0.9, i * 0.05, lid=i) for i in range(6)]
+    lines += [line(f"짧은 {i}", 0.05, 0.25, 0.5 + i * 0.05, lid=20 + i) for i in range(3)]
+    assert find_gutter(lines) is None
+
+
 # ---------- merge_rows · reading_order ----------
 
 

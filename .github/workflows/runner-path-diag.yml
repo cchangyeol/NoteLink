@@ -1,0 +1,51 @@
+# 임시 진단용 (#53). 리뷰 컴퓨터 러너가 실제로 받은 PATH와 codex 위치를 찍기만 합니다.
+# 확인 뒤 PR을 닫고 브랜치를 지웁니다. develop에 병합하지 않습니다.
+name: 리뷰 러너 PATH 진단
+
+on:
+  pull_request:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+jobs:
+  diag:
+    name: 리뷰 러너 PATH 진단
+    if: github.head_ref == 'chore/runner-path-diag'
+    runs-on: [self-hosted, codex]
+    timeout-minutes: 5
+    steps:
+      - name: Windows 쪽 (PowerShell)
+        shell: powershell
+        continue-on-error: true
+        run: |
+          "whoami: $(whoami)"
+          "USERPROFILE: $env:USERPROFILE"
+          "APPDATA: $env:APPDATA"
+          "--- 러너 프로세스 PATH"
+          $env:Path -split ';'
+          "--- 레지스트리 시스템 PATH"
+          [Environment]::GetEnvironmentVariable('Path', 'Machine') -split ';'
+          "--- 레지스트리 사용자 PATH"
+          [Environment]::GetEnvironmentVariable('Path', 'User') -split ';'
+          "--- codex 위치"
+          Test-Path 'C:\Users\dhksd\AppData\Roaming\npm\codex'
+          Get-Command codex -All -ErrorAction SilentlyContinue | Select-Object Source
+          where.exe codex
+
+      - name: Git Bash 쪽
+        shell: bash
+        continue-on-error: true
+        run: |
+          echo "OSTYPE=$OSTYPE MSYSTEM=${MSYSTEM:-} BASH=$BASH HOME=$HOME"
+          echo "--- bash PATH"
+          echo "$PATH" | tr ':' '\n'
+          echo "--- command -v"
+          for c in git gh node codex; do echo "$c: $(command -v "$c" || echo '없음')"; done
+          echo "--- npm 폴더"
+          ls -la /c/Users/dhksd/AppData/Roaming/npm/ 2>&1 | head -20
+          f=/c/Users/dhksd/AppData/Roaming/npm/codex
+          [ -e "$f" ] && echo "있음" || echo "없음"
+          [ -x "$f" ] && echo "실행 가능" || echo "실행 불가"
+          head -c 120 "$f" 2>&1; echo

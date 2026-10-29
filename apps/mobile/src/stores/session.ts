@@ -45,11 +45,18 @@ export const useSession = create<Session>((set, get) => ({
   },
   start: async (itemId, mode = 'personal') => {
     const cur = get();
+    if (cur.itemId === itemId && !cur.sessionId) return;
     if (cur.itemId === itemId && cur.pausedAt) return get().resume();
-    if (cur.itemId && cur.itemId !== itemId) await get().end('switch');
-    const g = ++gen;
+    // 계정 세대는 어떤 기다림보다 먼저 잡는다 — 앞 세션을 끝내는 사이 로그아웃 · 계정 전환되면 새로 시작하지 않는다
     const e = epoch;
-    set({ itemId, since: Date.now(), banked: 0, pausedAt: null, mode, sessionId: null });
+    if (cur.itemId && cur.itemId !== itemId) {
+      await get().end('switch');
+      if (e !== epoch) return;
+    }
+    const g = ++gen;
+    // 서버 확인 전에는 대기 상태다. 과거 휴식 시각을 보내는 계약이 없으므로
+    // 응답 전 로컬 정지·재개를 허용해 서버 정산과 어긋나게 하지 않는다.
+    set({ itemId, since: null, banked: 0, pausedAt: null, mode, sessionId: null });
     let s;
     try {
       s = await api.study.startSession({ studyItemId: itemId, mode });
@@ -58,19 +65,23 @@ export const useSession = create<Session>((set, get) => ({
       if (g === gen) set(idle);
       throw err;
     }
-    if (g === gen) return set({ sessionId: s._id });
+    if (g === gen) {
+      set({ sessionId: s._id, since: Date.now() });
+      return;
+    }
     // 기다리는 사이 측정이 끝났거나 다른 항목으로 바뀌었다 → 같은 계정이면 서버에 남은 세션을 닫는다
     if (e === epoch)
       api.study.endSession(s._id, { clientDurationSec: 0, endReason: 'cancelled' }).catch(() => {});
   },
   pause: () => {
     const s = get();
-    if (!s.since) return;
+    if (!s.sessionId || !s.since) return;
     set({ banked: s.elapsed(), since: null, pausedAt: Date.now() });
     if (s.sessionId) api.study.pauseSession(s.sessionId).catch(() => {});
   },
   resume: () => {
     const s = get();
+    if (!s.sessionId || !s.pausedAt) return;
     set({ since: Date.now(), pausedAt: null });
     if (s.sessionId) api.study.resumeSession(s.sessionId).catch(() => {});
   },

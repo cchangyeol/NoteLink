@@ -5,9 +5,62 @@ const config: ExpoConfig = {
   slug: 'notelink',
   scheme: 'notelink',
   version: '0.1.0',
-  orientation: 'portrait',
+  // 기본은 코드에서 세로로 고정하고, 순공시간 자동 측정 화면만 가로로 돌린다 (p.49)
+  orientation: 'default',
   userInterfaceStyle: 'automatic',
-  plugins: ['expo-router', 'expo-status-bar'],
+  icon: './assets/icon.png',
+  ios: {
+    bundleIdentifier: 'app.notelink.mobile',
+    supportsTablet: false,
+    requireFullScreen: true,
+  },
+  android: {
+    package: 'app.notelink.mobile',
+    adaptiveIcon: {
+      backgroundColor: '#3B6E5B',
+      foregroundImage: './assets/android-icon-foreground.png',
+      backgroundImage: './assets/android-icon-background.png',
+      monochromeImage: './assets/android-icon-monochrome.png',
+    },
+    predictiveBackGestureEnabled: false,
+  },
+  plugins: [
+    'expo-router',
+    'expo-status-bar',
+    'expo-font',
+    'expo-secure-store',
+    'expo-sharing',
+    [
+      'expo-splash-screen',
+      { image: './assets/splash-icon.png', imageWidth: 120, backgroundColor: '#2F5A4A' },
+    ],
+    ['expo-screen-orientation', { initialOrientation: 'DEFAULT' }],
+    [
+      'expo-camera',
+      {
+        cameraPermission: '필기와 문서를 촬영하고 스터디룸에서 캠을 켜기 위해 카메라를 사용해요.',
+        microphonePermission: '스터디룸 음성을 위해 마이크를 사용해요.',
+        barcodeScannerEnabled: false,
+      },
+    ],
+    [
+      'expo-image-picker',
+      { photosPermission: '갤러리의 필기 사진을 올리기 위해 사진 접근이 필요해요.' },
+    ],
+    [
+      'expo-audio',
+      {
+        microphonePermission: '강의를 녹음하기 위해 마이크를 사용해요.',
+        enableBackgroundRecording: true,
+      },
+    ],
+    [
+      'expo-calendar',
+      { calendarPermission: '스터디 일정을 기기 캘린더에 추가하기 위해 필요해요.' },
+    ],
+    ['expo-notifications', { color: '#3B6E5B' }],
+  ],
+  experiments: { typedRoutes: true },
 };
 
 export default config;

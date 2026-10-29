@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -383,6 +383,25 @@ export function QuizSolveScreen() {
   const [results, setResults] = useState<boolean[]>([]);
   const [speaking, setSpeaking] = useState(false);
   const expired = useAuth((s) => s.expired);
+  const finishing = useRef(false);
+  const finish = useMutation({
+    mutationFn: () => api.quiz.finish(attemptId!),
+    // 완료는 포인트를 적립하므로 응답 유실 시 자동으로 재전송하지 않는다.
+    retry: false,
+    onSuccess: (r) =>
+      router.replace({
+        pathname: '/play/review',
+        params: { setId: set.data!._id, points: String(r.pointsEarned) },
+      }),
+    onError: (e) => {
+      if (e instanceof ApiError && e.code === ERROR_CODES.TOKEN_EXPIRED)
+        useAuth.getState().setExpired(true);
+      toast('완료 결과를 저장하지 못했어요. 다시 시도해 주세요');
+    },
+    onSettled: () => {
+      finishing.current = false;
+    },
+  });
   useEffect(() => {
     if (set.data) api.quiz.startAttempt(set.data._id).then((a) => setAttemptId(a._id));
   }, [set.data?._id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -427,13 +446,13 @@ export function QuizSolveScreen() {
       setPick(null);
     }
   };
-  const next = async () => {
+  const next = () => {
+    if (finishing.current) return;
     if (i >= qs.length - 1) {
-      const r = await api.quiz.finish(attemptId!);
-      return router.replace({
-        pathname: '/play/review',
-        params: { setId: set.data!._id, points: String(r.pointsEarned) },
-      });
+      if (!attemptId) return;
+      finishing.current = true;
+      finish.mutate();
+      return;
     }
     setI((x) => x + 1);
     setPick(null);
@@ -453,13 +472,17 @@ export function QuizSolveScreen() {
               {speaking ? '읽어주는 중… (탭해서 멈춤)' : '음성으로 듣기'}
             </Btn>
           ) : right ? (
-            <Btn onPress={next}>다음 문제 풀기</Btn>
+            <Btn loading={finish.isPending} onPress={next}>
+              다음 문제 풀기
+            </Btn>
           ) : right === false ? (
             <View className="gap-2">
-              <Btn kind="cream" onPress={retry}>
+              <Btn kind="cream" disabled={finish.isPending} onPress={retry}>
                 다시 풀기
               </Btn>
-              <Btn onPress={next}>다음 문제 풀기</Btn>
+              <Btn loading={finish.isPending} onPress={next}>
+                다음 문제 풀기
+              </Btn>
             </View>
           ) : (
             <Btn loading>채점 중</Btn>

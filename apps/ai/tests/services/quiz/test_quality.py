@@ -234,8 +234,6 @@ def test_repair_gives_up_without_a_call(hits: set[str], new: None) -> None:
     "answer",
     [
         [{"options": ["stocks"]}],  # 피할 말의 변형
-        [{"options": ["stacking"]}],  # 정답과 거의 같음
-        [{"options": ["Fasten"]}],  # 남은 보기와 같음
         [{"options": ["a", "b"]}],  # 개수가 다름
         [{"options": [3]}],  # 모양이 틀림
         [LlmError("HTTP 503")],
@@ -278,3 +276,10 @@ def test_checked_keeps_the_first_reasons_when_the_repair_fails_again() -> None:
 
     out = qa.checked(llm, d, code_fails, PAGE, "규칙")
     assert out == (d, ["노트에서 정답과 같은 묶음인 보기: stock"], None, False)
+
+
+def test_repair_keeps_a_new_option_that_only_contains_the_answer() -> None:
+    # same_item은 안에 들어 있으면 같다고 봄: 정답 'be'와 비교하면 'became'까지 버리게 됨
+    d = draft(SCENE, ["be", "is", "are", "was", "been"], "be")
+    fixed = qa.repair(FakeLlm({"Repair": [{"options": ["became"]}]}), d, {"been"}, ["x"], PAGE)
+    assert fixed is not None and fixed["options"][-1] == "became"

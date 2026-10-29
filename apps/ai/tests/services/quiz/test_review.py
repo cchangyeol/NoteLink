@@ -261,6 +261,8 @@ def broken(change: str) -> JsonObject:
         inp["sets"][0]["questions"][0]["srs"] = {"state": "active"}
     elif change == "choices":
         inp["sets"][0]["questions"][0]["choices"] = "be"
+    elif change == "no notes":
+        inp["notes"] = {}  # 세트의 노트는 늘 있어야 함(NestJS가 빠뜨림)
     elif change == "page":
         inp["notes"]["m1"][0]["pageNo"] = "첫 쪽"
     return inp
@@ -277,6 +279,7 @@ def broken(change: str) -> JsonObject:
         "srs without step",
         "choices",
         "page",
+        "no notes",
     ],
 )
 def test_bad_input_fails_at_once(change: str) -> None:
@@ -358,3 +361,36 @@ def test_short_pieces_do_not_count_as_found_in_the_note() -> None:
     llm.answers["Line"] = [{"line": "지어낸 설명 / of / —"}, {"line": "x"}]
     result, _ = run(llm, job_input())
     assert result["noteLines"][0]["line"] is None
+
+
+def test_weak_concepts_count_thirty_seoul_days() -> None:
+    inp = job_input()
+    first = {"questionId": "q1", "correct": False}
+    inp["history"] = [
+        # 서울 9/29 00:30 = UTC 9/28 15:30: 서울 날짜로 30일 전이라 들어감
+        {"id": "in", "quizSetId": "s1", "finishedAt": "2026-09-28T15:30:00Z", "answers": [first]},
+        # 서울 9/28 23:30: 하루 더 전이라 빠짐
+        {"id": "out", "quizSetId": "s1", "finishedAt": "2026-09-28T14:30:00Z", "answers": [first]},
+    ]
+    llm = happy_llm()
+    llm.answers["Review"] = [BE, STACK]
+    llm.answers["Line"] = [{"line": "x"}, {"line": "x"}]
+    result, _ = run(llm, inp)
+    w = {x["concept"]: x["total"] for x in result["weakConcepts"]}
+    assert w["요청 동사 뒤 동사원형"] == 2
+
+
+def test_a_void_question_is_not_asked_again_as_an_existing_question() -> None:
+    inp = job_input()
+    inp["history"] = []
+    # q4는 q1과 답이 같음. q1은 이번 풀이에서 무효(결함 문제)
+    inp["sets"][0]["questions"].append(q("q4", 4, "be", "요청 동사 뒤 동사원형"))
+    inp["answers"] = [
+        {"questionId": "q1", "correct": False, "void": True},
+        {"questionId": "q4", "correct": False},
+    ]
+    copy_of_q1 = gen("be", ["be", "is", "are", "was", "been"])
+    copy_of_q1["question"].update(stem="요청 동사 뒤 동사원형에 알맞은 것은?", passage="")
+    llm = FakeLlm({"Review": [copy_of_q1] * 3, "Line": [{"line": "x"}]})
+    result, _ = run(llm, inp)
+    assert result["targets"][0]["reusedFrom"] == "q4"  # 무효인 q1이 아니라 방금 틀린 q4

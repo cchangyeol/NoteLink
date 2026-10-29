@@ -209,6 +209,8 @@ def parse(raw: JsonObject) -> ReviewInput:
         _attempt(h, f"input.history[{i}]") for i, h in enumerate(_list(raw, "history", "input"))
     ]
     notes_raw = _get(raw, "notes", dict, "input")
+    if not notes_raw:  # 세트의 노트는 늘 있음. 글이 모두 [?]인 노트는 아래에서 빈 쪽이 됨
+        raise InputError("input.notes가 비어 있음")
     notes: Notes = {}
     for mid, pages in notes_raw.items():
         w = f"input.notes.{mid}"
@@ -347,7 +349,7 @@ def run(llm: Llm, raw: JsonObject, report: Progress) -> JsonObject:
     for j in judged:
         if j.reason:
             now_w[j.concept][j.reason] += 1
-    since = f - timedelta(days=WEAK_DAYS)
+    since = seoul_midnight(day - timedelta(days=WEAK_DAYS))  # 서울 날짜로 30일 전 0시부터
     past = [
         h
         for h in inp.history
@@ -383,11 +385,15 @@ def run(llm: Llm, raw: JsonObject, report: Progress) -> JsonObject:
     # 3. LLM: 틀린 문제마다 비슷한 문제 1개 (코드 · 검사 모델 검사, 3번까지)
     # 이번 세트만이 아니라 사용자의 모든 문제와 겹치지 않게
     seen: list[Seen] = [seen_question(q) for s in sets.values() for q in s.questions]
+    # 다시 내지 않을 기존 문제: 이번 풀이로 복습이 끝난 문제(연속으로 맞혀 mastered 등) · 무효 풀이
+    skip = {qid for qid, s in after.items() if s["state"] != "active"}
+    skip |= {qid for qid, _, void in attempt.answers if void}
     used: list[str] = []
     made: list[similar.Made] = []
     for i, t in enumerate(targets):
         if t.material is None or t.page is None:
             made.append(similar.Made(why=["노트 글이 없음"]))
+            report(25 + 55 * (i + 1) // len(targets), "비슷한 문제 만들기")
             continue
         text = notes[t.material][t.page]
         # 노트가 정답과 같은 묶음으로 적은 유의어는 오답 보기로 쓰지 않음
@@ -395,10 +401,7 @@ def run(llm: Llm, raw: JsonObject, report: Progress) -> JsonObject:
         target = Target("wrong", t.q["answer"], t.concept, used)
         m = similar.make_similar(llm, t.q, target, t.page, text, i, seen, avoid)
         if m.question is None and m.drafts:
-            old = similar.reuse_existing(t.q, m.drafts, seen, used)
-            # 이번 풀이로 상태가 바뀐 문제(연속으로 맞혀 mastered 등)는 다시 내지 않음
-            if old is not None and old["id"] in after and after[old["id"]]["state"] != "active":
-                old = None
+            old = similar.reuse_existing(t.q, m.drafts, seen, used, skip)
             d: Draft | None = None
             if old is not None and old["choices"] is not None:  # 객관식만 다시 냄
                 d = {

@@ -10,6 +10,7 @@
 """
 
 import difflib
+from collections.abc import Collection
 from dataclasses import dataclass, field
 
 from app.clients.llm import JsonObject, Llm, LlmError
@@ -305,18 +306,23 @@ def make_similar(
 
 def _reviewing(q: Question) -> bool:
     s = q.get("srs")
-    return not s or s.get("state") == "active"
+    return not s or s.get("state", "active") == "active"
 
 
 def reuse_existing(
-    q: Question, drafts: list[Draft], seen: list[Seen], used: list[str]
+    q: Question,
+    drafts: list[Draft],
+    seen: list[Seen],
+    used: list[str],
+    skip: Collection[str] = (),
 ) -> Question | None:
     """모델이 학생이 이미 가진 문제만 다시 쓸 때: 그 기존 문제를 다시 냅니다(그냥 간격 반복).
 
     같은 답을 묻는 기존 문제 중 모델이 쓴 초안과 가장 가까운 것을, 가까운 것이 없으면(60% 미만)
     방금 틀린 그 문제를 고릅니다. 문장이 답인 문제는 문맥에 따라 달라 다시 내지 않습니다.
     복습 중인 문제만 고릅니다: 이미 넘겨준(moved) · 끝난(mastered · stopped) · 결함(flawed)
-    문제를 다시 넘기면 movedTo · dueBefore가 덮여 되돌릴 수 없습니다.
+    문제를 다시 넘기면 movedTo · dueBefore가 덮여 되돌릴 수 없습니다. 저장된 상태로 알 수 없는
+    문제(이번 풀이로 상태가 바뀜 · 무효 풀이)는 부르는 쪽이 skip으로 넘깁니다.
     """
     if not short_answer(q["answer"]):
         return None
@@ -324,6 +330,7 @@ def reuse_existing(
         (s, old)
         for s in seen
         if (old := s.get("q")) is not None
+        and old["id"] not in skip
         and _reviewing(old)
         and same_item(old["answer"], q["answer"])
         and not any(same_item(old["answer"], a) for a in used)

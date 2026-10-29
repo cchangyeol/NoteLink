@@ -186,3 +186,19 @@ def test_reuse_skips_questions_no_longer_in_review() -> None:
             q, [draft("요청 뒤 동사의 알맞은 형태를 고르시오")], [seen_question(old)], []
         )
         assert got is None, state
+
+
+def test_reuse_takes_a_question_whose_srs_has_no_state() -> None:
+    q = question(qid="q1")
+    old = question(qid="q2", prompt="요청 뒤 동사의 알맞은 형태를 고르시오")
+    old["srs"] = {"step": 0, "dueAt": None, "lastResult": "wrong", "streak": 0, "reviews": 1}  # type: ignore[typeddict-item]
+    got = similar.reuse_existing(
+        q, [draft("요청 뒤 동사의 알맞은 형태를 고르시오")], [seen_question(old)], []
+    )
+    assert got is not None and got["id"] == "q2"
+
+
+def test_reuse_leaves_out_what_the_caller_skips() -> None:
+    q = question(qid="q1")
+    seen = [seen_question(q)]
+    assert similar.reuse_existing(q, [draft("새 문제")], seen, [], skip={"q1"}) is None

@@ -336,10 +336,10 @@ def repair(
         return None
     raw = r.get("options")
     new = [o.strip() for o in raw if isinstance(o, str)] if isinstance(raw, list) else []
-    # 피할 말뿐 아니라 정답 · 남은 보기와 거의 같은 말('stacked'에 'stacking')도 버림.
-    # code_check는 대소문자 · 문장부호만 다른 같은 보기까지만 잡음
-    taken = [*no, *keep]
-    if len(new) != len(bad) or any(same_item(o, w) for o in new for w in taken):
+    # 알려진 한계: 정답 · 남은 보기와 거의 같은 새 보기('stacked'에 'stacking')는 여기서 거르지
+    # 않고 뒤의 검사(code_check · two_answers)에 맡김. same_item은 안에 들어 있기만 해도 같다고 봐서
+    # ('be' ~ 'became') 정답 · 보기와 비교하면 쓸 만한 보기까지 버렸음(/code-review 10/29)
+    if len(new) != len(bad) or any(same_item(o, w) for o in new for w in no):
         return None
     swap = dict(zip(bad, new, strict=True))
     return {**d, "options": strip_labels([swap.get(o, o) for o in d["options"]])}

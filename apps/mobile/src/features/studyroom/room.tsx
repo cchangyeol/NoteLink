@@ -292,7 +292,8 @@ export function RoomScreen() {
   const [chat, setChat] = useState(false);
   const [conn, setConn] = useState<'ok' | 'lost' | 'back' | 'kicked'>('ok');
   const [v, setV] = useState('');
-  const pending = useRef<string[]>([]);
+  const pending = useRef<{ clientId: string; text: string }[]>([]);
+  const messageSeq = useRef(0);
   const list = useRef<FlatList<Message>>(null);
 
   // 방 정보 · 대화 기록을 불러오면 목록을 채운다 (렌더 중 상태 조정)
@@ -309,6 +310,11 @@ export function RoomScreen() {
     setLoadedMsgs(history.data);
     setMsgs(history.data);
   }
+  const receiveMessage = (m: Message, clientId?: string) =>
+    setMsgs((messages) => {
+      const confirmed = clientId ? messages.filter((x) => x._id !== clientId) : messages;
+      return confirmed.some((x) => x._id === m._id) ? confirmed : [...confirmed, m];
+    });
   useEffect(() => {
     socket.emit(
       'room:join',
@@ -329,13 +335,9 @@ export function RoomScreen() {
       ),
     [id],
   );
-  useSocket(
-    'chat:message',
-    (m) =>
-      m.chatRoomId === chatId.data &&
-      setMsgs((p) => (p.some((x) => x._id === m._id) ? p : [...p, m])),
-    [chatId.data],
-  );
+  useSocket('chat:message', (m) => m.chatRoomId === chatId.data && receiveMessage(m), [
+    chatId.data,
+  ]);
 
   // p.100 연결 끊김 시나리오: 끊김 → (재연결 | 5분 넘으면 자동 퇴장). 목업에서는 설정 > 예외 시나리오로 켠다
   // 실제 소켓이 끊기면 useNet이 'unstable' · 'offline'이 된다. 목업 스위치도 같은 경로로 들어온다
@@ -356,9 +358,9 @@ export function RoomScreen() {
     if (conn !== 'back') return;
     const roomId = chatId.data;
     if (roomId)
-      pending.current.forEach((t) =>
-        socket.emit('chat:send', { chatRoomId: roomId, text: t, clientId: `c${Date.now()}` }, (m) =>
-          setMsgs((p) => [...p, m]),
+      pending.current.forEach(({ clientId, text }) =>
+        socket.emit('chat:send', { chatRoomId: roomId, text, clientId }, (m) =>
+          receiveMessage(m, clientId),
         ),
       );
     pending.current = [];
@@ -380,12 +382,13 @@ export function RoomScreen() {
 
   const send = () => {
     if (!v.trim() || !chatId.data) return;
+    const clientId = `c${Date.now()}-${++messageSeq.current}`;
     if (conn === 'lost') {
-      pending.current.push(v.trim());
+      pending.current.push({ clientId, text: v.trim() });
       setMsgs((p) => [
         ...p,
         {
-          _id: `p${Date.now()}`,
+          _id: clientId,
           chatRoomId: chatId.data!,
           senderId: myId ?? '',
           type: 'text',
@@ -395,10 +398,8 @@ export function RoomScreen() {
         },
       ]);
     } else
-      socket.emit(
-        'chat:send',
-        { chatRoomId: chatId.data, text: v.trim(), clientId: `c${Date.now()}` },
-        (m) => setMsgs((p) => [...p, m]),
+      socket.emit('chat:send', { chatRoomId: chatId.data, text: v.trim(), clientId }, (m) =>
+        receiveMessage(m),
       );
     setV('');
   };

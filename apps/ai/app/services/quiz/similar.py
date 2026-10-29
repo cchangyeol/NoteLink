@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from app.clients.llm import JsonObject, Llm, LlmError
 from app.core.config import settings
 from app.services.quiz import quality
-from app.services.quiz.checks import Seen, Target, code_check, seen_draft
+from app.services.quiz.checks import Seen, Target, code_check, option_key, seen_draft
 from app.services.quiz.models import CHOICES, LETTERS, Draft, Question
 from app.services.quiz.text import norm, place, same_item, short_answer, tidy
 
@@ -320,11 +320,16 @@ def reuse_existing(
 
     같은 답을 묻는 기존 문제 중 모델이 쓴 초안과 가장 가까운 것을, 가까운 것이 없으면(60% 미만)
     방금 틀린 그 문제를 고릅니다. 문장이 답인 문제는 문맥에 따라 달라 다시 내지 않습니다.
+    같은 답은 보기 비교 키(option_key: norm + 적힌 수)가 같은 것만 봅니다. same_item은
+    port ~ report, norm은 1.5 ~ 15도 같게 봐서, 그 문제를 넘기면 오답과 무관한 문제가 moved로
+    바뀝니다(Codex 리뷰 10/29). '/' · '-'처럼 norm이 비는 답은 다시 내지 않습니다.
+    세트 안에서 이미 쓴 답(used)은 겹치지 않게 넓게(same_item) 뺍니다.
     복습 중인 문제만 고릅니다: 이미 넘겨준(moved) · 끝난(mastered · stopped) · 결함(flawed)
     문제를 다시 넘기면 movedTo · dueBefore가 덮여 되돌릴 수 없습니다. 저장된 상태로 알 수 없는
     문제(이번 풀이로 상태가 바뀜 · 무효 풀이)는 부르는 쪽이 skip으로 넘깁니다.
     """
-    if not short_answer(q["answer"]):
+    want = option_key(q["answer"])
+    if not want[0] or not short_answer(q["answer"]):
         return None
     pool: list[tuple[Seen, Question]] = [
         (s, old)
@@ -332,7 +337,7 @@ def reuse_existing(
         if (old := s.get("q")) is not None
         and old["id"] not in skip
         and _reviewing(old)
-        and same_item(old["answer"], q["answer"])
+        and option_key(old["answer"]) == want
         and not any(same_item(old["answer"], a) for a in used)
     ]
     if not pool:

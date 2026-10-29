@@ -173,6 +173,31 @@ def test_note_lines_keep_only_what_is_really_in_the_note() -> None:
     assert (missing["line"], missing["raw"]) == (None, "노트에 없는 줄")
 
 
+@pytest.mark.parametrize(
+    ("note", "said", "kept"),
+    [
+        ("투여 용량 1.5 mL", "투여 용량 1.5 mL", True),
+        ("투여 용량 1.5 mL", "투여 용량 15 mL", False),  # 소수점이 빠진 수치
+        ("어는점 -3 도", "어는점 3 도", False),  # 부호가 빠진 수치
+        ("어는점 -3 도", "어는점 −3 도", True),  # 유니코드 빼기 기호는 같은 부호
+        ("어는점 –3 도", "어는점 -3 도", True),  # en dash도 같은 부호
+        ("어는점 —3 도", "어는점 -3 도", True),  # em dash도
+        ("투여 용량 -1.5 mL", "1.5 mL", False),  # 부호 붙은 수의 뒷부분
+        ("투여 용량 11.5 mL", "1.5 mL", False),  # 더 긴 수의 뒷부분
+        ("투여 용량 1.5 mL", "투여 용량 1", False),  # 더 긴 수의 앞부분
+        ("투여량 3-5 mL", "투여량 35 mL", False),  # 범위를 붙여 쓴 다른 수
+        ("수면 7 - 9 시간", "수면 7-9 시간", True),  # 범위는 띄어 써도 같음
+        ("비타민 D 600 800 IU", "800 IU", True),  # 띄어 쓴 다른 수 바로 뒤
+        ("IL-6 증가가 핵심", "IL6 증가", True),  # 이름 속 붙임표는 부호가 아님
+        ("-1차 면역반응: IgM 증가", "1차 면역반응: IgM 증가", True),  # 줄 앞 글머리
+    ],
+)
+def test_note_line_keeps_numbers_as_written(note: str, said: str, kept: bool) -> None:
+    llm = FakeLlm({"Line": [{"line": said}]})
+    got = review.note_line(llm, "용량", [("m1", 1)], {"m1": {1: note}})
+    assert (got["line"] == said) is kept, got
+
+
 def test_failed_note_line_call_is_recorded_not_raised() -> None:
     llm = happy_llm()
     llm.answers["Line"] = [LlmError("HTTP 503"), {"line": ""}]

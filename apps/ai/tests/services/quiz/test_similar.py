@@ -1,3 +1,5 @@
+import pytest
+
 from app.clients.llm import JsonObject, LlmError
 from app.core.config import settings
 from app.services.quiz import similar
@@ -157,6 +159,42 @@ def test_reuse_picks_the_existing_question_closest_to_the_drafts() -> None:
     seen = [seen_question(x) for x in (q, near, other)]
     got = similar.reuse_existing(q, [draft("요청 뒤 동사의 알맞은 형태를 고르시오")], seen, [])
     assert got is not None and got["id"] == "q2"
+
+
+def test_reuse_needs_the_very_same_answer_not_one_inside_another() -> None:
+    # same_item은 port ~ report도 같게 봄: 그 기존 문제를 넘기면 오답과 무관한 문제가 moved가 됨
+    q = question("port", qid="q1")
+    near = question("report", qid="q2", prompt="요청 뒤 동사의 알맞은 형태를 고르시오")
+    seen = [seen_question(q), seen_question(near)]
+    got = similar.reuse_existing(q, [draft("요청 뒤 동사의 알맞은 형태를 고르시오")], seen, [])
+    assert got is not None and got["id"] == "q1"
+    # 대소문자 · 공백만 다른 같은 답은 그대로 같은 답
+    same = question(" Port ", qid="q3", prompt="요청 뒤 동사의 알맞은 형태를 고르시오")
+    got = similar.reuse_existing(
+        q, [draft("요청 뒤 동사의 알맞은 형태를 고르시오")], [*seen, seen_question(same)], []
+    )
+    assert got is not None and got["id"] == "q3"
+
+
+@pytest.mark.parametrize(("missed", "other"), [("1.5", "15"), ("-3", "3"), ("3-5", "35")])
+def test_reuse_does_not_merge_different_numbers(missed: str, other: str) -> None:
+    # norm은 1.5 ~ 15, -3 ~ 3, 3-5 ~ 35를 같게 봄: 다른 수의 기존 문제는 넘기지 않음
+    q = question(missed, qid="q1")
+    near = question(other, qid="q2", prompt="요청 뒤 동사의 알맞은 형태를 고르시오")
+    got = similar.reuse_existing(
+        q,
+        [draft("요청 뒤 동사의 알맞은 형태를 고르시오")],
+        [seen_question(q), seen_question(near)],
+        [],
+    )
+    assert got is not None and got["id"] == "q1"
+
+
+def test_reuse_skips_answers_norm_empties() -> None:
+    # '/' · '-'는 norm하면 빈 글이라 서로 같아짐: 같은 답으로 보지 않음
+    q = question("/", qid="q1")
+    other = question("-", qid="q2")
+    assert similar.reuse_existing(q, [], [seen_question(q), seen_question(other)], []) is None
 
 
 def test_reuse_falls_back_to_the_question_just_missed() -> None:

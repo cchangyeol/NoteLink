@@ -13,6 +13,7 @@ class Word(TypedDict):
     end: int
     polygon: list[float]
     confidence: float
+    hand: NotRequired[bool]  # 손글씨 단어 (인쇄 번호 뒤 손글씨처럼 한 줄에 섞일 수 있음)
     color: NotRequired[str]  # 글씨색
     colorDiff: NotRequired[bool]  # 손글씨 주된 색과 다름 = 강조
     baseColor: NotRequired[str]  # 손글씨 주된 색

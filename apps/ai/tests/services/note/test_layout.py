@@ -66,6 +66,46 @@ def test_lines_from_read_reads_lines_words_and_handwriting() -> None:
     assert printed["words"][0]["start"] == 0 and printed["id"] == 2
 
 
+def test_lines_from_read_marks_handwriting_per_word() -> None:
+    # 인쇄 번호 뒤에 손글씨가 이어진 줄: 줄은 인쇄(첫 글자 기준), 단어는 따로
+    content = "1. 손글씨"
+    res = {
+        "content": content,
+        "styles": [{"isHandwritten": True, "spans": [{"offset": 3, "length": 3}]}],
+        "pages": [
+            {
+                "pageNumber": 1,
+                "width": 100,
+                "height": 100,
+                "lines": [
+                    {
+                        "content": content,
+                        "polygon": [0, 0, 50, 0, 50, 5, 0, 5],
+                        "spans": [{"offset": 0, "length": 6}],
+                    }
+                ],
+                "words": [
+                    {
+                        "content": "1.",
+                        "polygon": [0, 0, 5, 0, 5, 5, 0, 5],
+                        "confidence": 0.9,
+                        "span": {"offset": 0, "length": 2},
+                    },
+                    {
+                        "content": "손글씨",
+                        "polygon": [6, 0, 20, 0, 20, 5, 6, 5],
+                        "confidence": 0.9,
+                        "span": {"offset": 3, "length": 3},
+                    },
+                ],
+            }
+        ],
+    }
+    (ln,) = lines_from_read(res)
+    assert ln["hand"] is False
+    assert [w.get("hand") for w in ln["words"]] == [False, True]
+
+
 def test_lines_from_read_handles_empty_result() -> None:
     assert lines_from_read({}) == []
 

@@ -1,8 +1,10 @@
 from typing import Any
 
+import numpy as np
+
 from app.services.note.handoff import line_results, page_texts
 from app.services.note.models import PageLayout
-from app.services.note.pipeline import NotePage, note_result
+from app.services.note.pipeline import NotePage, note_result, page_lines
 from tests.services.note.helpers import row, word
 
 
@@ -120,3 +122,13 @@ def test_multi_page_pdf_keeps_every_page_and_pushes_next_upload() -> None:
 def test_gap_in_upload_numbers_is_kept() -> None:
     res = note_result([{"pageNo": 1, "read": read(("내용", 0.9))}, {"pageNo": 3, "read": {}}])
     assert [p["pageNo"] for p in res["pages"]] == [1, 3]
+
+
+def test_photo_colors_are_not_applied_to_a_multi_page_pdf() -> None:
+    # 사진 한 장은 한 쪽에만 맞으므로, 여러 쪽 OCR 결과에는 색 · 형광펜을 찾지 않음
+    image = np.full((100, 100, 3), 255, np.uint8)
+    image[:, 5:7] = 20  # 단어 상자마다 검은 획
+    lines = page_lines(
+        {"pageNo": 1, "read": two_page_pdf("1. 첫 쪽", "2. 둘째 쪽"), "image": image}
+    )
+    assert all("color" not in w for ln in lines for w in ln["words"])

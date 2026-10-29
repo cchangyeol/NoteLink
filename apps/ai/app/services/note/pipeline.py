@@ -30,7 +30,7 @@ def page_lines(
 ) -> list[Line]:
     """한 쪽의 줄: OCR → 색 · 형광펜 → [?]. [?]는 강조 위치를 계산하기 전에 넣어야 함."""
     lines = lines_from_read(page["read"], page["pageNo"])
-    if "image" in page:
+    if "image" in page and len(page["read"].get("pages") or []) == 1:  # 사진 한 장 = 한 쪽
         lines = annotate_colors(page["image"], lines)
     return mark_uncertain(lines, threshold, known)
 

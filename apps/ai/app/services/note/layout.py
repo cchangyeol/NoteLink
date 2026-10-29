@@ -50,13 +50,19 @@ def lines_from_read(result: dict[str, Any], page_no: int | None = None) -> list[
                     "y0": min(ys) / height,
                     "y1": max(ys) / height,
                     "hand": any(a <= off < b for a, b in hand),
-                    "words": _words_in(words, off, end, text),
+                    "words": _words_in(words, off, end, text, hand),
                 }
             )
     return out
 
 
-def _words_in(words: list[dict[str, Any]], start: int, end: int, line_text: str) -> list[Word]:
+def _words_in(
+    words: list[dict[str, Any]],
+    start: int,
+    end: int,
+    line_text: str,
+    hand: list[tuple[int, int]],
+) -> list[Word]:
     # NFC로 바꾸면 글자 수가 달라질 수 있어 OCR offset 대신 줄 글자에서 찾음
     out: list[Word] = []
     cursor = 0
@@ -75,6 +81,7 @@ def _words_in(words: list[dict[str, Any]], start: int, end: int, line_text: str)
                 "end": pos + len(text),
                 "polygon": [float(v) for v in w["polygon"]],
                 "confidence": float(w["confidence"]),
+                "hand": any(a <= off < b for a, b in hand),
             }
         )
     return out

@@ -336,9 +336,10 @@ def repair(
         return None
     raw = r.get("options")
     new = [o.strip() for o in raw if isinstance(o, str)] if isinstance(raw, list) else []
-    # 알려진 한계: 정답 · 남은 보기와 거의 같은 새 보기('stacked'에 'stacking')는 여기서 거르지
-    # 않고 뒤의 검사(code_check · two_answers)에 맡김. same_item은 안에 들어 있기만 해도 같다고 봐서
-    # ('be' ~ 'became') 정답 · 보기와 비교하면 쓸 만한 보기까지 버렸음(/code-review 10/29)
+    # 알려진 한계(로컬과 같음): 정답의 변형('stack'에 'stacks')은 여기서 거르지 않음. 뒤의
+    # code_check는 대소문자 · 문장부호만 다른 같은 보기까지만 잡음. 반대로 same_item은 안에 들어
+    # 있기만 해도 같다고 봐서, 피할 말 'be'가 있으면 'became'도 버림. 정답 · 남은 보기까지
+    # same_item으로 비교하면 쓸 만한 보기를 더 많이 버려서 넣지 않음(/code-review 10/29)
     if len(new) != len(bad) or any(same_item(o, w) for o in new for w in no):
         return None
     swap = dict(zip(bad, new, strict=True))

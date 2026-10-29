@@ -261,8 +261,6 @@ def broken(change: str) -> JsonObject:
         inp["sets"][0]["questions"][0]["srs"] = {"state": "active"}
     elif change == "choices":
         inp["sets"][0]["questions"][0]["choices"] = "be"
-    elif change == "no notes":
-        inp["notes"] = {}  # 세트의 노트는 늘 있어야 함(NestJS가 빠뜨림)
     elif change == "page":
         inp["notes"]["m1"][0]["pageNo"] = "첫 쪽"
     return inp
@@ -279,7 +277,6 @@ def broken(change: str) -> JsonObject:
         "srs without step",
         "choices",
         "page",
-        "no notes",
     ],
 )
 def test_bad_input_fails_at_once(change: str) -> None:
@@ -346,10 +343,18 @@ def test_void_answers_in_this_attempt_are_left_out() -> None:
     assert [w["concept"] for w in result["weakConcepts"]] == ["stack의 뜻"]
 
 
-def test_without_note_text_review_dates_are_still_saved() -> None:
+@pytest.mark.parametrize(
+    "notes",
+    [
+        {"m1": [{"pageNo": 1, "ocrText": "[?] 흐린 줄"}]},  # 남는 줄이 없음
+        {},  # 노트를 지움
+    ],
+)
+def test_without_note_text_review_dates_are_still_saved(notes: JsonObject) -> None:
     inp = job_input()
-    inp["notes"] = {"m1": [{"pageNo": 1, "ocrText": "[?] 흐린 줄"}]}  # 남는 줄이 없음
-    result, _ = run(FakeLlm(), inp)
+    inp["notes"] = notes
+    result, steps = run(FakeLlm(), inp)
+    assert [v for v, _ in steps] == [15, 25, 52, 80, 90]
     assert [t["why"] for t in result["targets"]] == [["노트 글이 없음"]] * 2
     assert all(t["materialId"] is None for t in result["targets"])
     assert result["reviewQuestions"] == [] and result["noteLines"] == []
@@ -367,10 +372,10 @@ def test_weak_concepts_count_thirty_seoul_days() -> None:
     inp = job_input()
     first = {"questionId": "q1", "correct": False}
     inp["history"] = [
-        # 서울 9/29 00:30 = UTC 9/28 15:30: 서울 날짜로 30일 전이라 들어감
-        {"id": "in", "quizSetId": "s1", "finishedAt": "2026-09-28T15:30:00Z", "answers": [first]},
-        # 서울 9/28 23:30: 하루 더 전이라 빠짐
-        {"id": "out", "quizSetId": "s1", "finishedAt": "2026-09-28T14:30:00Z", "answers": [first]},
+        # 서울 9/30 00:30 = UTC 9/29 15:30: 오늘(10/29)을 넣어 30일째라 들어감
+        {"id": "in", "quizSetId": "s1", "finishedAt": "2026-09-29T15:30:00Z", "answers": [first]},
+        # 서울 9/29 23:30: 31일째라 빠짐
+        {"id": "out", "quizSetId": "s1", "finishedAt": "2026-09-29T14:30:00Z", "answers": [first]},
     ]
     llm = happy_llm()
     llm.answers["Review"] = [BE, STACK]
@@ -394,3 +399,24 @@ def test_a_void_question_is_not_asked_again_as_an_existing_question() -> None:
     llm = FakeLlm({"Review": [copy_of_q1] * 3, "Line": [{"line": "x"}]})
     result, _ = run(llm, inp)
     assert result["targets"][0]["reusedFrom"] == "q4"  # 무효인 q1이 아니라 방금 틀린 q4
+
+
+def test_another_target_of_this_attempt_is_not_reused() -> None:
+    # q1 · q4 둘 다 정답 'be'를 틀림. q1의 다시 보기가 q4를 다시 내면 q4는 두 번 넘어감
+    inp = job_input()
+    inp["history"] = []
+    q4 = q("q4", 4, "be", "요청 동사 뒤 동사원형")
+    q4["prompt"] = "부탁하는 문장에서 빈칸에 들어갈 동사의 형태는?"
+    inp["sets"][0]["questions"].append(q4)
+    inp["answers"] = [
+        {"questionId": "q1", "correct": False},
+        {"questionId": "q4", "correct": False},
+    ]
+    copy_of_q4 = gen("be", ["be", "is", "are", "was", "been"])  # q1보다 q4와 가까움
+    copy_of_q4["question"].update(stem=q4["prompt"], passage="")
+    llm = FakeLlm({"Review": [copy_of_q4] * 6, "Line": [{"line": "x"}]})
+    result, _ = run(llm, inp)
+    assert [t["reusedFrom"] for t in result["targets"]] == ["q1", None]
+    moved = [u for u in result["srsUpdates"] if u["srs"]["state"] == "moved"]
+    assert [u["questionId"] for u in moved] == ["q1"]
+    assert moved[0]["srs"]["dueBefore"] is not None

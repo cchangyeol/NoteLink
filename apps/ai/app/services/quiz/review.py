@@ -136,7 +136,8 @@ def _srs(raw: object, where: str) -> srs.Srs | None:
         raise InputError(where)
     for key in ("step", "streak", "reviews"):
         _get(raw, key, int, where)
-    s = {"dueAt": None, **raw}  # srs.moved가 dueAt을 dueBefore로 옮김
+    # srs.moved가 dueAt을 dueBefore로 옮김. state가 없던 예전 기록은 복습 중으로
+    s = {"dueAt": None, "state": "active", **raw}
     for key in ("dueAt", "dueBefore"):
         if s.get(key) is not None:
             s[key] = _date(s[key], f"{where}.{key}")
@@ -209,8 +210,6 @@ def parse(raw: JsonObject) -> ReviewInput:
         _attempt(h, f"input.history[{i}]") for i, h in enumerate(_list(raw, "history", "input"))
     ]
     notes_raw = _get(raw, "notes", dict, "input")
-    if not notes_raw:  # 세트의 노트는 늘 있음. 글이 모두 [?]인 노트는 아래에서 빈 쪽이 됨
-        raise InputError("input.notes가 비어 있음")
     notes: Notes = {}
     for mid, pages in notes_raw.items():
         w = f"input.notes.{mid}"
@@ -320,6 +319,44 @@ def note_line(llm: Llm, concept: str, keys: list[tuple[str, int]], notes: Notes)
 # ---------------------------------------------------------------- the job
 
 
+def _similar_for(
+    llm: Llm,
+    t: Judged,
+    notes: Notes,
+    slot: int,
+    seen: list[Seen],
+    used: list[str],
+    skip: set[str],
+) -> similar.Made:
+    """대상 하나의 다시 보기 문제. 새로 못 만들고 모델이 기존 문제만 다시 쓰면 그 기존 문제를 냄."""
+    if t.material is None or t.page is None:
+        return similar.Made(why=["노트 글이 없음"])
+    text = notes[t.material][t.page]
+    # 노트가 정답과 같은 묶음으로 적은 유의어는 오답 보기로 쓰지 않음
+    avoid = quality.group_words(t.q["answer"], text) if short_answer(t.q["answer"]) else []
+    target = Target("wrong", t.q["answer"], t.concept, used)
+    m = similar.make_similar(llm, t.q, target, t.page, text, slot, seen, avoid)
+    if m.question is not None or not m.drafts:
+        return m
+    old = similar.reuse_existing(t.q, m.drafts, seen, used, skip)
+    if old is None or old["choices"] is None:  # 객관식만 다시 냄
+        return m
+    d: Draft = {
+        "stem": old["prompt"],
+        "passage": old.get("passage") or "",
+        "options": old["choices"],
+        "answer": old["answer"],
+        "explanation": old.get("explanation"),
+    }
+    was = old.get("srs")
+    # '정답 둘' 검사(10/22) 전에 만든 문제가 이 검사에 떨어지면 다시 내지 않음
+    if not (was and was.get("checked")) and quality.two_answers(llm, d, text, old.get("type")):
+        return m
+    return similar.Made(
+        question=d, type=old.get("type"), tries=m.tries, why=m.why, reused_from=old["id"]
+    )
+
+
 def run(llm: Llm, raw: JsonObject, report: Progress) -> JsonObject:
     """similar_quiz 작업 하나.
 
@@ -349,7 +386,7 @@ def run(llm: Llm, raw: JsonObject, report: Progress) -> JsonObject:
     for j in judged:
         if j.reason:
             now_w[j.concept][j.reason] += 1
-    since = seoul_midnight(day - timedelta(days=WEAK_DAYS))  # 서울 날짜로 30일 전 0시부터
+    since = seoul_midnight(day - timedelta(days=WEAK_DAYS - 1))  # 오늘을 넣어 서울 날짜 30일
     past = [
         h
         for h in inp.history
@@ -375,7 +412,7 @@ def run(llm: Llm, raw: JsonObject, report: Progress) -> JsonObject:
         wrong,
         key=lambda j: (PRIORITY[j.reason or "wrong"], -total.get(j.concept, 0), j.q["order"]),
     )[:REVIEW_SET_SIZE]
-    # 노트 글이 없으면(모든 줄이 [?] 등) 문제 · 노트 줄만 건너뛰고 복습 상태는 저장
+    # 노트 글이 없으면(노트를 지움 · 모든 줄이 [?] 등) 문제 · 노트 줄만 건너뛰고 복습 상태는 저장
     has_notes = any(notes.values())
     if has_notes:
         for t in targets:
@@ -390,41 +427,11 @@ def run(llm: Llm, raw: JsonObject, report: Progress) -> JsonObject:
     skip |= {qid for qid, _, void in attempt.answers if void}
     used: list[str] = []
     made: list[similar.Made] = []
+    # 같은 풀이의 다른 대상 문제도 다시 내지 않음: 5번에서 자기 다시 보기 문제로 넘어가므로
+    # 한 문제를 두 번 넘기게 됨(dueBefore가 지워짐)
+    targeted = {t.q["id"] for t in targets}
     for i, t in enumerate(targets):
-        if t.material is None or t.page is None:
-            made.append(similar.Made(why=["노트 글이 없음"]))
-            report(25 + 55 * (i + 1) // len(targets), "비슷한 문제 만들기")
-            continue
-        text = notes[t.material][t.page]
-        # 노트가 정답과 같은 묶음으로 적은 유의어는 오답 보기로 쓰지 않음
-        avoid = quality.group_words(t.q["answer"], text) if short_answer(t.q["answer"]) else []
-        target = Target("wrong", t.q["answer"], t.concept, used)
-        m = similar.make_similar(llm, t.q, target, t.page, text, i, seen, avoid)
-        if m.question is None and m.drafts:
-            old = similar.reuse_existing(t.q, m.drafts, seen, used, skip)
-            d: Draft | None = None
-            if old is not None and old["choices"] is not None:  # 객관식만 다시 냄
-                d = {
-                    "stem": old["prompt"],
-                    "passage": old.get("passage") or "",
-                    "options": old["choices"],
-                    "answer": old["answer"],
-                    "explanation": old.get("explanation"),
-                }
-                was = old.get("srs")
-                # '정답 둘' 검사(10/22) 전에 만든 문제가 이 검사에 떨어지면 다시 내지 않음
-                if not (was and was.get("checked")) and quality.two_answers(
-                    llm, d, text, old.get("type")
-                ):
-                    d = None
-            if old is not None and d is not None:
-                m = similar.Made(
-                    question=d,
-                    type=old.get("type"),
-                    tries=m.tries,
-                    why=m.why,
-                    reused_from=old["id"],
-                )
+        m = _similar_for(llm, t, notes, i, seen, used, skip | (targeted - {t.q["id"]}))
         if m.question is not None:
             used.append(m.question["answer"])
         made.append(m)

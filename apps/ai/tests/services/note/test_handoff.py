@@ -1,8 +1,10 @@
 from typing import Any
 
+import numpy as np
+
 from app.services.note.handoff import line_results, page_texts
 from app.services.note.models import PageLayout
-from app.services.note.pipeline import NotePage, note_chunks, note_result
+from app.services.note.pipeline import NotePage, note_chunks, note_result, page_lines
 from tests.services.note.helpers import row, word
 
 
@@ -74,15 +76,19 @@ def test_note_result_uses_upload_page_numbers_not_ocr_page_numbers() -> None:
     ]
     res = note_result(pages)
     assert [p["pageNo"] for p in res["pages"]] == [1, 2, 3]  # OCR pageNumber는 모두 1
+    assert res["pages"][0]["ocrText"] == "1. 이질 아메바\n- 영양형 ★"
     assert res["pages"][1]["ocrText"] == ""
     assert [c["title"] for c in res["chunks"]] == ["1. 이질 아메바", "2. 대장 아메바"]
     assert res["chunks"][1]["lines"][0]["pageNo"] == 3
     assert [p["pageNo"] for p in res["lineResults"]] == [1, 2, 3]
+    assert res["lineResults"][1]["lines"] == []
 
 
 def test_blurry_words_get_marks_in_every_output() -> None:
     res = note_result([{"pageNo": 1, "read": read(("1. 로로드아메바", 0.3), ("포낭형 ★", 0.95))}])
     assert res["pages"][0]["ocrText"] == "1. [?]로로드아메바\n포낭형 ★"
+    first = res["lineResults"][0]["lines"][0]
+    assert first["text"] == "1. [?]로로드아메바" and first["conf"] == 0.3
     (c,) = res["chunks"]
     assert c["uncertainCount"] == 1
     (m,) = c["emphasis"]["marks"]
@@ -92,3 +98,49 @@ def test_blurry_words_get_marks_in_every_output() -> None:
 def test_note_chunks_takes_a_page_number() -> None:
     (c,) = note_chunks(read(("1. 이질 아메바", 0.9), ("내용", 0.9)), page_no=7)
     assert c["lines"][0]["pageNo"] == 7
+
+
+def two_page_pdf(first: str, second: str) -> dict[str, Any]:
+    """쪽 2개짜리 PDF의 Read 결과 (OCR pageNumber 1 · 2)."""
+    a, b = read((first, 0.9)), read((second, 0.9))
+    shift = len(a["content"]) + 1
+    for ln in b["pages"][0]["lines"]:
+        ln["spans"][0]["offset"] += shift
+    for w in b["pages"][0]["words"]:
+        w["span"]["offset"] += shift
+    b["pages"][0]["pageNumber"] = 2
+    content = f"{a['content']}\n{b['content']}"
+    return {
+        "content": content,
+        "styles": [{"isHandwritten": True, "spans": [{"offset": 0, "length": len(content)}]}],
+        "pages": a["pages"] + b["pages"],
+    }
+
+
+def test_multi_page_pdf_keeps_every_page_and_pushes_next_upload() -> None:
+    pages: list[NotePage] = [
+        {"pageNo": 1, "read": two_page_pdf("1. 첫 쪽", "2. 둘째 쪽")},
+        {"pageNo": 2, "read": read(("3. 사진 쪽", 0.9))},
+        {"pageNo": 3, "read": {}},
+    ]
+    res = note_result(pages)
+    # 고치기 전에는 PDF 둘째 쪽이 빠지고 사진이 2쪽이 됨
+    assert [p["ocrText"] for p in res["pages"]] == ["1. 첫 쪽", "2. 둘째 쪽", "3. 사진 쪽", ""]
+    assert [p["pageNo"] for p in res["pages"]] == [1, 2, 3, 4]
+    assert [p["pageNo"] for p in res["lineResults"]] == [1, 2, 3, 4]
+    assert [c["lines"][0]["pageNo"] for c in res["chunks"]] == [1, 2, 3]
+
+
+def test_gap_in_upload_numbers_is_kept() -> None:
+    res = note_result([{"pageNo": 1, "read": read(("내용", 0.9))}, {"pageNo": 3, "read": {}}])
+    assert [p["pageNo"] for p in res["pages"]] == [1, 3]
+
+
+def test_photo_colors_are_not_applied_to_a_multi_page_pdf() -> None:
+    # 사진 한 장은 한 쪽에만 맞으므로, 여러 쪽 OCR 결과에는 색 · 형광펜을 찾지 않음
+    image = np.full((100, 100, 3), 255, np.uint8)
+    image[:, 5:7] = 20  # 단어 상자마다 검은 획
+    lines = page_lines(
+        {"pageNo": 1, "read": two_page_pdf("1. 첫 쪽", "2. 둘째 쪽"), "image": image}
+    )
+    assert all("color" not in w for ln in lines for w in ln["words"])

@@ -11,6 +11,7 @@ MOSTLY_HANDWRITTEN = 0.6  # 손글씨 줄이 이 비율 이상인 쪽에서만 �
 GUTTER_RANGE = (30, 70)  # 단 경계를 찾는 범위(쪽 폭 %)
 GUTTER_MIN_WIDTH = 3  # 단 경계로 볼 빈 띠의 최소 폭(%)
 GUTTER_ALLOW = 0.04  # 경계를 지나가도 되는 줄 비율
+GUTTER_MIN_LINES = 2  # 두 단으로 보려면 경계 양쪽에 있어야 하는 줄 수
 SPAN_BOTH = 0.05  # 경계 양쪽으로 이만큼 걸친 줄 = 두 단을 가로지르는 줄
 SIDE_BY_SIDE = 0.3  # 가로로 나란한 두 줄이 높이로 이만큼 겹치면 한 줄
 X_TOLERANCE = 0.01  # 나란한지 볼 때 허용하는 가로 겹침
@@ -49,13 +50,19 @@ def lines_from_read(result: dict[str, Any], page_no: int | None = None) -> list[
                     "y0": min(ys) / height,
                     "y1": max(ys) / height,
                     "hand": any(a <= off < b for a, b in hand),
-                    "words": _words_in(words, off, end, text),
+                    "words": _words_in(words, off, end, text, hand),
                 }
             )
     return out
 
 
-def _words_in(words: list[dict[str, Any]], start: int, end: int, line_text: str) -> list[Word]:
+def _words_in(
+    words: list[dict[str, Any]],
+    start: int,
+    end: int,
+    line_text: str,
+    hand: list[tuple[int, int]],
+) -> list[Word]:
     # NFC로 바꾸면 글자 수가 달라질 수 있어 OCR offset 대신 줄 글자에서 찾음
     out: list[Word] = []
     cursor = 0
@@ -74,6 +81,7 @@ def _words_in(words: list[dict[str, Any]], start: int, end: int, line_text: str)
                 "end": pos + len(text),
                 "polygon": [float(v) for v in w["polygon"]],
                 "confidence": float(w["confidence"]),
+                "hand": any(a <= off < b for a, b in hand),
             }
         )
     return out
@@ -93,20 +101,28 @@ def drop_figure_labels(lines: list[Line]) -> tuple[list[Line], list[Line]]:
 
 def find_gutter(lines: list[Line]) -> float | None:
     """두 단 사이 경계(0~1). 줄이 거의 지나지 않는 가장 넓은 세로 띠의 가운데."""
-    if not lines:
+    # 찾는 범위를 다 덮는 줄(가로 제목)은 빼고 셈. 대신 경계 양쪽에 줄이 있어야 두 단
+    lo, hi = GUTTER_RANGE[0] / 100, GUTTER_RANGE[1] / 100
+    narrow = [ln for ln in lines if not (ln["x0"] <= lo and ln["x1"] >= hi)]
+    if not narrow:
         return None
     cover = [0] * 101
-    for ln in lines:
+    for ln in narrow:
         for x in range(int(ln["x0"] * 100), min(int(ln["x1"] * 100), 100) + 1):
             cover[x] += 1
-    allow = max(1, int(len(lines) * GUTTER_ALLOW))
+    allow = max(1, int(len(narrow) * GUTTER_ALLOW))
     best: tuple[int, int] | None = None  # (시작, 폭)
     run = 0
     for x in range(GUTTER_RANGE[0], GUTTER_RANGE[1] + 1):
         run = run + 1 if cover[x] <= allow else 0
         if run >= GUTTER_MIN_WIDTH and (best is None or run > best[1]):
             best = (x - run + 1, run)
-    return (best[0] + best[1] / 2) / 100 if best else None
+    if best is None:
+        return None
+    g = (best[0] + best[1] / 2) / 100
+    left = sum(ln["x1"] <= g for ln in narrow)
+    right = sum(ln["x0"] >= g for ln in narrow)
+    return g if min(left, right) >= GUTTER_MIN_LINES else None
 
 
 def merge_rows(lines: list[Line]) -> list[Row]:

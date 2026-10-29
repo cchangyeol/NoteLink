@@ -108,7 +108,7 @@ def annotate_colors(image: Image, lines: list[Line]) -> list[Line]:
     names = {k: color_name(float(s.ink[1]), float(s.ink[2])) for k, s in samples.items()}
     count: Counter[str] = Counter()
     for (i, j), name in names.items():
-        if lines[i]["hand"]:
+        if _is_hand(lines[i], lines[i]["words"][j]):
             count[name] += len(lines[i]["words"][j]["text"])
     total = sum(count.values())
     base = count.most_common(1)[0][0] if count else None
@@ -122,7 +122,7 @@ def annotate_colors(image: Image, lines: list[Line]) -> list[Line]:
                 words.append(w)
                 continue
             nw: Word = {**w, "color": names[(i, j)]}
-            if ln["hand"] and base is not None:
+            if _is_hand(ln, w) and base is not None:
                 minor = count[names[(i, j)]] / total < MINOR_SHARE
                 nw["colorDiff"] = names[(i, j)] != base and minor
                 nw["baseColor"] = base
@@ -131,6 +131,10 @@ def annotate_colors(image: Image, lines: list[Line]) -> list[Line]:
             words.append(nw)
         out.append({**ln, "words": words})
     return out
+
+
+def _is_hand(ln: Line, w: Word) -> bool:
+    return w.get("hand", ln["hand"])
 
 
 def _highlight(rest: NDArray[np.float32], paper: NDArray[np.float32]) -> str | None:

@@ -147,3 +147,30 @@ def test_word_without_enough_ink_is_left_as_is() -> None:
     w = word("빈칸", 0, (10, 10, 60, 40))
     (out,) = annotate_colors(img, [line("빈칸", 0, 1, 0, words=[w])])
     assert out["words"][0] == w
+
+
+def test_handwriting_after_a_printed_number_is_checked_by_word() -> None:
+    # 고치기 전: 줄 첫 글자(인쇄 '1.')로 줄 전체를 인쇄로 보아 빨간 손글씨를 놓침
+    img = np.full((200, 600, 3), WHITE, np.uint8)
+    boxes = [(20 + i * 70, 20, 80 + i * 70, 50) for i in range(4)]
+    for b in boxes:
+        stroke(img, b, BLACK)
+    num, red = (20, 100, 60, 130), (80, 100, 200, 130)
+    stroke(img, num, BLACK)
+    stroke(img, red, RED)
+    hand = line(
+        "가나 다라 마바 사아", 0, 1, 0, words=[word("가나", i * 3, b) for i, b in enumerate(boxes)]
+    )
+    mixed = line(
+        "1. 빨강",
+        0,
+        1,
+        0.5,
+        lid=2,
+        hand=False,
+        words=[word("1.", 0, num, hand=False), word("빨강", 3, red, hand=True)],
+    )
+    out = annotate_colors(img, [hand, mixed])
+    n, r = out[1]["words"]
+    assert r.get("colorDiff") is True
+    assert "colorDiff" not in n  # 인쇄 번호는 그대로

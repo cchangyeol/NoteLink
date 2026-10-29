@@ -139,9 +139,9 @@ def cut_chunk(chunk: Chunk, starts: list[int]) -> list[Chunk]:
     for a, b in zip(bounds, bounds[1:], strict=False):
         lo, hi = offsets[a], offsets[b] - 1
         text = "\n".join(rows[a:b])
-        marks = merge_marks(
-            [_shift(m, lo) for m in chunk["emphasis"]["marks"] if lo <= m["start"] < hi]
-        )
+        # 여러 줄에 걸친 강조는 조각 범위로 잘라 양쪽에 나눔
+        inside = [m for m in chunk["emphasis"]["marks"] if m["start"] < hi and m["end"] > lo]
+        marks = merge_marks([_clip(m, lo, hi) for m in inside])
         out.append(
             {
                 "order": 0,
@@ -159,8 +159,8 @@ def cut_chunk(chunk: Chunk, starts: list[int]) -> list[Chunk]:
     return out
 
 
-def _shift(m: Mark, by: int) -> Mark:
-    return {**m, "start": m["start"] - by, "end": m["end"] - by}
+def _clip(m: Mark, lo: int, hi: int) -> Mark:
+    return {**m, "start": max(m["start"], lo) - lo, "end": min(m["end"], hi) - lo}
 
 
 def embed_texts(chunks: list[Chunk]) -> list[str]:

@@ -79,6 +79,18 @@ def test_short_untitled_start_joins_the_next_chunk() -> None:
     assert chunks[0]["text"].startswith("날짜 10/3\n1. 첫 개념")
 
 
+def test_short_start_is_not_joined_under_another_big_heading() -> None:
+    # 고치기 전: I.의 짧은 설명이 II. 1.의 본문으로 들어가 B 문맥으로 임베딩됨
+    out = split_rows(rows("I. 근동충류", "짧은 설명", "II. 편모충류", "1. 람블편모충", "내용"))
+    assert out[0]["path"] == ["I. 근동충류"] and out[0]["text"] == "짧은 설명"
+    assert out[1]["title"] == "1. 람블편모충" and "짧은 설명" not in out[1]["text"]
+
+
+def test_short_start_still_joins_under_the_same_big_heading() -> None:
+    (c,) = split_rows(rows("I. 근동충류", "짧은 설명", "1. 이질아메바", "내용"))
+    assert c["text"].startswith("짧은 설명\n1. 이질아메바")
+
+
 def test_lines_follow_text_rows_and_pages_merge_ids() -> None:
     (c,) = split_rows(
         [row("1. 제목", page=1, lid=4), row("내용", page=1, lid=2), row("다음 쪽", page=2, lid=1)]

@@ -64,7 +64,13 @@ def split_rows(
         parts[-1].rows.append(r)
 
     parts = [p for part in parts for p in _split_long(part, max_chars)]
-    if len(parts) > 1 and parts[0].title is None and parts[0].chars < min_chars:
+    # 짧은 서두는 같은 큰 제목 아래 다음 문단에만 붙임 (다른 제목 문맥으로 임베딩되지 않게)
+    if (
+        len(parts) > 1
+        and parts[0].title is None
+        and parts[0].chars < min_chars
+        and parts[0].path == parts[1].path
+    ):
         parts[1].rows[:0] = parts[0].rows
         parts.pop(0)
     return [_chunk(i, p, max_chars) for i, p in enumerate(parts, 1)]

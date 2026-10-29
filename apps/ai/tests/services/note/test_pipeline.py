@@ -62,6 +62,26 @@ def test_cut_chunk_moves_marks_and_lines() -> None:
     assert not first["emphasis"]["has"]
 
 
+def test_cut_chunk_clips_a_mark_across_rows_to_each_piece() -> None:
+    # 고치기 전: 앞 조각 강조가 글 길이를 넘고 뒤 조각에서는 사라짐
+    chunk: Chunk = {
+        "order": 1,
+        "title": None,
+        "path": [],
+        "text": "가나다\n라마바",
+        "lines": [{"pageNo": 1, "lineIds": [1]}, {"pageNo": 1, "lineIds": [2]}],
+        "emphasis": {
+            "has": True,
+            "marks": [{"kind": "color", "start": 1, "end": 6, "color": "red"}],
+        },
+        "uncertainCount": 0,
+        "needsLlm": True,
+    }
+    a, b = cut_chunk(chunk, [1, 2])
+    assert a["emphasis"]["marks"] == [{"kind": "color", "start": 1, "end": 3, "color": "red"}]
+    assert b["emphasis"]["marks"] == [{"kind": "color", "start": 0, "end": 2, "color": "red"}]
+
+
 def test_split_with_llm_only_touches_chunks_that_need_it() -> None:
     plain = split_rows(rows("1. 짧은 개념", "내용"))[0]
     llm = FakeLlm({"note_split": [{"starts": [1, 3]}]})

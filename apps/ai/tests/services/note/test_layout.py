@@ -209,6 +209,24 @@ def test_small_printed_lines_on_a_handwritten_page_are_figure_labels() -> None:
     assert dropped == [label] and label not in kept
 
 
+def test_small_line_with_handwritten_words_is_not_a_figure_label() -> None:
+    # 고치기 전: 인쇄 번호로 시작한 줄(hand=False)이 작으면 손글씨까지 통째로 지워짐
+    body = [line(f"손글씨 {i}", 0.05, 0.4, i * 0.05, lid=i) for i in range(5)]
+    mixed = line(
+        "1. 손글씨",
+        0.05,
+        0.4,
+        0.3,
+        lid=8,
+        hand=False,
+        height=0.01,
+        words=[word("1.", 0, hand=False), word("손글씨", 3, hand=True)],
+    )
+    label = line("핵(nucleus)", 0.8, 0.9, 0.1, lid=9, hand=False, height=0.01)
+    kept, dropped = drop_figure_labels(body + [mixed, label])
+    assert mixed in kept and dropped == [label]
+
+
 def test_printed_page_keeps_small_lines() -> None:
     lines = [line(f"인쇄 {i}", 0.05, 0.9, i * 0.05, lid=i, hand=False) for i in range(5)]
     lines.append(line("작은 주석", 0.05, 0.3, 0.5, lid=9, hand=False, height=0.005))

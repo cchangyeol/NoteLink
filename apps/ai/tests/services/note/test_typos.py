@@ -115,6 +115,21 @@ def test_apply_fixes_keeps_prefix_tail_and_drops_unsure_mark() -> None:
     assert [f["word"] for f in out.get("fixes", [])] == ["창원", "포남형"]
 
 
+def test_apply_fixes_only_whole_words() -> None:
+    c = chunk("- 창원 검사", "- 창원은 B창원과 다름", "- 창원시 · 대창원")
+    (out,) = apply_fixes([c], [fix("창원", "항원")])
+    assert out["text"] == "- 항원 검사\n- 항원은 B항원과 다름\n- 창원시 · 대창원"
+
+
+def test_apply_fixes_also_fix_title_and_path() -> None:
+    cs = split_rows(
+        [row(t, lid=i) for i, t in enumerate(["Ⅰ. 포남형", "1. 세부 포남형", "- 내용"], 1)]
+    )
+    (out,) = apply_fixes(cs, [fix("포남형", "포낭형")])
+    assert (out["title"], out["path"]) == ("1. 세부 포낭형", ["Ⅰ. 포낭형"])
+    assert out["text"].startswith("1. 세부 포낭형")
+
+
 def test_review_fixes_are_kept_but_not_applied() -> None:
     c = chunk("- 두직이 있다")
     (out,) = apply_fixes([c], [fix("두직", "두절", "review")])

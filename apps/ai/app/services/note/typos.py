@@ -15,7 +15,8 @@ from app.services.note.terms import TermDict, is_common, is_noun_like, similarit
 
 AUTO_MIN = 0.7
 PAIR_MIN = 0.8  # 붙여 쓴 두 낱말을 한 용어로 볼 유사도
-TAIL = re.compile(r"(에서|으로|은|는|이|가|을|를|의|에|과|와|도|로|만|중)$")
+TAILS = "에서|으로|은|는|이|가|을|를|의|에|과|와|도|로|만|중"
+TAIL = re.compile(f"({TAILS})$")
 UNSURE = "[?]"
 
 SYSTEM = (
@@ -171,17 +172,26 @@ def parse_picks(answer: JsonObject, cands: list[Candidate]) -> list[TypoFix]:
 
 
 def apply_fixes(chunks: list[Chunk], fixes: list[TypoFix]) -> list[Chunk]:
-    """바로 적용(auto)만 글에 넣고, 모든 고침을 chunk['fixes']에 남김(편집 화면에서 되돌리기용)."""
+    """바로 적용(auto)만 글 · 제목 · 상위 제목에 넣고, 모든 고침을 chunk['fixes']에 남김
+    (편집 화면에서 되돌리기용)."""
+    # 상위 제목은 따로 묻지 않으므로 노트에서 고친 낱말을 그대로 씀(먼저 나온 것 우선)
+    swaps = {f["word"]: f["term"] for f in reversed(fixes) if f["status"] == "auto"}
     out: list[Chunk] = []
     for c in chunks:
         mine = [f for f in fixes if f["order"] == c["order"]]
+        own = {f["word"]: f["term"] for f in reversed(mine) if f["status"] == "auto"}
         text, marks = c["text"], list(c["emphasis"]["marks"])
-        for f in mine:
-            if f["status"] == "auto":
-                # 고쳐서 확실해진 낱말은 [?]도 뗌
-                text, marks = _replace(text, marks, UNSURE + f["word"], f["term"])
-                text, marks = _replace(text, marks, f["word"], f["term"])
-        new: Chunk = {**c, "text": text, "uncertainCount": text.count(UNSURE)}
+        for word, term in own.items():
+            # 고쳐서 확실해진 낱말은 [?]도 뗌
+            text, marks = _replace(text, marks, UNSURE + word, term)
+            text, marks = _replace(text, marks, word, term)
+        new: Chunk = {
+            **c,
+            "title": _fix(c["title"], own) if c["title"] is not None else None,
+            "path": [_fix(p, swaps) for p in c["path"]],
+            "text": text,
+            "uncertainCount": text.count(UNSURE),
+        }
         new["emphasis"] = {"has": bool(marks), "marks": marks}
         if mine:
             new["fixes"] = mine
@@ -189,12 +199,24 @@ def apply_fixes(chunks: list[Chunk], fixes: list[TypoFix]) -> list[Chunk]:
     return out
 
 
+def _fix(s: str, swaps: dict[str, str]) -> str:
+    for word, term in swaps.items():
+        s = _replace(s, [], UNSURE + word, term)[0]
+        s = _replace(s, [], word, term)[0]
+    return s
+
+
 def _replace(text: str, marks: list[Mark], old: str, new: str) -> tuple[str, list[Mark]]:
-    """old를 모두 new로 바꾸고, 뒤에 있는 강조 구간 위치를 글자 수 차이만큼 옮김."""
+    """낱말로 쓰인 old를 모두 new로 바꾸고, 뒤 강조 구간 위치를 글자 수 차이만큼 옮김.
+
+    앞에 한글이 붙어 있거나 뒤에 조사 · '중' 말고 한글이 이어지면 다른 낱말이라 두고 감
+    ('창원 → 항원'일 때 '창원시'는 그대로).
+    """
     if not old or old not in text:
         return text, marks
+    word = re.compile(rf"(?<![가-힣]){re.escape(old)}(?=(?:{TAILS})?(?![가-힣]))")
     parts, pos = [], 0
-    for m in re.finditer(re.escape(old), text):
+    for m in word.finditer(text):
         parts.append(text[pos : m.start()] + new)
         delta = len(new) - len(old)
         start = len("".join(parts)) - len(new)  # 바꾼 뒤 글에서 이 자리

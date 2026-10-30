@@ -8,8 +8,10 @@ from app.services.note.pipeline import (
     embed_texts,
     note_chunks,
     parse_starts,
+    refine_chunks,
     split_with_llm,
 )
+from app.services.note.terms import TermDict
 from tests.fakes import FakeLlm
 from tests.services.note.helpers import row, rows, word
 
@@ -135,3 +137,25 @@ def test_note_chunks_from_a_small_read_result() -> None:
 def test_embed_texts_put_parent_titles_first() -> None:
     (c,) = split_rows(rows("I. 근동충류", "1. 이질 아메바", "내용"))
     assert embed_texts([c]) == ["I. 근동충류\n1. 이질 아메바\n내용"]
+
+
+def test_refine_chunks_is_off_by_default_and_without_terms() -> None:
+    cs = split_rows(rows("1. 최통", "- 포남형"))
+    llm = FakeLlm()
+    assert refine_chunks(llm, "m", cs, TermDict(["회충", "포낭형"]), enabled=False) == cs
+    assert refine_chunks(llm, "m", cs, TermDict([]), enabled=True) == cs
+    assert llm.calls == []
+
+
+def test_refine_chunks_fixes_then_tags() -> None:
+    cs = split_rows(rows("1. 최통", "- 포남형 : 인체 감염형"))
+    llm = FakeLlm(
+        {
+            "note_typos": [{"picks": [{"id": 1, "choice": 1}]}],
+            "note_concepts": [{"items": [{"order": 1, "choice": 1}]}],
+        }
+    )
+    (c,) = refine_chunks(llm, "m", cs, TermDict(["회충", "포낭형"]), enabled=True)
+    assert c["text"] == "1. 최통\n- 포낭형 : 인체 감염형"
+    assert c["concept"] == "회충" and c["conceptStatus"] == "auto"
+    assert [x.name for x in llm.calls] == ["note_typos", "note_concepts"]

@@ -87,15 +87,15 @@ def _kiwi() -> Any:
 
 
 def is_common(word: str) -> bool:
-    """이미 있는 보통 낱말(성숙 · 영양분 · 부족 등). 오타 후보에서 뺌."""
+    """이미 있는 보통 낱말. 오타 후보에서 뺌."""
     toks = _kiwi().tokenize(word)
     return len(toks) == 1 and toks[0].tag.startswith("NN") and toks[0].score > COMMON_SCORE
 
 
 def is_noun_like(word: str) -> bool:
-    """동사 · 형용사 · 어미가 없고 부사 하나도 아닌 낱말(있다 · 신속한 · 함께는 아님).
+    """동사 · 형용사 · 어미가 없고 부사 하나도 아닌 낱말.
 
-    관형사는 허용: 오타가 '두직'(두 + 직)처럼 관형사로 읽히기도 함.
+    관형사는 허용: 오타가 관형사 + 명사로 읽히기도 함.
     """
     toks = _kiwi().tokenize(word)
     if len(toks) == 1 and toks[0].tag.startswith("MA"):

@@ -13,7 +13,7 @@ from app.services.note.chunking import by_page
 from app.services.note.models import Chunk, ConceptStatus
 from app.services.note.terms import TermDict, syllables
 
-NAME_MIN = 0.35  # 제목 오타가 심해도 후보에 들도록 낮게 (최통 ↔ 회충 0.4)
+NAME_MIN = 0.35  # 제목 오타가 심해도 후보에 들도록 낮게
 OPTIONS = 6
 
 SYSTEM = (
@@ -39,7 +39,7 @@ SCHEMA: JsonObject = {
 
 
 def title_core(title: str | None) -> str:
-    """'3. 로꼬가과 [?]훌륭 (비병원성)' → '로꼬가과훌륭'."""
+    """제목에서 번호 · [?] · 괄호 설명 · 기호를 떼고 알맹이만 남김."""
     t = re.sub(r"\[\?\]", "", title or "")
     t = re.sub(r"^[\dⅠ-Ⅻ IVX.)(①-⑳\-·]+", "", t).split("(")[0]
     return re.sub(r"[^가-힣A-Za-z0-9]", "", t)

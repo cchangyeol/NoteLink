@@ -49,14 +49,14 @@ class Candidate(TypedDict):
 
 
 def split_word(token: str, terms: TermDict) -> tuple[str, str, str]:
-    """(앞, 용어 부분, 뒤). 'B창원' → ('B', '창원', ''), '원충류중' → ('', '원충류', '중')."""
+    """(앞, 용어 부분, 뒤). 앞의 영문 · 숫자 · [?]와 뒤의 조사 · 괄호를 나눔."""
     m = re.search(r"[가-힣]+", token)
     if not m:
         return token, "", ""
     head, core, rest = token[: m.start()], m.group(0), token[m.end() :]
     if len(core) > 2 and (t := TAIL.search(core)):
         cut = core[: t.start()]
-        # 뗀 꼴이 사전 용어이거나 사전과 더 비슷해질 때만 꼬리로 봄 ('후편모도' → '후편모' + '도')
+        # 뗀 꼴이 사전 용어이거나 사전과 더 비슷해질 때만 꼬리로 봄
         if cut in terms or terms.best(cut) > terms.best(core):
             return head, cut, core[t.start() :] + rest
     return head, core, rest
@@ -82,7 +82,7 @@ def candidates(chunk: Chunk, terms: TermDict, start_id: int = 1) -> list[Candida
         tokens = line.split()
         cores = [split_word(t, terms) for t in tokens]
         used: set[int] = set()
-        # 띄어 쓴 두 낱말(이책 아메바 → 이핵아메바)은 붙인 꼴이 낱말 하나보다 더 비슷할 때만
+        # 띄어 쓴 두 낱말은 붙인 꼴이 낱말 하나보다 더 비슷할 때만 한 후보로
         for i, ((_, a, a_tail), (_, b, _)) in enumerate(zip(cores, cores[1:], strict=False)):
             if not a or a_tail or syllables(b) < 2:
                 continue
@@ -209,8 +209,7 @@ def _fix(s: str, swaps: dict[str, str]) -> str:
 def _replace(text: str, marks: list[Mark], old: str, new: str) -> tuple[str, list[Mark]]:
     """낱말로 쓰인 old를 모두 new로 바꾸고, 뒤 강조 구간 위치를 글자 수 차이만큼 옮김.
 
-    앞에 한글이 붙어 있거나 뒤에 조사 · '중' 말고 한글이 이어지면 다른 낱말이라 두고 감
-    ('창원 → 항원'일 때 '창원시'는 그대로).
+    앞에 한글이 붙어 있거나 뒤에 조사 · '중' 말고 한글이 이어지면 다른 낱말이라 두고 감.
     """
     if not old or old not in text:
         return text, marks

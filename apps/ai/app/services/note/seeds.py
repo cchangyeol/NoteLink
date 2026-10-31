@@ -120,7 +120,7 @@ def search_seed(searcher: Searcher, subject: str, topic: str, domains: list[str]
 
 
 def listed_terms(text: str) -> list[str]:
-    """'- 간흡충 (Clonorchis sinensis)' → '간흡충'. 한글이 없거나 너무 긴 줄은 버림."""
+    """목록 줄에서 용어만 꺼냄(괄호 · 설명 뗌). 한글이 없거나 문장인 줄은 버림."""
     out: list[str] = []
     for line in text.splitlines():
         t = re.sub(r"^[\s\-*•·\d.)]+", "", line)

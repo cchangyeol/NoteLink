@@ -6,7 +6,7 @@ import { Accelerometer } from 'expo-sensors';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { X } from 'lucide-react-native';
 import { api } from '@/lib/api';
-import { goalLabel, hm, hms } from '@/lib/dates';
+import { goalLabel, hm, hms, today as seoulToday } from '@/lib/dates';
 import { useNow } from '@/hooks';
 import { useSession } from '@/stores/session';
 import { toast } from '@/stores/toast';
@@ -17,9 +17,16 @@ import { C } from '@/theme';
 
 export function SummaryScreen() {
   const { sec, points } = useLocalSearchParams<{ sec?: string; points?: string }>();
-  const today = useQuery({ queryKey: ['study', 'today'], queryFn: api.study.today });
-  const weekly = useQuery({ queryKey: ['study', 'weekly'], queryFn: api.study.weekly });
-  const goal = useQuery({ queryKey: ['goal', 'weekly'], queryFn: api.study.weeklyGoal });
+  const today = useQuery({ queryKey: ['study', 'today', seoulToday()], queryFn: api.study.today });
+  const weekly = useQuery({
+    queryKey: ['study', 'weekly', seoulToday()],
+    queryFn: api.study.weekly,
+  });
+  const goal = useQuery({
+    queryKey: ['goal', 'weekly', seoulToday()],
+    queryFn: api.study.weeklyGoal,
+  });
+  const me = useQuery({ queryKey: ['me'], queryFn: api.me.get });
   const items = today.data?.items ?? [];
   const total = items.reduce((a, i) => a + i.accumulatedSec, 0);
   const done = items.filter((i) => i.goalMin && i.accumulatedSec >= i.goalMin * 60).length;
@@ -47,7 +54,9 @@ export function SummaryScreen() {
       </View>
       <View className="items-center">
         <Text className="text-[32px]">🎉</Text>
-        <Text className="text-[19px] font-bold text-ink">수고했어요, 형욱 님</Text>
+        <Text className="text-[19px] font-bold text-ink">
+          수고했어요, {me.data?.nickname ?? ''} 님
+        </Text>
         <Text className="text-[12px] text-sub">
           오늘 순공시간{sec ? ` · 이번 세션 ${hm(Number(sec))}` : ''}
         </Text>
@@ -88,7 +97,9 @@ export function SummaryScreen() {
       </View>
       <Progress value={pct} className="mt-1.5" />
       <Text className="mt-1 text-[12px] text-sub">
-        {hm(weekly.data?.totalSec ?? 0)} · 지난주보다 1시간 40분 늘었어요
+        {hm(weekly.data?.totalSec ?? 0)} · 지난주 대비{' '}
+        {hm(Math.abs(weekly.data?.diffFromLastWeekSec ?? 0))}{' '}
+        {(weekly.data?.diffFromLastWeekSec ?? 0) < 0 ? '줄었어요' : '늘었어요'}
       </Text>
       <Card tone="white" className="mt-4 p-4">
         <Text className="text-[14px] font-semibold text-ink">오늘 공부를 노트로 남겨둘까요?</Text>
@@ -125,7 +136,7 @@ export function SummaryScreen() {
 /** p.49 #8 가로로 돌리면 자동 측정 — 세로로 세우면 측정을 멈추고 돌아간다 */
 export function LandscapeScreen() {
   const s = useSession();
-  const today = useQuery({ queryKey: ['study', 'today'], queryFn: api.study.today });
+  const today = useQuery({ queryKey: ['study', 'today', seoulToday()], queryFn: api.study.today });
   const now = useNow();
   const active = today.data?.items.find((i) => i._id === s.itemId);
   const total =

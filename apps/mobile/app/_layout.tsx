@@ -42,16 +42,7 @@ export default function RootLayout() {
           animation: 'slide_from_right',
           animationDuration: 280,
         }}
-      >
-        <Stack.Screen name="landscape" options={{ animation: 'fade', orientation: 'landscape' }} />
-        <Stack.Screen name="capture/camera" options={{ animation: 'fade' }} />
-        <Stack.Screen name="capture/rec-live" options={{ animation: 'fade' }} />
-        <Stack.Screen
-          name="summary"
-          options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
-        />
-        <Stack.Screen name="convert" options={{ gestureEnabled: false }} />
-      </Stack>
+      />
       <AppOverlays />
     </QueryClientProvider>
   );

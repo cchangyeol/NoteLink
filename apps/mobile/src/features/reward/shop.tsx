@@ -1,17 +1,29 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
+import { Text } from '@/components/text';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
-import { ArrowUpDown, Check, ChevronLeft, ChevronRight, Heart, X } from 'lucide-react-native';
+import {
+  ArrowUpDown,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Frown,
+  Heart,
+  Package,
+  ShoppingBasket,
+  X,
+} from 'lucide-react-native';
 import { ERROR_CODES, type ShopItem } from '@notelink/shared';
 import { api, ApiError, NetworkError } from '@/lib/api';
+import { useFeatureNavigation } from '@/lib/feature-navigation';
 import { clock } from '@/lib/dates';
 import { BASE_AVATAR } from '@/lib/mock/seed';
 import { Alert, Badge, Btn, Dialog, Sheet, Two, cx } from '@/components/ui';
-import { C } from '@/theme';
+import { C, ICON } from '@/theme';
 
 // p.91~95 상점 · 정렬 · 상세 · 구매 · 포인트 내역 · 보관함 / p.101 구매 중 연결 끊김
 
@@ -32,9 +44,9 @@ function Toast({ msg, onClose }: { msg: string; onClose: () => void }) {
       entering={FadeInUp}
       className="mt-2 flex-row items-center rounded-xl bg-ink px-4 py-2.5"
     >
-      <Text className="flex-1 text-[13px] font-semibold text-white">{msg}</Text>
+      <Text className="flex-1 text-footnote font-semibold text-white">{msg}</Text>
       <Pressable accessibilityLabel="닫기" onPress={onClose} hitSlop={10}>
-        <X size={16} color="#fff" />
+        <X size={ICON.sm} color="#fff" />
       </Pressable>
     </Animated.View>
   );
@@ -50,6 +62,7 @@ function useShopData() {
 }
 
 export function ShopScreen() {
+  const openFeature = useFeatureNavigation();
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
   const [tab, setTab] = useState<'전체' | '아바타' | '테마' | '찜'>('전체');
@@ -146,12 +159,12 @@ export function ShopScreen() {
         ) : (
           <View className="h-12 flex-row items-center justify-between pt-2">
             <Pressable onPress={() => router.back()} className="flex-row items-center">
-              <ChevronLeft size={18} color={C.ink} />
-              <Text className="text-[15px] font-bold text-ink">상점</Text>
+              <ChevronLeft size={ICON.md} color={C.ink} />
+              <Text className="text-callout font-bold text-ink">상점</Text>
             </Pressable>
             <Pressable onPress={() => router.push('/shop/box')} className="flex-row items-center">
-              <Text className="text-[14px] font-semibold text-ink">보관함</Text>
-              <ChevronRight size={16} color={C.ink} />
+              <Text className="text-subhead font-semibold text-ink">보관함</Text>
+              <ChevronRight size={ICON.sm} color={C.ink} />
             </Pressable>
           </View>
         )}
@@ -159,8 +172,8 @@ export function ShopScreen() {
           onPress={() => router.push('/shop/points')}
           className="mt-2 rounded-2xl bg-mint px-4 py-3"
         >
-          <Text className="text-[11px] text-sub">보유 포인트</Text>
-          <Text className="text-[18px] font-bold text-ink">{points.toLocaleString()} P</Text>
+          <Text className="text-caption2 text-sub">보유 포인트</Text>
+          <Text className="text-headline font-bold text-ink">{points.toLocaleString()} P</Text>
         </Pressable>
         <View className="mt-4 flex-row gap-1">
           {(['전체', '아바타', '테마', '찜'] as const).map((t) => (
@@ -170,7 +183,7 @@ export function ShopScreen() {
               className={cx('rounded-lg px-3 py-1.5', tab === t && 'bg-mint')}
             >
               <Text
-                className={cx('text-[13px]', tab === t ? 'font-semibold text-brand' : 'text-sub')}
+                className={cx('text-footnote', tab === t ? 'font-semibold text-brand' : 'text-sub')}
               >
                 {t}
               </Text>
@@ -181,16 +194,16 @@ export function ShopScreen() {
           onPress={() => setSortOpen(true)}
           className="mt-1 flex-row items-center gap-1 self-end"
         >
-          <Text className="text-[12px] text-sub">{SORT_LABEL[sort]}</Text>
-          <ArrowUpDown size={12} color={C.sub} />
+          <Text className="text-caption text-sub">{SORT_LABEL[sort]}</Text>
+          <ArrowUpDown size={ICON.xs} color={C.sub} />
         </Pressable>
         {list.length === 0 && (items.isSuccess || tab === '찜') ? (
           <View className="mt-3 items-center rounded-2xl border border-line py-12">
-            <Text className="text-[30px]">🧺</Text>
-            <Text className="mt-2 text-[14px] font-semibold text-ink">
+            <ShoppingBasket size={ICON.xl} color={C.brand} />
+            <Text className="mt-2 text-subhead font-semibold text-ink">
               {tab === '찜' ? '찜한 아이템이 없어요' : '준비 중인 아이템이에요'}
             </Text>
-            <Text className="text-[12px] text-sub">
+            <Text className="text-caption text-sub">
               {tab === '찜'
                 ? '♡를 눌러 마음에 드는 아이템을 모아보세요'
                 : '곧 새로운 아이템이 추가될 예정이에요'}
@@ -202,20 +215,20 @@ export function ShopScreen() {
               <View key={it._id} className="w-[48.5%] rounded-2xl bg-cream p-2">
                 <Pressable onPress={() => setDetail(it)}>
                   <View className="h-24 items-center justify-center rounded-xl bg-white">
-                    <Text className="text-[46px]">{it.thumbnailUrl}</Text>
+                    <Text className="text-display">{it.thumbnailUrl}</Text>
                     {it.badge && (
                       <View
                         className={cx(
                           'absolute top-1.5 left-1.5 rounded-md px-1.5',
-                          it.badge === 'NEW' ? 'bg-sun' : 'bg-[#e8902c]',
+                          it.badge === 'NEW' ? 'bg-sun' : 'bg-orange',
                         )}
                       >
-                        <Text className="text-[9px] font-bold text-white">{it.badge}</Text>
+                        <Text className="text-caption2 font-bold text-white">{it.badge}</Text>
                       </View>
                     )}
                   </View>
-                  <Text className="mt-2 px-1 text-[13px] font-semibold text-ink">{it.name}</Text>
-                  <Text className="px-1 text-[11px] text-sub">
+                  <Text className="mt-2 px-1 text-footnote font-semibold text-ink">{it.name}</Text>
+                  <Text className="px-1 text-caption2 text-sub">
                     {owned.has(it._id) ? '보유중' : `${it.price.toLocaleString()} P`}
                   </Text>
                 </Pressable>
@@ -226,7 +239,7 @@ export function ShopScreen() {
                   className="absolute top-3.5 right-3.5"
                 >
                   <Heart
-                    size={15}
+                    size={ICON.sm}
                     color={wished.has(it._id) ? C.danger : C.sub}
                     fill={wished.has(it._id) ? C.danger : 'transparent'}
                   />
@@ -251,8 +264,8 @@ export function ShopScreen() {
                 sort === o ? 'bg-mint' : 'bg-cream',
               )}
             >
-              <Text className="flex-1 text-[14px] text-ink">{SORT_LABEL[o]}</Text>
-              {sort === o && <Check size={16} color={C.brand} />}
+              <Text className="flex-1 text-subhead text-ink">{SORT_LABEL[o]}</Text>
+              {sort === o && <Check size={ICON.sm} color={C.brand} />}
             </Pressable>
           ))}
         </View>
@@ -261,10 +274,10 @@ export function ShopScreen() {
         {detail && (
           <>
             <View className="h-36 items-center justify-center rounded-2xl bg-cream">
-              <Text className="text-[72px]">{detail.thumbnailUrl}</Text>
+              <Text className="text-display-lg">{detail.thumbnailUrl}</Text>
             </View>
             <View className="mt-3 flex-row items-center justify-between">
-              <Text className="text-[16px] font-bold text-ink">{detail.name}</Text>
+              <Text className="text-body font-bold text-ink">{detail.name}</Text>
               {owned.has(detail._id) ? (
                 <Badge>보유중</Badge>
               ) : (
@@ -274,7 +287,7 @@ export function ShopScreen() {
                   className="h-8 w-8 items-center justify-center rounded-full border border-line"
                 >
                   <Heart
-                    size={15}
+                    size={ICON.sm}
                     color={wished.has(detail._id) ? C.danger : C.sub}
                     fill={wished.has(detail._id) ? C.danger : 'transparent'}
                   />
@@ -282,9 +295,9 @@ export function ShopScreen() {
               )}
             </View>
             {!owned.has(detail._id) && (
-              <Text className="text-[13px] text-sub">{detail.price.toLocaleString()} P</Text>
+              <Text className="text-footnote text-sub">{detail.price.toLocaleString()} P</Text>
             )}
-            <Text className="mt-1 text-[12px] text-sub">{detail.description}</Text>
+            <Text className="mt-1 text-caption text-sub">{detail.description}</Text>
             {owned.has(detail._id) ? (
               <Btn
                 className="mt-4"
@@ -306,15 +319,15 @@ export function ShopScreen() {
       <Dialog open={!!confirm} onClose={() => setConfirm(null)}>
         {confirm && (
           <>
-            <Text className="text-[15px] font-bold text-ink">{confirm.name}를 구매할까요?</Text>
+            <Text className="text-callout font-bold text-ink">{confirm.name}를 구매할까요?</Text>
             <View className="mt-4 w-full gap-1.5 rounded-xl bg-cream p-3">
               <View className="flex-row justify-between">
-                <Text className="text-[13px] text-sub">차감 포인트</Text>
-                <Text className="text-[13px] font-bold text-ink">{confirm.price} P</Text>
+                <Text className="text-footnote text-sub">차감 포인트</Text>
+                <Text className="text-footnote font-bold text-ink">{confirm.price} P</Text>
               </View>
               <View className="flex-row justify-between">
-                <Text className="text-[13px] text-sub">구매 후 잔액</Text>
-                <Text className="text-[13px] font-bold text-ink">{points - confirm.price} P</Text>
+                <Text className="text-footnote text-sub">구매 후 잔액</Text>
+                <Text className="text-footnote font-bold text-ink">{points - confirm.price} P</Text>
               </View>
             </View>
             <View className="mt-4 w-full">
@@ -341,18 +354,16 @@ export function ShopScreen() {
       <Dialog open={!!poor} onClose={() => setPoor(null)}>
         {poor && (
           <>
-            <Text className="text-[28px]">😢</Text>
-            <Text className="text-[15px] font-bold text-ink">포인트가 부족해요</Text>
-            <Text className="mt-1 text-[12px] text-sub">
+            <Frown size={ICON.xl} color={C.brand} />
+            <Text className="text-callout font-bold text-ink">포인트가 부족해요</Text>
+            <Text className="mt-1 text-caption text-sub">
               {poor.name} 구매까지 {poor.price - points} P 더 필요해요
             </Text>
             <Btn
               small
               className="mt-4 w-full"
               onPress={() => {
-                setPoor(null);
-                router.dismissAll();
-                router.navigate('/(tabs)/quiz');
+                if (openFeature('/(tabs)/quiz', 'navigate', '/play/solve')) setPoor(null);
               }}
             >
               포인트 모으러 가기
@@ -391,11 +402,11 @@ export function PointsScreen() {
       style={{ paddingTop: insets.top }}
     >
       <Pressable onPress={() => router.back()} className="h-12 flex-row items-center pt-2">
-        <ChevronLeft size={18} color={C.ink} />
-        <Text className="text-[15px] font-bold text-ink">포인트 내역</Text>
+        <ChevronLeft size={ICON.md} color={C.ink} />
+        <Text className="text-callout font-bold text-ink">포인트 내역</Text>
       </Pressable>
       <View className="mt-2 flex-row items-center justify-between rounded-2xl bg-mint px-4 py-3">
-        <Text className="text-[12px] text-sub">보유 포인트</Text>
+        <Text className="text-caption text-sub">보유 포인트</Text>
         <Text className="font-bold text-ink">{points.toLocaleString()} P</Text>
       </View>
       <View className="mt-3 flex-row gap-1">
@@ -406,7 +417,7 @@ export function PointsScreen() {
             className={cx('rounded-lg px-3 py-1.5', tab === t && 'bg-mint')}
           >
             <Text
-              className={cx('text-[13px]', tab === t ? 'font-semibold text-brand' : 'text-sub')}
+              className={cx('text-footnote', tab === t ? 'font-semibold text-brand' : 'text-sub')}
             >
               {t}
             </Text>
@@ -417,12 +428,12 @@ export function PointsScreen() {
         {ledger.data?.map((l) => (
           <View key={l._id} className="flex-row items-center border-b border-line py-3">
             <View className="flex-1">
-              <Text className="text-[14px] text-ink">{l.description}</Text>
-              <Text className="text-[11px] text-sub">{clock(l.createdAt)}</Text>
+              <Text className="text-subhead text-ink">{l.description}</Text>
+              <Text className="text-caption2 text-sub">{clock(l.createdAt)}</Text>
             </View>
             <Text
               className={cx(
-                'text-[14px] font-semibold',
+                'text-subhead font-semibold',
                 l.amount < 0 ? 'text-danger' : 'text-brand',
               )}
             >
@@ -476,14 +487,14 @@ export function BoxScreen() {
           <Toast msg={msg} onClose={() => setMsg(null)} />
         ) : (
           <Pressable onPress={() => router.back()} className="h-12 flex-row items-center pt-2">
-            <ChevronLeft size={18} color={C.ink} />
-            <Text className="text-[15px] font-bold text-ink">보관함</Text>
+            <ChevronLeft size={ICON.md} color={C.ink} />
+            <Text className="text-callout font-bold text-ink">보관함</Text>
           </Pressable>
         )}
         <View className="mt-3 h-32 items-center justify-center rounded-2xl bg-cream">
-          <Text className="text-[60px]">{cur.thumbnailUrl}</Text>
+          <Text className="text-display-lg">{cur.thumbnailUrl}</Text>
           <View className="absolute right-3 bottom-3 rounded-full bg-white px-2 py-0.5">
-            <Text className="text-[10px] text-ink">현재 아바타</Text>
+            <Text className="text-caption2 text-ink">현재 아바타</Text>
           </View>
         </View>
         <View className="mt-3 flex-row gap-1">
@@ -494,7 +505,7 @@ export function BoxScreen() {
               className={cx('rounded-lg px-3 py-1.5', tab === t && 'bg-mint')}
             >
               <Text
-                className={cx('text-[13px]', tab === t ? 'font-semibold text-brand' : 'text-sub')}
+                className={cx('text-footnote', tab === t ? 'font-semibold text-brand' : 'text-sub')}
               >
                 {t}
               </Text>
@@ -503,15 +514,15 @@ export function BoxScreen() {
         </View>
         {owned.size === 0 ? (
           <View className="mt-14 items-center">
-            <Text className="text-[40px]">📦</Text>
-            <Text className="mt-2 text-[14px] font-semibold text-ink">
+            <Package size={ICON.xl} color={C.brand} />
+            <Text className="mt-2 text-subhead font-semibold text-ink">
               아직 보유한 아이템이 없어요
             </Text>
             <Pressable
               onPress={() => router.replace('/shop')}
               className="mt-3 rounded-full bg-ink px-4 py-1.5"
             >
-              <Text className="text-[13px] text-white">상점 둘러보기</Text>
+              <Text className="text-footnote text-white">상점 둘러보기</Text>
             </Pressable>
           </View>
         ) : (
@@ -523,9 +534,9 @@ export function BoxScreen() {
                 className="w-[48.5%] rounded-2xl bg-cream p-2"
               >
                 <View className="h-24 items-center justify-center rounded-xl bg-white">
-                  <Text className="text-[46px]">{it.thumbnailUrl}</Text>
+                  <Text className="text-display">{it.thumbnailUrl}</Text>
                 </View>
-                <Text className="mt-2 px-1 text-[13px] font-semibold text-ink">{it.name}</Text>
+                <Text className="mt-2 px-1 text-footnote font-semibold text-ink">{it.name}</Text>
                 <View
                   className={cx(
                     'ml-1 mt-0.5 self-start rounded-full px-2 py-0.5',
@@ -533,7 +544,10 @@ export function BoxScreen() {
                   )}
                 >
                   <Text
-                    className={cx('text-[10px]', it._id === equipped ? 'text-white' : 'text-brand')}
+                    className={cx(
+                      'text-caption2',
+                      it._id === equipped ? 'text-white' : 'text-brand',
+                    )}
                   >
                     {it._id === equipped ? '장착중' : '보유중'}
                   </Text>
@@ -547,13 +561,13 @@ export function BoxScreen() {
         {pick && (
           <>
             <View className="h-36 items-center justify-center rounded-2xl bg-cream">
-              <Text className="text-[72px]">{pick.thumbnailUrl}</Text>
+              <Text className="text-display-lg">{pick.thumbnailUrl}</Text>
             </View>
             <View className="mt-3 flex-row items-center justify-between">
-              <Text className="text-[16px] font-bold text-ink">{pick.name}</Text>
+              <Text className="text-body font-bold text-ink">{pick.name}</Text>
               <Badge>보유중</Badge>
             </View>
-            <Text className="mt-1 text-[12px] text-sub">{pick.description}</Text>
+            <Text className="mt-1 text-caption text-sub">{pick.description}</Text>
             <Btn className="mt-4" loading={equip.isPending} onPress={() => equip.mutate(pick)}>
               장착하기
             </Btn>

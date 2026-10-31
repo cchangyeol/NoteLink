@@ -27,6 +27,7 @@ let refreshing: { from: Tokens; p: Promise<boolean> } | null = null;
 /** 토큰 t를 갱신한다. 갱신하는 동안 토큰이 바뀌었으면 결과를 쓰지 않는다 */
 function refresh(t: Tokens): Promise<boolean> {
   if (refreshing?.from === t) return refreshing.p;
+  const uid = useAuth.getState().userId;
   const p = (async () => {
     try {
       const res = await fetch(env.apiUrl + PATHS.refresh, {
@@ -40,8 +41,7 @@ function refresh(t: Tokens): Promise<boolean> {
       };
       // 갱신하는 동안 로그아웃하거나 다른 계정으로 로그인했으면 이 응답은 버린다
       if (useAuth.getState().tokens !== t) return false;
-      await useAuth.getState().setTokens(data);
-      return true;
+      return await useAuth.getState().setTokens(data, uid);
     } catch {
       return false;
     } finally {

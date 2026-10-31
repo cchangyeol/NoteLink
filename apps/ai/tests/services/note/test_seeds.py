@@ -93,6 +93,21 @@ def test_search_failure_or_no_searcher_uses_known_seeds_only() -> None:
         assert new == [] and set(terms.terms) == {"간흡충", "폐흡충"}
 
 
+def test_note_without_headings_sends_first_lines() -> None:
+    cs = split_rows(rows("- 간흠충은 민물고기로 감염", "- 피낭유충", "- 세 번째 줄"))
+    llm = FakeLlm({"note_topics": [{"topics": [{"choice": 1, "name": ""}]}]})
+    terms, _ = seed_terms(llm, "m", None, cs, "기생충학", KNOWN, [])
+    user = llm.calls[0].user
+    assert "간흠충은 민물고기로 감염" in user and "세 번째 줄" not in user
+    assert set(terms.terms) == {"간흡충", "폐흡충"}
+
+
+def test_no_topics_uses_all_input_seeds() -> None:
+    llm = FakeLlm({"note_topics": [{"topics": []}]})
+    terms, new = seed_terms(llm, "m", None, NOTE, "기생충학", KNOWN, [])
+    assert new == [] and set(terms.terms) == {"간흡충", "폐흡충"}
+
+
 def test_unverified_seed_is_not_returned() -> None:
     llm = FakeLlm({"note_topics": [{"topics": [{"choice": 0, "name": "원충류"}]}]})
     s = FakeSearch([{"text": "- 지어낸충", "evidence": []}])

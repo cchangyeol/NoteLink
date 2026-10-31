@@ -5,7 +5,7 @@ import anthropic
 import httpx2
 import pytest
 
-from app.clients.claude import ClaudeSearch, SearchError, answer_of
+from app.clients.claude import FETCH_TOKENS, ClaudeSearch, SearchError, answer_of
 
 
 @dataclass
@@ -92,6 +92,7 @@ def test_search_sends_tools_with_domains() -> None:
     (kw,) = m.sent
     assert [t["type"] for t in kw["tools"]] == ["web_search_20260209", "web_fetch_20260209"]
     assert all(t["allowed_domains"] == ["a.test"] for t in kw["tools"])
+    assert kw["tools"][1]["max_content_tokens"] == FETCH_TOKENS  # 긴 페이지 비용 상한
     assert kw["fallbacks"] == "default"
 
 

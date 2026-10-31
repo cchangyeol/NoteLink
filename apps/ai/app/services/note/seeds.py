@@ -21,6 +21,7 @@ TOPIC_MAX = 3
 TOPIC_LEN = 30
 TERM_LEN = 20
 HEADINGS = 40  # 주제 고르기에 보내는 제목 줄 수
+FIRST_LINES = 2  # 제목이 없을 때 문단마다 보내는 첫 줄 수
 
 TOPIC_SYSTEM = (
     "너는 필기 노트가 다루는 단원(주제)을 고르는 도우미다. "
@@ -62,8 +63,17 @@ class TopicSeed(TypedDict):
 def pick_topics(
     llm: Llm, model: str, chunks: list[Chunk], subject: str, known: list[str]
 ) -> list[str]:
-    """노트 제목만 보내 주제를 최대 TOPIC_MAX개 고름. 기존 주제와 같으면 그 이름을 씀."""
+    """노트 제목만 보내 주제를 최대 TOPIC_MAX개 고름. 기존 주제와 같으면 그 이름을 씀.
+
+    제목 없는 노트(번호 없이 쓴 필기)는 문단 첫 줄들을 대신 보냄.
+    """
     heads = list(dict.fromkeys(h for c in chunks for h in [*c["path"], c["title"] or ""] if h))
+    if not heads:
+        heads = list(
+            dict.fromkeys(
+                s for c in chunks for s in c["text"].split("\n")[:FIRST_LINES] if s.strip()
+            )
+        )
     if not heads:
         return []
     listing = "\n".join(f"{i}) {t}" for i, t in enumerate(known, 1)) or "(없음)"
@@ -141,7 +151,10 @@ def seed_terms(
     seeds: list[TopicSeed],
     domains: list[str],
 ) -> tuple[TermDict, list[TopicSeed]]:
-    """이 노트 주제의 사전과 새로 만든 시드. 검색이 없거나 실패하면 있는 시드로만."""
+    """이 노트 주제의 사전과 새로 만든 시드. 검색이 없거나 실패하면 있는 시드로만.
+
+    주제를 못 고르면(빈 노트 등) 받은 시드를 모두 씀.
+    """
     have = {s["topic"]: s for s in seeds}
     topics = pick_topics(llm, model, chunks, subject, list(have))
     new: list[TopicSeed] = []
@@ -154,5 +167,5 @@ def seed_terms(
             continue  # 시드 없이 진행. 다음 작업에서 다시 찾음
         if seed["terms"]:
             new.append(seed)
-    use = [have[t] for t in topics if t in have] + new
+    use = [have[t] for t in topics if t in have] + new if topics else list(seeds)
     return TermDict(x["term"] for s in use for x in s["terms"]), new

@@ -11,6 +11,7 @@ import anthropic
 from app.core.config import settings
 
 PAUSE_MAX = 3  # 서버 쪽 검색이 길어 멈추면(pause_turn) 이어 가는 횟수
+FETCH_TOKENS = 10000  # 가져온 페이지 하나에서 읽는 최대 토큰(긴 교재 페이지 비용 막기)
 
 
 class SearchError(Exception):
@@ -44,7 +45,12 @@ class ClaudeSearch:
             limit["allowed_domains"] = domains
         tools: list[Any] = [
             {"type": "web_search_20260209", "name": "web_search", **limit},
-            {"type": "web_fetch_20260209", "name": "web_fetch", **limit},
+            {
+                "type": "web_fetch_20260209",
+                "name": "web_fetch",
+                "max_content_tokens": FETCH_TOKENS,
+                **limit,
+            },
         ]
         messages: list[Any] = [{"role": "user", "content": user}]
         blocks: list[Any] = []

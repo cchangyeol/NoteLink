@@ -111,6 +111,6 @@ describe('채팅 중복 수신', () => {
       mockSocketHandlers.get('chat:message')!(message);
       ack(message);
     });
-    expect(screen.getAllByText(message.text)).toHaveLength(1);
+    await waitFor(() => expect(screen.getAllByText(message.text)).toHaveLength(1));
   });
 });

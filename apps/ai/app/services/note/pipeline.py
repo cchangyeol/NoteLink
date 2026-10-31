@@ -4,12 +4,14 @@ result = note_result([{"pageNo": 1, "read": ocr_json, "image": img}, ...])
 result["pages"]        # ① 쪽별 원본 글자
 result["lineResults"]  # ② 쪽별 OCR 줄 결과
 chunks = split_with_llm(llm, model, result["chunks"])   # ④ 노트 조각
-chunks = refine_chunks(llm, model, chunks, TermDict(seed))  # 오타 · 개념 태그 (설정으로 켬)
+chunks, new_seeds = refine_note(llm, model, claude_search(), chunks, subject, input_seeds)
+                                                        # 시드 → 오타 · 개념 태그 (설정으로 켬)
 vectors = voyage().embed(embed_texts(chunks), "document")
 """
 
 from typing import Any, NotRequired, TypedDict
 
+from app.clients.claude import Searcher
 from app.clients.llm import JsonObject, Llm, LlmError
 from app.core.config import settings
 from app.services.note.chunking import split_rows
@@ -17,6 +19,7 @@ from app.services.note.emphasis import Image, annotate_colors, merge_marks
 from app.services.note.handoff import line_results, page_texts
 from app.services.note.layout import layout_pages, lines_from_read
 from app.services.note.models import Chunk, Line, Mark, PageLayout, PageLines, PageText
+from app.services.note.seeds import TopicSeed, seed_terms
 from app.services.note.tagging import tag_concepts
 from app.services.note.terms import TermDict
 from app.services.note.typos import apply_fixes, find_typos
@@ -177,6 +180,26 @@ def refine_chunks(
         return chunks
     fixed = apply_fixes(chunks, find_typos(llm, model, chunks, terms))
     return tag_concepts(llm, model, fixed, terms)
+
+
+def refine_note(
+    llm: Llm,
+    model: str,
+    searcher: Searcher | None,
+    chunks: list[Chunk],
+    subject: str,
+    seeds: list[TopicSeed],
+    *,
+    enabled: bool | None = None,
+) -> tuple[list[Chunk], list[TopicSeed]]:
+    """시드 준비 → 오타 · 개념 태그. (고친 조각, result.newSeeds로 돌려줄 새 시드)."""
+    on = settings.note_refine_enabled if enabled is None else enabled
+    if not on:
+        return chunks, []
+    terms, new = seed_terms(
+        llm, model, searcher, chunks, subject, seeds, settings.seed_search_domains
+    )
+    return refine_chunks(llm, model, chunks, terms, enabled=True), new
 
 
 def embed_texts(chunks: list[Chunk]) -> list[str]:

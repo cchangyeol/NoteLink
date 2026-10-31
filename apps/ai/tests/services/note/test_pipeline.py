@@ -9,8 +9,10 @@ from app.services.note.pipeline import (
     note_chunks,
     parse_starts,
     refine_chunks,
+    refine_note,
     split_with_llm,
 )
+from app.services.note.seeds import TopicSeed
 from app.services.note.terms import TermDict
 from tests.fakes import FakeLlm
 from tests.services.note.helpers import row, rows, word
@@ -159,3 +161,26 @@ def test_refine_chunks_fixes_then_tags() -> None:
     assert c["text"] == "1. 최통\n- 포낭형 : 인체 감염형"
     assert c["concept"] == "회충" and c["conceptStatus"] == "auto"
     assert [x.name for x in llm.calls] == ["note_typos", "note_concepts"]
+
+
+def test_refine_note_off_makes_no_calls() -> None:
+    cs = split_rows(rows("1. 최통", "- 포남형"))
+    llm = FakeLlm()
+    assert refine_note(llm, "m", None, cs, "기생충학", [], enabled=False) == (cs, [])
+    assert llm.calls == []
+
+
+def test_refine_note_uses_input_seeds() -> None:
+    cs = split_rows(rows("1. 최통", "- 포남형 : 인체 감염형"))
+    seeds: list[TopicSeed] = [
+        {"topic": "선충류", "terms": [{"term": "회충", "url": "u"}, {"term": "포낭형", "url": "u"}]}
+    ]
+    llm = FakeLlm(
+        {
+            "note_topics": [{"topics": [{"choice": 1, "name": ""}]}],
+            "note_typos": [{"picks": [{"id": 1, "choice": 1}]}],
+            "note_concepts": [{"items": [{"order": 1, "choice": 1}]}],
+        }
+    )
+    (c,), new = refine_note(llm, "m", None, cs, "기생충학", seeds, enabled=True)
+    assert c["text"].endswith("포낭형 : 인체 감염형") and new == []

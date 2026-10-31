@@ -40,6 +40,14 @@ def similarity(a: str, b: str) -> float:
     return 1 - prev[-1] / max(len(ja), len(jb), 1)
 
 
+def letters_alike(a: str, b: str) -> bool:
+    """한글 글자 수가 같고 같은 자리 글자끼리 자모가 하나 이상 같음(OCR 오타 꼴)."""
+    sa, sb = _HANGUL.findall(a), _HANGUL.findall(b)
+    if not sa or len(sa) != len(sb):
+        return False
+    return all(set(jamo(x)) & set(jamo(y)) for x, y in zip(sa, sb, strict=True))
+
+
 class TermDict:
     """과목 용어 목록(시드). 같은 글자 수끼리 묶어 두고 비슷한 용어를 찾음."""
 

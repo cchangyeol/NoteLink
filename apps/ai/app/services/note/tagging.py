@@ -2,8 +2,9 @@
 
 후보 = 제목(없으면 상위 제목)과 글자 수가 같고 비슷한 용어 + 글자 수는 달라도 가장 비슷한 용어 1개
       + 문단 글에 그대로 나온 용어
-바로 붙임(auto): 제목이 있으면 제목과 글자 수가 같거나 제목에 그대로 있을 때,
-                제목이 없으면 문단 글이나 상위 제목에 그대로 있을 때. 나머지는 확인 필요(review)
+바로 붙임(auto): 제목(괄호 안 포함)에 그대로 있을 때, 한글 제목과 글자 수가 같고 글자마다
+                자모가 하나 이상 같을 때(OCR 오타 꼴), 제목이 없으면 문단 글이나 상위 제목에
+                그대로 있을 때. 나머지는 확인 필요(review)
 """
 
 import re
@@ -11,7 +12,7 @@ import re
 from app.clients.llm import JsonObject, Llm, LlmError
 from app.services.note.chunking import by_page
 from app.services.note.models import Chunk, ConceptStatus
-from app.services.note.terms import TermDict, syllables
+from app.services.note.terms import TermDict, letters_alike, syllables
 
 NAME_MIN = 0.35  # 제목 오타가 심해도 후보에 들도록 낮게
 OPTIONS = 6
@@ -58,11 +59,16 @@ def options(chunk: Chunk, terms: TermDict) -> list[str]:
 
 
 def status(chunk: Chunk, tag: str) -> ConceptStatus:
-    core = title_core(chunk["title"])
+    title, key = chunk["title"], tag.replace(" ", "")
+    if title is not None and key in title.replace(" ", ""):  # 괄호 안까지 제목에 그대로 있음
+        return "auto"
+    core = title_core(title)
     if syllables(core) >= 2:
-        return "auto" if syllables(core) == syllables(tag) or tag in core else "review"
+        return "auto" if letters_alike(core, key) else "review"
+    if core:  # 영문 · 기호 제목인데 태그가 제목에 없음
+        return "review"
     path = "".join(chunk["path"]).replace(" ", "")
-    return "auto" if tag in chunk["text"].replace(" ", "") or tag in path else "review"
+    return "auto" if key in chunk["text"].replace(" ", "") or key in path else "review"
 
 
 def tag_concepts(llm: Llm, model: str, chunks: list[Chunk], terms: TermDict) -> list[Chunk]:

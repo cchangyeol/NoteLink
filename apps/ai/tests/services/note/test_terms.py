@@ -1,4 +1,11 @@
-from app.services.note.terms import TermDict, is_common, is_noun_like, similarity, syllables
+from app.services.note.terms import (
+    TermDict,
+    is_common,
+    is_noun_like,
+    letters_alike,
+    similarity,
+    syllables,
+)
 
 TERMS = TermDict(["포낭형", "구흡반", "흡반", "이핵아메바", "이질아메바", "회충", "요충"])
 
@@ -11,6 +18,12 @@ def test_syllables_count_hangul_only() -> None:
 def test_similarity_by_jamo() -> None:
     assert similarity("포남형", "포낭형") > 0.85  # 받침 하나 차이
     assert similarity("로꼬가과훌륭", "폐흡충") < 0.2
+
+
+def test_letters_alike_needs_a_shared_jamo_in_every_letter() -> None:
+    assert letters_alike("랄불편오통", "람블편모충")
+    assert not letters_alike("구강편모충", "파동편모충")  # 구 · 파는 겹치는 자모 없음
+    assert not letters_alike("요통", "요충류")  # 글자 수 다름
 
 
 def test_near_gives_only_terms_with_the_same_syllable_count() -> None:

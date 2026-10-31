@@ -35,12 +35,29 @@ def test_options_from_title_and_text() -> None:
     assert {"간흡충", "충란"} <= set(opts)  # 글에 그대로 나온 용어
 
 
-def test_status_by_syllable_count() -> None:
-    (c,) = chunks("3. 로꼬가과 [?]훌륭", "- 충란: 간흡충과 유사")
-    assert status(c, "요코가와흡충") == "auto"
-    assert status(c, "간흡충") == "review"  # 1차 실험의 '폐흡충' 오태그 같은 경우
-    (d,) = chunks("1. 최통", "- 한국 기생률")
-    assert status(d, "회충") == "auto"  # 2글자 = 2글자
+@pytest.mark.parametrize(
+    ("title", "tag", "want"),
+    [
+        ("1. 최통", "회충", "auto"),  # 글자마다 자모가 겹치는 오타 꼴
+        ("2. 부구조통", "무구조충", "auto"),
+        ("4. 일본 주혈흡충", "주혈흡충", "auto"),  # 제목에 그대로
+        ("1. P. Vivay (삼일열)", "삼일열", "auto"),  # 괄호 안에 그대로
+        ("5. 구강 편모충", "파동편모충", "review"),  # 글자 수만 같은 다른 용어 (10/31 시험)
+        ("1. 대장심소통", "대장아메바", "review"),
+        ("7. 수혈 전 검사", "혈액형검사", "review"),
+        ("3. 로꼬가과 [?]훌륭", "간흡충", "review"),
+        ("1. ABO", "혈구형", "review"),  # 영문 제목에 없는 태그
+    ],
+)
+def test_status(title: str, tag: str, want: str) -> None:
+    (c,) = chunks(title, "- 혈구형 · 충란")
+    assert status(c, tag) == want
+
+
+def test_status_without_title_uses_text() -> None:
+    (c,) = split_rows([row("- 회충 충란", lid=1)])
+    assert c["title"] is None
+    assert status(c, "회충") == "auto" and status(c, "요충") == "review"
 
 
 def test_tag_concepts_one_call_and_untagged_without_options() -> None:

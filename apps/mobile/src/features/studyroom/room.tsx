@@ -308,7 +308,9 @@ export function RoomScreen() {
   const [loadedMsgs, setLoadedMsgs] = useState<typeof history.data>();
   if (history.data && history.data !== loadedMsgs) {
     setLoadedMsgs(history.data);
-    setMsgs(history.data);
+    setMsgs((current) => [
+      ...new Map([...history.data!, ...current].map((m) => [m._id, m])).values(),
+    ]);
   }
   const receiveMessage = (m: Message, clientId?: string) =>
     setMsgs((messages) => {
@@ -319,7 +321,9 @@ export function RoomScreen() {
     socket.emit(
       'room:join',
       { roomId: id },
-      (r) => r.missed && setMsgs((p) => [...p, ...r.missed!]),
+      (r) =>
+        r.missed &&
+        setMsgs((p) => [...new Map([...p, ...r.missed!].map((m) => [m._id, m])).values()]),
     );
     return () => socket.emit('room:leave', { roomId: id });
   }, [id]);
@@ -356,6 +360,12 @@ export function RoomScreen() {
   // 다시 연결되면 끊긴 동안 쓴 메시지를 보내고 잠시 뒤 안내를 닫는다
   useEffect(() => {
     if (conn !== 'back') return;
+    socket.emit('room:join', { roomId: id }, (r) => {
+      if (r.missed)
+        setMsgs((p) => [...new Map([...p, ...r.missed!].map((m) => [m._id, m])).values()]);
+    });
+    room.refetch();
+    history.refetch();
     const roomId = chatId.data;
     if (roomId)
       pending.current.forEach(({ clientId, text }) =>
@@ -424,7 +434,7 @@ export function RoomScreen() {
       {conn === 'back' && (
         <View className="mx-4 mt-2 rounded-xl bg-ink px-4 py-2.5">
           <Text className="text-[12px] font-bold text-white">다시 연결됐어요</Text>
-          <Text className="text-[12px] text-white/60">멤버 상태를 최신으로 맞췄어요</Text>
+          <Text className="text-[12px] text-white/60">멤버와 대화 기록을 다시 확인하고 있어요</Text>
         </View>
       )}
       {!chat && (

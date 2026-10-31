@@ -21,7 +21,7 @@ import {
 import type { ReportType, TimerRule } from '@notelink/shared';
 import { api } from '@/lib/api';
 import { uploadToBlob } from '@/lib/upload';
-import { addDays, seoul } from '@/lib/dates';
+import { addDays, seoul, ymd, WD } from '@/lib/dates';
 import { toast } from '@/stores/toast';
 import {
   Alert,
@@ -251,6 +251,8 @@ export function TimerScreen() {
   const [type, setType] = useState<TimerRule['type']>('pomodoro');
   const [focus, setFocus] = useState('50');
   const [rest, setRest] = useState('10');
+  const [repeat, setRepeat] = useState(4);
+  const [periods, setPeriods] = useState<TimerRule['periods']>(PERIODS);
   const [help, setHelp] = useState(false);
   // 방의 시간 규칙을 처음 불러왔을 때만 입력값을 채운다 — 재조회가 입력을 덮어쓰지 않게 (렌더 중 상태 조정)
   const r = room.data?.timerRule;
@@ -261,18 +263,23 @@ export function TimerScreen() {
     setType(r.type);
     setFocus(String(r.focusMin));
     setRest(String(r.breakMin));
+    setRepeat(r.repeat);
+    setPeriods(r.periods);
   }
   const preset = `${focus}/${rest}`;
   const save = useMutation({
-    mutationFn: () =>
-      api.rooms.setTimer(id, {
+    mutationFn: () => {
+      if (!room.data) throw new Error('방 설정을 먼저 불러와 주세요');
+      return api.rooms.setTimer(id, {
         enabled: on,
         type,
         focusMin: Number(focus) || 50,
         breakMin: Number(rest) || 10,
-        repeat: 4,
-        periods: PERIODS,
-      }),
+        repeat,
+        periods,
+      });
+    },
+    onError: () => toast('타이머를 저장하지 못했어요. 다시 시도해주세요'),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['room', id] });
       router.back();
@@ -283,7 +290,7 @@ export function TimerScreen() {
     <View className="flex-1">
       <Screen
         footer={
-          <Btn loading={save.isPending} onPress={() => save.mutate()}>
+          <Btn disabled={!room.data} loading={save.isPending} onPress={() => save.mutate()}>
             저장하기
           </Btn>
         }
@@ -424,7 +431,7 @@ export function TimerScreen() {
             </View>
           </Label>
           <View className="gap-1.5 rounded-2xl bg-[#f6f7f5] p-2">
-            {PERIODS.map((p, i) => (
+            {periods.map((p, i) => (
               <View
                 key={p.start}
                 className={cx(
@@ -460,8 +467,8 @@ export function TimerScreen() {
           <View className="rounded-xl bg-cream px-3 py-2.5">
             <Text className="text-[12px] text-sub">
               {type === 'pomodoro'
-                ? `집중 ${focus}분 → 휴식 ${rest}분 × 4회 · 총 ${(Number(focus) + Number(rest)) * 4}분`
-                : '1교시 09:00 → 3교시 11:50 · 오전 3교시'}
+                ? `집중 ${focus}분 → 휴식 ${rest}분 × ${repeat}회 · 총 ${(Number(focus) + Number(rest)) * repeat}분`
+                : `${periods.length}교시 · ${periods[0]?.start ?? ''} → ${periods.at(-1)?.end ?? ''}`}
             </Text>
           </View>
         </View>
@@ -487,16 +494,11 @@ export function ScheduleScreen() {
   const addToCalendar = async (day: string, start: string, end: string) => {
     const perm = await Calendar.requestCalendarPermissionsAsync();
     if (!perm.granted) return toast('캘린더 권한을 허용하면 일정을 추가할 수 있어요');
-    const target = day.startsWith('화') ? 2 : 4;
-    const d = addDays(seoul(), (target - seoul().getDay() + 7) % 7 || 7);
-    const at = (t: string) =>
-      new Date(
-        d.getFullYear(),
-        d.getMonth(),
-        d.getDate(),
-        Number(t.slice(0, 2)),
-        Number(t.slice(3)),
-      );
+    const target = WD.indexOf(day.trim().slice(0, 1));
+    if (target < 0) return toast('일정의 요일을 확인해주세요');
+    const now = seoul();
+    const d = addDays(now, (target - now.getDay() + 7) % 7 || 7);
+    const at = (t: string) => new Date(`${ymd(d)}T${t}:00+09:00`);
     const r = await Calendar.createEventInCalendarAsync({
       title: `${room.data?.title ?? '스터디룸'} 공동 학습`,
       startDate: at(start),
@@ -557,7 +559,7 @@ export function ScheduleScreen() {
                 disabled={c !== 2}
                 onPress={() =>
                   addToCalendar(
-                    i === 1 ? '화' : '목',
+                    ['월', '화', '수', '목', '금', '토', '일'][i]!,
                     `${s.startHour + r}:00`,
                     `${s.startHour + r + 1}:00`,
                   )

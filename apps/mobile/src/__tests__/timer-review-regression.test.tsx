@@ -1,0 +1,150 @@
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { QueryClient } from '@tanstack/react-query';
+import { router } from 'expo-router';
+import { Accelerometer } from 'expo-sensors';
+import { api } from '../lib/api';
+import { HomeScreen } from '../features/session/home';
+import { WeekGoalSheet } from '../features/session/sheets';
+import { LandscapeScreen, SummaryScreen } from '../features/session/summary';
+import { useSession } from '../stores/session';
+import { renderScreen } from '../test-utils';
+
+jest.mock('../lib/env', () => ({ env: { useMock: true, apiUrl: 'http://api' } }));
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(async () => null),
+  setItemAsync: jest.fn(async () => {}),
+  deleteItemAsync: jest.fn(async () => {}),
+}));
+jest.mock('expo-sensors', () => ({
+  Accelerometer: { addListener: jest.fn(() => ({ remove() {} })), setUpdateInterval: jest.fn() },
+}));
+jest.mock('expo-keep-awake', () => ({ useKeepAwake: () => {} }));
+jest.mock('expo-screen-orientation', () => ({
+  lockAsync: jest.fn(async () => {}),
+  OrientationLock: { LANDSCAPE: 'landscape', PORTRAIT_UP: 'portrait' },
+}));
+jest.mock('expo-haptics', () => ({
+  selectionAsync: jest.fn(),
+  impactAsync: jest.fn(),
+  ImpactFeedbackStyle: {},
+}));
+
+let mockNow = Date.parse('2026-10-31T14:59:59Z');
+jest.mock('../hooks', () => ({ ...jest.requireActual('../hooks'), useNow: () => mockNow }));
+jest.mock('expo-router', () => ({
+  ...jest.requireActual('expo-router'),
+  router: { push: jest.fn(), back: jest.fn(), replace: jest.fn() },
+  useLocalSearchParams: () => ({}),
+  useFocusEffect: (callback: () => void) =>
+    jest.requireActual<typeof import('react')>('react').useEffect(callback, [callback]),
+}));
+const client = () =>
+  new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity, gcTime: 0 } },
+  });
+afterEach(() => {
+  jest.restoreAllMocks();
+  jest.clearAllMocks();
+  useSession.getState().reset();
+});
+it('일시정지해도 가로 전환 센서가 살아 있다', async () => {
+  useSession.setState({ itemId: 'item', since: null, pausedAt: mockNow });
+  await renderScreen(<HomeScreen />, client());
+  await waitFor(() => expect(Accelerometer.addListener).toHaveBeenCalled());
+  const listener = jest.mocked(Accelerometer.addListener).mock.calls[0]![0];
+  await act(async () => listener({ x: 1, y: 0, z: 0, timestamp: 0 }));
+  expect(router.push).toHaveBeenCalledWith('/landscape');
+});
+it('서울 날짜가 바뀌면 같은 화면에서 오늘과 주간 목표를 새로 읽는다', async () => {
+  const today = jest.spyOn(api.study, 'today');
+  const weekly = jest.spyOn(api.study, 'weekly');
+  const goal = jest.spyOn(api.study, 'weeklyGoal');
+  mockNow = Date.parse('2026-10-31T14:59:59Z');
+  await renderScreen(<HomeScreen />, client());
+  await waitFor(() => expect(goal).toHaveBeenCalled());
+  const before = [today.mock.calls.length, weekly.mock.calls.length, goal.mock.calls.length];
+  mockNow += 2000;
+  await fireEvent.press(screen.getByLabelText('주간 목표 설정'));
+  await waitFor(() => expect(today.mock.calls.length).toBeGreaterThan(before[0]!));
+  expect(weekly.mock.calls.length).toBeGreaterThan(before[1]!);
+  expect(goal.mock.calls.length).toBeGreaterThan(before[2]!);
+});
+it('직접 입력한 주간 목표를 실제 입력값으로 저장한다', async () => {
+  const save = jest.spyOn(api.study, 'setWeeklyGoal');
+  await renderScreen(<WeekGoalSheet open onClose={jest.fn()} />, client());
+  await fireEvent.press(await screen.findByText('직접 입력'));
+  await fireEvent.changeText(screen.getByPlaceholderText('목표 시간'), '32.5');
+  await fireEvent.press(screen.getByText('저장하기'));
+  await waitFor(() =>
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ targetMin: 1950 })),
+  );
+});
+it('10분 쉬면 종료 요청을 한 번만 보낸다', async () => {
+  mockNow = Date.now();
+  useSession.setState({ itemId: 'item', since: null, pausedAt: mockNow - 600001 });
+  const end = jest.spyOn(useSession.getState(), 'end').mockImplementation(async () => {
+    useSession.getState().reset();
+    return { sec: 100, pointsEarned: 1 };
+  });
+  await renderScreen(<HomeScreen />, client());
+  await waitFor(() => expect(end).toHaveBeenCalledTimes(1));
+});
+it('닉네임을 자르거나 고정 스트릭을 표시하지 않는다', async () => {
+  const me = await api.me.get();
+  jest.spyOn(api.me, 'get').mockResolvedValue({ ...me, nickname: '한결', streakDays: 3 });
+  await api.study.addItem({ title: '테스트', subjectName: '수학', goalMin: 30 });
+  await renderScreen(<HomeScreen />, client());
+  expect(await screen.findByText(/한결 님/)).toBeTruthy();
+  expect(screen.queryByText(/12일째/)).toBeNull();
+});
+
+it('세로로 세워 정지한 다음 다시 가로로 돌리면 측정을 재개한다', async () => {
+  mockNow = Date.now();
+  useSession.setState({
+    itemId: 'item',
+    sessionId: 'sensor-session',
+    since: mockNow - 1000,
+    pausedAt: null,
+  });
+  const firstLandscape = await renderScreen(<LandscapeScreen />, client());
+  const portraitListener = jest.mocked(Accelerometer.addListener).mock.calls.at(-1)![0];
+  await act(async () => portraitListener({ x: 0, y: 1, z: 0, timestamp: 0 }));
+  expect(useSession.getState().since).toBeNull();
+  expect(useSession.getState().pausedAt).not.toBeNull();
+  expect(router.back).toHaveBeenCalledTimes(1);
+  await firstLandscape.unmount();
+  const home = await renderScreen(<HomeScreen />, client());
+  const landscapeListener = jest.mocked(Accelerometer.addListener).mock.calls.at(-1)![0];
+  await act(async () => landscapeListener({ x: 1, y: 0, z: 0, timestamp: 0 }));
+  expect(router.push).toHaveBeenCalledWith('/landscape');
+  await home.unmount();
+  await renderScreen(<LandscapeScreen />, client());
+  await waitFor(() => expect(useSession.getState().since).not.toBeNull());
+  expect(useSession.getState().pausedAt).toBeNull();
+});
+
+it.each([
+  [5400, '늘었어요'],
+  [-5400, '줄었어요'],
+] as const)(
+  '종료 요약은 실제 닉네임과 전주 대비 %s초의 방향을 표시한다',
+  async (diffFromLastWeekSec, direction) => {
+    const me = await api.me.get();
+    const weekly = await api.study.weekly();
+    jest.spyOn(api.me, 'get').mockResolvedValue({ ...me, nickname: '테스트 학습자' });
+    jest.spyOn(api.study, 'weekly').mockResolvedValue({ ...weekly, diffFromLastWeekSec });
+    await renderScreen(<SummaryScreen />, client());
+    expect(await screen.findByText('수고했어요, 테스트 학습자 님')).toBeTruthy();
+    expect(
+      await screen.findByText(new RegExp(`지난주보다\\s+1시간 30분\\s+${direction}`)),
+    ).toBeTruthy();
+  },
+);
+
+it('홈은 전주보다 줄어든 시간을 양수와 감소 안내로 표시한다', async () => {
+  const weekly = await api.study.weekly();
+  jest.spyOn(api.study, 'weekly').mockResolvedValue({ ...weekly, diffFromLastWeekSec: -5400 });
+  await api.study.addItem({ title: '감소 표시 확인', subjectName: '수학', goalMin: 30 });
+  await renderScreen(<HomeScreen />, client());
+  expect(await screen.findByText('지난주보다 1시간 30분 줄었어요')).toBeTruthy();
+});

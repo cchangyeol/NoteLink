@@ -20,13 +20,13 @@ import type {
   User,
   UserItem,
 } from '@notelink/shared';
-import { addDays, today, ymd } from '../dates';
+import { addDays, seoul, today, ymd } from '../dates';
 
 // 발표 자료 화면에 나온 데이터를 그대로 옮긴 목업 DB. 날짜는 실행하는 날 기준으로 맞춘다.
 
 const now = () => new Date().toISOString();
 const ago = (h: number) => new Date(Date.now() - h * 3600000).toISOString();
-const day = (n: number) => ymd(addDays(new Date(), n));
+const day = (n: number) => ymd(addDays(seoul(), n));
 
 export const seedUser = (): User => ({
   _id: 'u-me',
@@ -40,6 +40,7 @@ export const seedUser = (): User => ({
   school: '선문고등학교',
   grade: '3학년',
   phone: '010-1234-5678',
+  streakDays: 12,
   settings: {
     resumePlayback: true,
     keepScreenOnWhileRecording: true,

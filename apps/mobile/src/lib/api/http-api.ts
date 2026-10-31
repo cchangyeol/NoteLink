@@ -63,6 +63,7 @@ export const httpApi: Api = {
     addClass: (c) => http.post(P.timetableClasses, c),
     removeClass: (id) => http.del(P.timetableClass(id)),
     share: (p) => http.post(P.timetableShares, p),
+    shares: () => http.get(P.timetableShares),
   },
   social: {
     friends: () => http.get(P.friends),

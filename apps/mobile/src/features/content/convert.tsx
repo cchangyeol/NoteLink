@@ -60,9 +60,15 @@ export function ConvertScreen() {
   const [inBg, setInBg] = useState(false); // 화면 표시용
   const [uploaded, setUploaded] = useState(0);
   const abort = useRef(new AbortController());
+  const running = useRef(false);
+  const handled = useRef(false);
+  const canceled = useRef(false);
 
   // 처음 상태가 'upload'라 다시 시도할 때만 호출하는 쪽에서 phase를 되돌린다
   const run = async () => {
+    if (running.current || canceled.current) return;
+    running.current = true;
+    setPhase('upload');
     try {
       // 1) 끊긴 지점부터: 이미 올린 파일은 건너뛴다 (원본은 기기에 보관)
       for (let i = blobs.current.length; i < draft.files.length; i++) {
@@ -90,11 +96,18 @@ export function ConvertScreen() {
         blobUrls: blobs.current,
         avatarItemId: draft.avatar,
       });
+      if (canceled.current) {
+        await api.ai.cancel(r.job._id);
+        return;
+      }
+      handled.current = false;
       setMaterialId(r.material._id);
       setJob(r.job);
       setPhase('ai');
     } catch (e) {
-      setPhase(e instanceof NetworkError ? 'paused' : 'failed');
+      if (!canceled.current) setPhase(e instanceof NetworkError ? 'paused' : 'failed');
+    } finally {
+      running.current = false;
     }
   };
   useEffect(() => {
@@ -123,37 +136,62 @@ export function ConvertScreen() {
     },
     [job?._id],
   );
+  const finish = (done: AiJob) => {
+    if (
+      canceled.current ||
+      handled.current ||
+      !['succeeded', 'failed', 'canceled'].includes(done.status)
+    )
+      return;
+    handled.current = true;
+    setJob(done);
+    if (done.status === 'succeeded') {
+      if (bg.current && notify)
+        notifyLocal('변환이 끝났어요', `${draft.title || '학습 자료'} 정리본을 확인해 보세요`);
+      qc.invalidateQueries({ queryKey: ['materials'] });
+      router.replace({ pathname: '/result/[id]', params: { id: done.targetId } });
+    } else setPhase('failed');
+  };
   useSocket(
     'ai:done',
     ({ jobId, job: done }) => {
-      if (jobId !== job?._id) return;
-      setJob(done);
-      if (done.status === 'succeeded') {
-        if (bg.current && notify)
-          notifyLocal('변환이 끝났어요', `${draft.title || '학습 자료'} 정리본을 확인해 보세요`);
-        qc.invalidateQueries({ queryKey: ['materials'] });
-        router.replace({ pathname: '/result/[id]', params: { id: done.targetId } });
-      } else if (done.status === 'failed') setPhase('failed');
+      if (jobId === job?._id) finish(done);
     },
     [job?._id, notify],
   );
 
-  // 재시도 횟수 (LLM 지연 안내용)
   useEffect(() => {
-    if (phase !== 'ai' || !job) return;
-    const id = setInterval(async () => setAttempts((await api.ai.job(job._id)).attempts), 1500);
-    return () => clearInterval(id);
+    if (phase !== 'ai' || !job || handled.current) return;
+    let disposed = false;
+    const poll = async () => {
+      if (disposed || handled.current) return;
+      try {
+        const done = await api.ai.job(job._id);
+        if (disposed || handled.current) return;
+        setAttempts(done.attempts);
+        finish(done);
+      } catch {
+        if (!disposed) toast('작업 상태를 확인하지 못했어요. 다시 연결하면 확인해요');
+      }
+    };
+    const id = setInterval(poll, 1500);
+    return () => {
+      disposed = true;
+      clearInterval(id);
+    };
   }, [phase, job?._id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const retry = useMutation({
     mutationFn: () => api.ai.retry(job!._id),
     onSuccess: (j) => {
+      handled.current = false;
       setJob(j);
       setPhase('ai');
       setAttempts(1);
     },
   });
   const doCancel = async () => {
+    canceled.current = true;
     abort.current.abort();
     if (job) await api.ai.cancel(job._id).catch(() => {});
     router.back();
@@ -261,7 +299,16 @@ export function ConvertScreen() {
         body={`원본은 그대로 있어요.\n다시 시도하거나 원본만 저장할 수 있어요.`}
         secondary="원본만 저장"
         onSecondary={async () => {
-          if (materialId) await api.content.saveMaterial(materialId);
+          if (!materialId) {
+            toast('자료가 아직 저장되지 않았어요. 다시 시도해주세요');
+            return;
+          }
+          try {
+            await api.content.saveMaterial(materialId);
+          } catch {
+            toast('원본을 저장하지 못했어요. 다시 시도해주세요');
+            return;
+          }
           qc.invalidateQueries({ queryKey: ['materials'] });
           router.back();
           toast('원본만 저장했어요');

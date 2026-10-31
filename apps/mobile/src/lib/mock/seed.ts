@@ -40,6 +40,7 @@ export const seedUser = (): User => ({
   school: '선문고등학교',
   grade: '3학년',
   phone: '010-1234-5678',
+  streakDays: 12,
   settings: {
     resumePlayback: true,
     keepScreenOnWhileRecording: true,

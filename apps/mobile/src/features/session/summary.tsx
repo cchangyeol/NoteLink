@@ -1,21 +1,24 @@
 import { useEffect, useRef } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text } from '@/components/text';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Accelerometer } from 'expo-sensors';
 import * as ScreenOrientation from 'expo-screen-orientation';
-import { X } from 'lucide-react-native';
+import { Mic, PartyPopper, PenLine, X } from 'lucide-react-native';
 import { api } from '@/lib/api';
-import { goalLabel, hm, hms, today as seoulToday } from '@/lib/dates';
+import { useFeatureNavigation } from '@/lib/feature-navigation';
+import { diffLabel, goalLabel, hm, hms, today as seoulToday } from '@/lib/dates';
 import { useNow } from '@/hooks';
 import { useSession } from '@/stores/session';
 import { toast } from '@/stores/toast';
 import { Btn, Card, Progress, Screen } from '@/components/ui';
-import { C } from '@/theme';
+import { C, ICON } from '@/theme';
 
 // p.48 #6 공부 종료 요약
 
 export function SummaryScreen() {
+  const openFeature = useFeatureNavigation();
   const { sec, points } = useLocalSearchParams<{ sec?: string; points?: string }>();
   const today = useQuery({ queryKey: ['study', 'today', seoulToday()], queryFn: api.study.today });
   const weekly = useQuery({
@@ -41,41 +44,39 @@ export function SummaryScreen() {
       footer={
         <>
           <Btn onPress={home}>홈으로</Btn>
-          <Pressable onPress={() => router.replace('/record')} className="mt-2">
-            <Text className="text-center text-[13px] text-brand">학습 기록 보기 ›</Text>
+          <Pressable onPress={() => openFeature('/record', 'replace')} className="mt-2">
+            <Text className="text-center text-footnote text-brand">학습 기록 보기 ›</Text>
           </Pressable>
         </>
       }
     >
       <View className="items-end pt-3">
         <Pressable accessibilityLabel="닫기" onPress={home} hitSlop={10}>
-          <X size={20} color={C.sub} />
+          <X size={ICON.md} color={C.sub} />
         </Pressable>
       </View>
       <View className="items-center">
-        <Text className="text-[32px]">🎉</Text>
-        <Text className="text-[19px] font-bold text-ink">
-          수고했어요, {me.data?.nickname ?? ''} 님
-        </Text>
-        <Text className="text-[12px] text-sub">
+        <PartyPopper size={ICON.xl} color={C.brand} />
+        <Text className="text-title3 font-bold text-ink">수고했어요, {me.data?.nickname} 님</Text>
+        <Text className="text-caption text-sub">
           오늘 순공시간{sec ? ` · 이번 세션 ${hm(Number(sec))}` : ''}
         </Text>
-        <Text className="font-mono text-[34px] font-bold text-brand">{hms(total)}</Text>
+        <Text className="tabular-nums text-large font-bold text-brand">{hms(total)}</Text>
       </View>
       <Card className="mt-4 p-4">
         <View className="flex-row justify-between">
-          <Text className="text-[13px] font-semibold text-ink">항목별 목표</Text>
-          <Text className="text-[13px] text-brand">
+          <Text className="text-footnote font-semibold text-ink">항목별 목표</Text>
+          <Text className="text-footnote text-brand">
             {items.length}개 중 {done}개 달성
           </Text>
         </View>
         {items.map((i) => (
           <View key={i._id} className="mt-3">
             <View className="flex-row justify-between">
-              <Text className="text-[13px] text-ink">
+              <Text className="text-footnote text-ink">
                 {i.title} · {i.subjectName}
               </Text>
-              <Text className="text-[13px] text-ink">
+              <Text className="text-footnote text-ink">
                 <Text className="font-bold">{Math.floor(i.accumulatedSec / 60)}분</Text>
                 <Text className="text-sub">
                   {' '}
@@ -92,18 +93,16 @@ export function SummaryScreen() {
         ))}
       </Card>
       <View className="mt-4 flex-row justify-between">
-        <Text className="text-[14px] font-semibold text-ink">이번주 목표 {goalMin / 60}시간</Text>
-        <Text className="text-[14px] font-semibold text-brand">{pct}%</Text>
+        <Text className="text-subhead font-semibold text-ink">이번주 목표 {goalMin / 60}시간</Text>
+        <Text className="text-subhead font-semibold text-brand">{pct}%</Text>
       </View>
       <Progress value={pct} className="mt-1.5" />
-      <Text className="mt-1 text-[12px] text-sub">
-        {hm(weekly.data?.totalSec ?? 0)} · 지난주 대비{' '}
-        {hm(Math.abs(weekly.data?.diffFromLastWeekSec ?? 0))}{' '}
-        {(weekly.data?.diffFromLastWeekSec ?? 0) < 0 ? '줄었어요' : '늘었어요'}
+      <Text className="mt-1 text-caption text-sub">
+        {hm(weekly.data?.totalSec ?? 0)} · {diffLabel(weekly.data?.diffFromLastWeekSec ?? 0)}
       </Text>
       <Card tone="white" className="mt-4 p-4">
-        <Text className="text-[14px] font-semibold text-ink">오늘 공부를 노트로 남겨둘까요?</Text>
-        <Text className="text-[12px] text-sub">
+        <Text className="text-subhead font-semibold text-ink">오늘 공부를 노트로 남겨둘까요?</Text>
+        <Text className="text-caption text-sub">
           올린 필기·녹음은 오늘 공부한 시간과 함께 기록돼요
         </Text>
         <View className="mt-3 flex-row gap-2">
@@ -111,21 +110,31 @@ export function SummaryScreen() {
             tone="mint"
             className="flex-1 items-center py-3"
             onPress={() =>
-              router.navigate({ pathname: '/(tabs)/note', params: { upload: 'hand' } })
+              openFeature(
+                { pathname: '/(tabs)/note', params: { upload: 'hand' } },
+                'navigate',
+                '/capture/camera',
+              )
             }
           >
-            <Text>✏️</Text>
-            <Text className="text-[13px] font-semibold text-ink">필기 사진</Text>
-            <Text className="text-[11px] text-sub">촬영 · 갤러리</Text>
+            <PenLine size={ICON.md} color={C.brand} />
+            <Text className="text-footnote font-semibold text-ink">필기 사진</Text>
+            <Text className="text-caption2 text-sub">촬영 · 갤러리</Text>
           </Card>
           <Card
             tone="mint"
             className="flex-1 items-center py-3"
-            onPress={() => router.navigate({ pathname: '/(tabs)/note', params: { upload: 'rec' } })}
+            onPress={() =>
+              openFeature(
+                { pathname: '/(tabs)/note', params: { upload: 'rec' } },
+                'navigate',
+                '/capture/rec-upload',
+              )
+            }
           >
-            <Text>🎙</Text>
-            <Text className="text-[13px] font-semibold text-ink">녹음</Text>
-            <Text className="text-[11px] text-sub">파일 · 실시간</Text>
+            <Mic size={ICON.md} color={C.brand} />
+            <Text className="text-footnote font-semibold text-ink">녹음</Text>
+            <Text className="text-caption2 text-sub">파일 · 실시간</Text>
           </Card>
         </View>
       </Card>
@@ -162,18 +171,18 @@ export function LandscapeScreen() {
     <Pressable onPress={exit} className="flex-1 items-center justify-center bg-black px-10">
       <View className="absolute top-8 left-10 flex-row items-center gap-1.5">
         <View className="h-1.5 w-1.5 rounded-full bg-sun" />
-        <Text className="text-[13px] text-white">자동 측정 중</Text>
+        <Text className="text-footnote text-white">자동 측정 중</Text>
       </View>
-      <Text className="text-[16px] font-semibold text-white">
+      <Text className="text-body font-semibold text-white">
         {active ? `${active.title} · ${active.subjectName}` : '순공시간'}
       </Text>
       <Text
-        className="font-mono text-[84px] font-bold text-[#f08a2e]"
+        className="tabular-nums text-timer font-bold text-orange"
         style={{ fontVariant: ['tabular-nums'] }}
       >
         {hms(total)}
       </Text>
-      <Text className="absolute bottom-8 text-[12px] text-white/60">
+      <Text className="absolute bottom-8 text-caption text-white/60">
         세로로 돌리면 측정을 멈춰요
       </Text>
     </Pressable>

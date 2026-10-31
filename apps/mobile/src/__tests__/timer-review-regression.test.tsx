@@ -64,7 +64,7 @@ it('서울 날짜가 바뀌면 같은 화면에서 오늘과 주간 목표를 �
   await waitFor(() => expect(goal).toHaveBeenCalled());
   const before = [today.mock.calls.length, weekly.mock.calls.length, goal.mock.calls.length];
   mockNow += 2000;
-  await fireEvent.press(screen.getByLabelText('친구'));
+  await fireEvent.press(screen.getByLabelText('주간 목표 설정'));
   await waitFor(() => expect(today.mock.calls.length).toBeGreaterThan(before[0]!));
   expect(weekly.mock.calls.length).toBeGreaterThan(before[1]!);
   expect(goal.mock.calls.length).toBeGreaterThan(before[2]!);
@@ -91,7 +91,7 @@ it('10분 쉬면 종료 요청을 한 번만 보낸다', async () => {
 });
 it('닉네임을 자르거나 고정 스트릭을 표시하지 않는다', async () => {
   const me = await api.me.get();
-  jest.spyOn(api.me, 'get').mockResolvedValue({ ...me, nickname: '한결' });
+  jest.spyOn(api.me, 'get').mockResolvedValue({ ...me, nickname: '한결', streakDays: 3 });
   await api.study.addItem({ title: '테스트', subjectName: '수학', goalMin: 30 });
   await renderScreen(<HomeScreen />, client());
   expect(await screen.findByText(/한결 님/)).toBeTruthy();
@@ -136,7 +136,7 @@ it.each([
     await renderScreen(<SummaryScreen />, client());
     expect(await screen.findByText('수고했어요, 테스트 학습자 님')).toBeTruthy();
     expect(
-      await screen.findByText(new RegExp(`지난주 대비\\s+1시간 30분\\s+${direction}`)),
+      await screen.findByText(new RegExp(`지난주보다\\s+1시간 30분\\s+${direction}`)),
     ).toBeTruthy();
   },
 );

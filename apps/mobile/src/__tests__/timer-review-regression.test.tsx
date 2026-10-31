@@ -100,7 +100,12 @@ it('닉네임을 자르거나 고정 스트릭을 표시하지 않는다', async
 
 it('세로로 세워 정지한 다음 다시 가로로 돌리면 측정을 재개한다', async () => {
   mockNow = Date.now();
-  useSession.setState({ itemId: 'item', sessionId: null, since: mockNow - 1000, pausedAt: null });
+  useSession.setState({
+    itemId: 'item',
+    sessionId: 'sensor-session',
+    since: mockNow - 1000,
+    pausedAt: null,
+  });
   const firstLandscape = await renderScreen(<LandscapeScreen />, client());
   const portraitListener = jest.mocked(Accelerometer.addListener).mock.calls.at(-1)![0];
   await act(async () => portraitListener({ x: 0, y: 1, z: 0, timestamp: 0 }));

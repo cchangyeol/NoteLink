@@ -9,6 +9,7 @@ jest.mock('expo-router', () => ({
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), dismissAll: jest.fn() },
   useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
   useSegments: () => [],
+  useSitemap: jest.fn(() => null),
   useLocalSearchParams: () => global.mockParams,
   useFocusEffect: () => {},
   Redirect: () => null,

@@ -1,1 +1,11 @@
-export { ConvertScreen as default } from '@/features/content/convert';
+import { Stack } from 'expo-router';
+import { ConvertScreen } from '@/features/content/convert';
+
+export default function FeatureRoute() {
+  return (
+    <>
+      <Stack.Screen options={{ gestureEnabled: false }} />
+      <ConvertScreen />
+    </>
+  );
+}

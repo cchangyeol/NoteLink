@@ -9,7 +9,10 @@ const metrics = {
   insets: { top: 47, left: 0, right: 0, bottom: 34 },
 };
 
-export function renderScreen(ui: ReactElement, qc = new QueryClient()) {
+// 실패 응답을 다시 시도하지 않는다 (실제 앱은 재시도하지만 테스트가 몇 초씩 기다리지 않게)
+const testClient = () => new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+export function renderScreen(ui: ReactElement, qc = testClient()) {
   return render(
     <SafeAreaProvider initialMetrics={metrics}>
       <QueryClientProvider client={qc}>{ui}</QueryClientProvider>

@@ -79,13 +79,11 @@ beforeEach(() => {
   jest.clearAllMocks();
   setParams({ id: 'mat1' });
   useDraft.getState().reset();
-  useDraft
-    .getState()
-    .set({
-      folderId: 'folder2',
-      files: [{ uri: 'file://a.jpg', name: 'a.jpg', mimeType: 'image/jpeg' }],
-      title: '노트',
-    });
+  useDraft.getState().set({
+    folderId: 'folder2',
+    files: [{ uri: 'file://a.jpg', name: 'a.jpg', mimeType: 'image/jpeg' }],
+    title: '노트',
+  });
   useNet.setState({ state: 'ok' });
   mockUpload.mockResolvedValue('https://blob/a.jpg');
   mockApi.content.material.mockResolvedValue(material('mat1', 'folder2', '두 번째 폴더 노트'));

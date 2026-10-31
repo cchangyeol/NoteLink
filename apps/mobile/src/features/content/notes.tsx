@@ -1,11 +1,30 @@
 import { useEffect, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text } from '@/components/text';
 import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import { ChevronRight, MoreHorizontal, Plus, X } from 'lucide-react-native';
+import {
+  Camera,
+  ChevronRight,
+  CircleDot,
+  FileText,
+  Folder,
+  ImageIcon,
+  Lightbulb,
+  type LucideIcon,
+  Mic,
+  MoreHorizontal,
+  Paperclip,
+  PenLine,
+  Plus,
+  ScanLine,
+  Share2,
+  Trash2,
+  X,
+} from 'lucide-react-native';
 import type { Material } from '@notelink/shared';
 import { api } from '@/lib/api';
 import { toast } from '@/stores/toast';
@@ -25,25 +44,25 @@ import {
   cx,
 } from '@/components/ui';
 import { NetBanner } from '@/components/NetBanner';
-import { C } from '@/theme';
+import { C, ICON } from '@/theme';
 import { seoul } from '@/lib/dates';
 
 // p.58~60 노트 목록 · 새 자료 · 강의 상세 · 올리기 방식 선택
 
 const TAGS = ['수학', '영어', '국어', '과학', '사회', '자격증', '기타'];
 const KIND = {
-  recording: ['🎙', '녹음'],
-  handwriting: ['✏️', '필기'],
-  document: ['📄', '문서'],
+  recording: [Mic, '녹음'],
+  handwriting: [PenLine, '필기'],
+  document: [FileText, '문서'],
 } as const;
 
 const EmptyNote = ({ children }: { children?: React.ReactNode }) => (
   <View className="items-center">
     <View className="h-16 w-16 items-center justify-center rounded-full bg-mint">
-      <Text className="text-[28px]">📁</Text>
+      <Folder size={ICON.xl} color={C.brand} />
     </View>
-    <Text className="mt-4 text-[16px] font-bold text-ink">아직 학습 자료가 없어요</Text>
-    <Text className="mt-1 text-[13px] text-sub">
+    <Text className="mt-4 text-body font-bold text-ink">아직 학습 자료가 없어요</Text>
+    <Text className="mt-1 text-footnote text-sub">
       녹음이나 필기, 문서를 올려서 첫 자료를 만들어보세요
     </Text>
     {children && <View className="mt-6 w-[200px]">{children}</View>}
@@ -60,7 +79,7 @@ function Fab({ onPress, open }: { onPress: () => void; open?: boolean }) {
         open ? 'bg-ink' : 'border border-line bg-white',
       )}
     >
-      {open ? <X size={22} color="#fff" /> : <Plus size={24} color={C.ink} />}
+      {open ? <X size={ICON.lg} color="#fff" /> : <Plus size={ICON.lg} color={C.ink} />}
     </Pressable>
   );
 }
@@ -119,10 +138,10 @@ export function NoteListScreen() {
                   className="w-[48.5%] p-2.5"
                 >
                   <View className="h-20 items-center justify-center rounded-xl bg-white">
-                    <Text className="text-[28px]">📁</Text>
+                    <Folder size={ICON.xl} color={C.brand} />
                   </View>
-                  <Text className="mt-2 px-1 text-[14px] font-semibold text-ink">{f.title}</Text>
-                  <Text className="px-1 text-[11px] text-sub">
+                  <Text className="mt-2 px-1 text-subhead font-semibold text-ink">{f.title}</Text>
+                  <Text className="px-1 text-caption2 text-sub">
                     {f.subjectName} · {seoul(f.createdAt).getMonth() + 1}/
                     {seoul(f.createdAt).getDate()} · 자료 {f.materialCount}개
                   </Text>
@@ -130,7 +149,7 @@ export function NoteListScreen() {
               ))}
             </View>
             {folders.isSuccess && list.length === 0 && (
-              <Text className="py-10 text-center text-[13px] text-sub">
+              <Text className="py-10 text-center text-footnote text-sub">
                 ‘{q}’에 맞는 자료가 없어요
               </Text>
             )}
@@ -164,7 +183,7 @@ export function NoteTagScreen() {
       }
     >
       <Header title="태그 설정" right={<Steps n={0} />} />
-      <Text className="mt-4 mb-3 text-[14px] font-semibold text-ink">과목을 선택해주세요</Text>
+      <Text className="mt-4 mb-3 text-subhead font-semibold text-ink">과목을 선택해주세요</Text>
       <View className="flex-row flex-wrap gap-2">
         {TAGS.map((t) => (
           <Chip key={t} on={tag === t} onPress={() => setTag(t)}>
@@ -204,9 +223,12 @@ export function NoteTitleScreen() {
         onPress={() => setTitle(`${d.getMonth() + 1}월 ${d.getDate()}일 ${tag} 녹음`)}
         className="mt-2"
       >
-        <Text className="text-[12px] text-brand">
-          💡 추천: {d.getMonth() + 1}월 {d.getDate()}일 {tag} 녹음
-        </Text>
+        <View className="flex-row items-center gap-1.5">
+          <Lightbulb size={ICON.xs} color={C.brand} />
+          <Text className="text-caption text-brand">
+            추천: {d.getMonth() + 1}월 {d.getDate()}일 {tag} 녹음
+          </Text>
+        </View>
       </Pressable>
     </Screen>
   );
@@ -303,7 +325,7 @@ export function FolderScreen() {
               onPress={() => setSheet('more')}
               className="h-9 w-9 items-center justify-center rounded-full border border-line"
             >
-              <MoreHorizontal size={18} color={C.ink} />
+              <MoreHorizontal size={ICON.md} color={C.ink} />
             </Pressable>
           }
         />
@@ -320,7 +342,7 @@ export function FolderScreen() {
           </View>
         ) : (
           <>
-            <Text className="mt-4 mb-2 text-[12px] text-sub">자료 {mats.data?.length ?? 0}개</Text>
+            <Text className="mt-4 mb-2 text-caption text-sub">자료 {mats.data?.length ?? 0}개</Text>
             <View className="gap-2">
               {items.map((m) => (
                 <Card
@@ -330,18 +352,21 @@ export function FolderScreen() {
                   className="flex-row items-center gap-3 px-4 py-3"
                 >
                   <View className="h-10 w-10 items-center justify-center rounded-full bg-cream">
-                    <Text className="text-[18px]">{KIND[m.kind][0]}</Text>
+                    {(() => {
+                      const KindIcon = KIND[m.kind][0];
+                      return <KindIcon size={ICON.md} color={C.brand} />;
+                    })()}
                   </View>
                   <View className="flex-1">
-                    <Text className="text-[14px] font-semibold text-ink">{m.title}</Text>
-                    <Text className="text-[11px] text-sub">
+                    <Text className="text-subhead font-semibold text-ink">{m.title}</Text>
+                    <Text className="text-caption2 text-sub">
                       {KIND[m.kind][1]} ·{' '}
                       {m.kind === 'recording'
                         ? '32:10 · 자동 요약 완료'
                         : `${seoul(m.createdAt).getMonth() + 1}/${seoul(m.createdAt).getDate()} 업로드`}
                     </Text>
                   </View>
-                  <ChevronRight size={16} color={C.sub} />
+                  <ChevronRight size={ICON.sm} color={C.sub} />
                 </Card>
               ))}
             </View>
@@ -355,11 +380,11 @@ export function FolderScreen() {
           <View className="absolute right-5 bottom-24 items-end gap-3">
             {(
               [
-                ['doc', '학습 자료 올리기', '📄'],
-                ['rec', '녹음 올리기 · 실시간 녹음', '🎙'],
-                ['hand', '필기 올리기', '✏️'],
+                ['doc', '학습 자료 올리기', FileText],
+                ['rec', '녹음 올리기 · 실시간 녹음', Mic],
+                ['hand', '필기 올리기', PenLine],
               ] as const
-            ).map(([k, l, ic], i) => (
+            ).map(([k, l, Ic], i) => (
               <Animated.View key={k} entering={ZoomIn.delay(i * 30)}>
                 <Pressable
                   onPress={() => {
@@ -369,10 +394,10 @@ export function FolderScreen() {
                   className="flex-row items-center gap-2"
                 >
                   <View className="rounded-full bg-ink px-3 py-1.5">
-                    <Text className="text-[13px] font-semibold text-white">{l}</Text>
+                    <Text className="text-footnote font-semibold text-white">{l}</Text>
                   </View>
                   <View className="h-11 w-11 items-center justify-center rounded-full bg-white shadow">
-                    <Text className="text-[18px]">{ic}</Text>
+                    <Ic size={ICON.md} color={C.brand} />
                   </View>
                 </Pressable>
               </Animated.View>
@@ -384,7 +409,7 @@ export function FolderScreen() {
 
       <Sheet open={sheet === 'hand'} onClose={() => setSheet(null)} title="필기 올리기">
         <UploadOpt
-          icon="📷"
+          icon={Camera}
           title="카메라로 촬영"
           sub="필기한 종이를 바로 촬영해요"
           onPress={() => {
@@ -393,7 +418,7 @@ export function FolderScreen() {
           }}
         />
         <UploadOpt
-          icon="🖼"
+          icon={ImageIcon}
           title="갤러리에서 선택"
           sub="이미 찍어둔 사진을 올려요"
           onPress={pickGallery}
@@ -401,13 +426,13 @@ export function FolderScreen() {
       </Sheet>
       <Sheet open={sheet === 'rec'} onClose={() => setSheet(null)} title="녹음">
         <UploadOpt
-          icon="📁"
+          icon={Folder}
           title="녹음 파일 올리기"
           sub="가지고 있는 녹음 파일을 업로드해요"
           onPress={pickAudio}
         />
         <UploadOpt
-          icon="🔴"
+          icon={CircleDot}
           title="실시간 녹음 시작하기"
           sub="지금 바로 강의·수업을 녹음해요"
           onPress={() => {
@@ -418,13 +443,13 @@ export function FolderScreen() {
       </Sheet>
       <Sheet open={sheet === 'doc'} onClose={() => setSheet(null)} title="학습 자료 올리기">
         <UploadOpt
-          icon="📎"
+          icon={Paperclip}
           title="파일 선택 (PDF · 이미지)"
           sub="기기에 저장된 학습 자료를 올려요"
           onPress={pickDoc}
         />
         <UploadOpt
-          icon="🔦"
+          icon={ScanLine}
           title="스캔하기"
           sub="문서를 스캔해서 바로 올려요"
           onPress={() => {
@@ -436,21 +461,23 @@ export function FolderScreen() {
       <Sheet open={sheet === 'more'} onClose={() => setSheet(null)}>
         <Group>
           <Row
+            icon={Share2}
             onPress={() => {
               setSheet(null);
               router.push({ pathname: '/note-share', params: { folderId: id } });
             }}
           >
-            📤 폴더 자료 공유하기
+            폴더 자료 공유하기
           </Row>
           <Row
+            icon={Trash2}
             danger
             onPress={() => {
               setSheet(null);
               del.mutate();
             }}
           >
-            🗑 폴더 삭제
+            폴더 삭제
           </Row>
         </Group>
       </Sheet>
@@ -459,24 +486,26 @@ export function FolderScreen() {
 }
 
 const UploadOpt = ({
-  icon,
+  icon: Icon,
   title,
   sub,
   onPress,
 }: {
-  icon: string;
+  icon: LucideIcon;
   title: string;
   sub: string;
   onPress: () => void;
 }) => (
   <Animated.View entering={FadeIn}>
     <Card onPress={onPress} className="mb-2 flex-row items-center gap-3 px-4 py-3.5">
-      <Text className="text-[20px]">{icon}</Text>
-      <View className="flex-1">
-        <Text className="text-[14px] font-semibold text-ink">{title}</Text>
-        <Text className="text-[12px] text-sub">{sub}</Text>
+      <View className="h-10 w-10 items-center justify-center rounded-xl bg-white">
+        <Icon size={ICON.md} color={C.brand} />
       </View>
-      <ChevronRight size={16} color={C.sub} />
+      <View className="flex-1">
+        <Text className="text-subhead font-semibold text-ink">{title}</Text>
+        <Text className="text-caption text-sub">{sub}</Text>
+      </View>
+      <ChevronRight size={ICON.sm} color={C.sub} />
     </Card>
   </Animated.View>
 );

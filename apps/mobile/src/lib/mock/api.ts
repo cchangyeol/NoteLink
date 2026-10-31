@@ -9,10 +9,11 @@ import {
   type QuizAttempt,
   type QuizSet,
   type StudySession,
+  type TimetableShare,
 } from '@notelink/shared';
 import { ApiError, NetworkError } from '../api/http';
 import type { Api, MonthDay } from '../api/types';
-import { addDays, daysBetween, parse, today, ymd } from '../dates';
+import { addDays, daysBetween, parse, seoul, today, ymd } from '../dates';
 import { mockServer } from '../socket';
 import { useNet } from '@/stores/net';
 import { useMockFlags } from './flags';
@@ -24,12 +25,21 @@ const db = {
   user: S.seedUser(),
   items: S.seedItems(),
   sessions: new Map<string, StudySession>(),
-  weeklyGoal: { _id: 'wg1', weekStart: today(), targetMin: 21 * 60, notify80: true },
+  weeklyGoal: {
+    _id: 'wg1',
+    weekStart: today(),
+    targetMin: 21 * 60,
+    notify80: true,
+    recentAvgMin: 18 * 60 + 30,
+  },
+  timetableShares: [
+    { _id: 'ts1', friendId: 'u-jiwoo', mode: 'full', sharedAt: new Date().toISOString() },
+  ] as TimetableShare[],
   recurring: S.seedRecurring(),
   todos: S.seedTodos(),
   manualDdays: S.seedManualDdays(),
   hiddenHolidays: new Set<string>(['10-09']),
-  customHolidays: [{ _id: 'ch1', name: '가족 여행일', date: ymd(addDays(new Date(), 9)) }],
+  customHolidays: [{ _id: 'ch1', name: '가족 여행일', date: ymd(addDays(seoul(), 9)) }],
   shares: S.seedShares(),
   classes: S.seedClasses(),
   friends: S.seedFriends(),
@@ -324,7 +334,7 @@ export const mockApi: Api = {
         longestStreak: 12,
         peakHour: 21,
         heatmap: Array.from({ length: 126 }, (_, i) => ({
-          studyDate: ymd(addDays(new Date(), i - 125)),
+          studyDate: ymd(addDays(seoul(), i - 125)),
           level:
             (i * 37 + (i % 5) * 11) % 9 > 6
               ? 3
@@ -457,7 +467,13 @@ export const mockApi: Api = {
       return ok(k);
     },
     removeClass: (id) => ok(void (db.classes = db.classes.filter((c) => c._id !== id))),
-    share: () => ok(undefined),
+    share: (p) => {
+      for (const friendId of p.friendIds)
+        if (!db.timetableShares.some((x) => x.friendId === friendId))
+          db.timetableShares.push({ _id: uid('ts'), friendId, mode: p.mode, sharedAt: now() });
+      return ok(undefined);
+    },
+    shares: () => ok(db.timetableShares),
   },
   social: {
     friends: () => ok(db.friends),
@@ -579,7 +595,10 @@ export const mockApi: Api = {
       ),
   },
   ai: {
-    job: (id) => ok(db.jobs.get(id)!),
+    job: (id) => {
+      const j = db.jobs.get(id);
+      return j ? ok(j) : fail(ERROR_CODES.NOT_FOUND, '작업을 찾을 수 없어요', 404);
+    },
     cancel: (id) => ok(void Object.assign(db.jobs.get(id) ?? {}, { status: 'canceled' })),
     retry: (id) => {
       const old = db.jobs.get(id)!;
@@ -760,7 +779,26 @@ export const mockApi: Api = {
         ],
       }),
     invite: () => ok(undefined),
-    shared: () => ok({ items: [], flashcards: db.flashcards }),
+    shared: (id) =>
+      ok({
+        items: [
+          {
+            _id: 'rs1',
+            roomId: id,
+            sharedBy: 'u-sumin',
+            sharedByNickname: '수민',
+            itemType: 'flashcards' as const,
+            quizSetId: null,
+            folderId: null,
+            materialId: null,
+            questionIds: [],
+            flashcardIds: db.flashcards.map((c) => c._id),
+            title: '플래시 카드',
+            createdAt: now(),
+          },
+        ],
+        flashcards: db.flashcards,
+      }),
     livekitToken: () => ok({ token: 'mock-livekit-token', url: 'wss://notelink.livekit.cloud' }),
     report: () => ok(undefined, 500),
     chatRoomId: async (id) => {

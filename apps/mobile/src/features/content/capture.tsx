@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Image, Linking, Pressable, Text, View } from 'react-native';
+import { Image, Linking, Pressable, View } from 'react-native';
+import { Text } from '@/components/text';
 import { router, useLocalSearchParams } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
@@ -14,12 +15,22 @@ import {
 import { useKeepAwake } from 'expo-keep-awake';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
-import { Check, FileText, Mic, RotateCw, SunMedium, X, Zap, Crop } from 'lucide-react-native';
+import {
+  Camera,
+  Check,
+  Crop,
+  FileText,
+  Mic,
+  RotateCw,
+  SunMedium,
+  X,
+  Zap,
+} from 'lucide-react-native';
 import { api, type ImageVerdict } from '@/lib/api';
 import { checkFile, type LocalFile } from '@/lib/upload';
 import { useDraft } from '@/stores/draft';
 import { Alert, Badge, Btn, Chip, Header, Input, Label, Screen, Two, cx } from '@/components/ui';
-import { C } from '@/theme';
+import { C, ICON } from '@/theme';
 
 // p.61~65 필기 · 녹음 · 학습 자료 올리기 / p.102 이미지 검사
 
@@ -27,8 +38,8 @@ import { C } from '@/theme';
 function NeedPermission({ onGrant, canAsk }: { onGrant: () => void; canAsk: boolean }) {
   return (
     <View className="flex-1 items-center justify-center bg-black px-10">
-      <Text className="text-center text-[16px] font-bold text-white">카메라 권한이 필요해요</Text>
-      <Text className="mt-2 text-center text-[13px] text-white/60">
+      <Text className="text-center text-body font-bold text-white">카메라 권한이 필요해요</Text>
+      <Text className="mt-2 text-center text-footnote text-white/60">
         필기와 문서를 촬영하려면 카메라 접근을 허용해 주세요.
       </Text>
       <Btn className="mt-6 w-56" onPress={canAsk ? onGrant : () => Linking.openSettings()}>
@@ -111,17 +122,17 @@ export function CameraScreen() {
       />
       <View className="flex-row items-center justify-between px-5 pt-3">
         <Pressable accessibilityLabel="닫기" onPress={() => router.back()} hitSlop={10}>
-          <X size={26} color="#fff" />
+          <X size={ICON.lg} color="#fff" />
         </Pressable>
         <Pressable accessibilityLabel="플래시" onPress={() => setTorch((t) => !t)} hitSlop={10}>
-          <Zap size={22} color={torch ? C.sun : 'rgba(255,255,255,.7)'} />
+          <Zap size={ICON.lg} color={torch ? C.sun : 'rgba(255,255,255,.7)'} />
         </Pressable>
       </View>
-      <Text className="mt-6 text-center text-[13px] text-white">
+      <Text className="mt-6 text-center text-footnote text-white">
         {scan ? '문서를 프레임 안에 맞춰주세요' : '필기한 종이를 프레임 안에 맞춰주세요'}
       </Text>
       {scan && (
-        <Text className="text-center text-[11px] text-white/60">자동으로 인식하고 있어요</Text>
+        <Text className="text-center text-caption2 text-white/60">자동으로 인식하고 있어요</Text>
       )}
       <View
         className={cx(
@@ -131,12 +142,12 @@ export function CameraScreen() {
       >
         {scan && pages.length > 0 && (
           <View className="absolute -top-3 -right-3 h-7 w-7 items-center justify-center rounded-full bg-brand">
-            <Check size={16} color="#fff" />
+            <Check size={ICON.sm} color="#fff" />
           </View>
         )}
       </View>
       {!scan && (
-        <Text className="mt-3 text-center text-[11px] text-white/60">
+        <Text className="mt-3 text-center text-caption2 text-white/60">
           밝은 곳에서 촬영하면 더 선명해요
         </Text>
       )}
@@ -144,7 +155,7 @@ export function CameraScreen() {
         {scan ? (
           <>
             <View className="rounded-full border border-white/40 px-3 py-1.5">
-              <Text className="text-[12px] text-white">{pages.length}페이지</Text>
+              <Text className="text-caption text-white">{pages.length}페이지</Text>
             </View>
             <Pressable
               accessibilityLabel="촬영"
@@ -164,7 +175,7 @@ export function CameraScreen() {
               }}
               className={cx('rounded-full bg-brand px-4 py-1.5', !pages.length && 'opacity-40')}
             >
-              <Text className="text-[13px] font-semibold text-white">완료</Text>
+              <Text className="text-footnote font-semibold text-white">완료</Text>
             </Pressable>
           </>
         ) : (
@@ -186,7 +197,7 @@ export function CameraScreen() {
               onPress={() => setFacing((f) => (f === 'back' ? 'front' : 'back'))}
               className="h-11 w-11 items-center justify-center rounded-full bg-white/15"
             >
-              <RotateCw size={18} color="#fff" />
+              <RotateCw size={ICON.md} color="#fff" />
             </Pressable>
           </>
         )}
@@ -228,26 +239,29 @@ export function PhotoCheckScreen() {
             resizeMode="cover"
           />
         ) : (
-          <Text className="text-[13px] text-sub">📷 촬영된 필기 이미지</Text>
+          <View className="flex-row items-center gap-1.5">
+            <Camera size={ICON.xs} color={C.sub} />
+            <Text className="text-footnote text-sub">촬영된 필기 이미지</Text>
+          </View>
         )}
       </View>
       <View className="mt-4 flex-row gap-2">
         <Chip small onPress={() => setRot((r) => r + 90)}>
           <View className="flex-row items-center gap-1">
-            <RotateCw size={12} color={C.ink} />
-            <Text className="text-[12px] text-ink">회전</Text>
+            <RotateCw size={ICON.xs} color={C.ink} />
+            <Text className="text-caption text-ink">회전</Text>
           </View>
         </Chip>
         <Chip small on={bright} onPress={() => setBright((b) => !b)}>
           <View className="flex-row items-center gap-1">
-            <SunMedium size={12} color={bright ? '#fff' : C.ink} />
-            <Text className={cx('text-[12px]', bright ? 'text-white' : 'text-ink')}>밝기</Text>
+            <SunMedium size={ICON.xs} color={bright ? '#fff' : C.ink} />
+            <Text className={cx('text-caption', bright ? 'text-white' : 'text-ink')}>밝기</Text>
           </View>
         </Chip>
         <Chip small on={crop} onPress={() => setCrop((c) => !c)}>
           <View className="flex-row items-center gap-1">
-            <Crop size={12} color={crop ? '#fff' : C.ink} />
-            <Text className={cx('text-[12px]', crop ? 'text-white' : 'text-ink')}>자르기</Text>
+            <Crop size={ICON.xs} color={crop ? '#fff' : C.ink} />
+            <Text className={cx('text-caption', crop ? 'text-white' : 'text-ink')}>자르기</Text>
           </View>
         </Chip>
       </View>
@@ -341,10 +355,10 @@ export function PickedScreen() {
     >
       {notHand.length > 0 && !bad.length && (
         <View className="mt-3 rounded-2xl bg-sun/20 px-4 py-3">
-          <Text className="text-[13px] font-semibold text-ink">
+          <Text className="text-footnote font-semibold text-ink">
             ● 필기가 아닌 사진이 {notHand.length}장 있어요
           </Text>
-          <Text className="text-[12px] text-sub">제외하고 올리거나 다시 선택해요</Text>
+          <Text className="text-caption text-sub">제외하고 올리거나 다시 선택해요</Text>
         </View>
       )}
       <Header title={`선택한 사진 (${files.length}장)`} />
@@ -359,10 +373,10 @@ export function PickedScreen() {
           >
             <Image source={{ uri: f.uri }} className="h-12 w-12 rounded-lg bg-mint" />
             <View className="flex-1">
-              <Text className="text-[14px] font-semibold text-ink" numberOfLines={1}>
+              <Text className="text-subhead font-semibold text-ink" numberOfLines={1}>
                 {f.name}
               </Text>
-              <Text className="text-[11px] text-sub">
+              <Text className="text-caption2 text-sub">
                 {f.size ? `${(f.size / 1024 / 1024).toFixed(1)}MB` : ''}
               </Text>
               <View className="mt-1">{tag(f)}</View>
@@ -372,7 +386,7 @@ export function PickedScreen() {
               onPress={() => remove(f.uri)}
               className="h-7 w-7 items-center justify-center rounded-full bg-white"
             >
-              <X size={14} color={C.ink} />
+              <X size={ICON.xs} color={C.ink} />
             </Pressable>
           </View>
         ))}
@@ -381,7 +395,7 @@ export function PickedScreen() {
         onPress={reselect}
         className="mt-2 h-12 items-center justify-center rounded-2xl border border-brand/40"
       >
-        <Text className="text-[14px] text-sub">+ 사진 추가</Text>
+        <Text className="text-subhead text-sub">+ 사진 추가</Text>
       </Pressable>
       <Alert
         open={dlg === 'bad'}
@@ -451,12 +465,12 @@ export function RecUploadScreen() {
         className="mt-2 items-center rounded-2xl border-2 border-dashed border-brand/40 bg-mint/60 py-6"
       >
         <View className="h-10 w-10 items-center justify-center rounded-full border-2 border-brand/40">
-          {file ? <Check size={18} color={C.brand} /> : <Mic size={18} color={C.brand} />}
+          {file ? <Check size={ICON.md} color={C.brand} /> : <Mic size={ICON.md} color={C.brand} />}
         </View>
-        <Text className="mt-2 text-[13px] font-semibold text-ink">
+        <Text className="mt-2 text-footnote font-semibold text-ink">
           {file?.name ?? '탭해서 녹음 파일 선택'}
         </Text>
-        <Text className="text-[11px] text-sub">
+        <Text className="text-caption2 text-sub">
           {file?.size ? `${(file.size / 1024 / 1024).toFixed(1)}MB` : 'mp3 · m4a · wav'}
         </Text>
       </Pressable>
@@ -471,7 +485,7 @@ export function RecUploadScreen() {
               av === a && 'border-2 border-brand',
             )}
           >
-            <Text className="text-[22px]">{a}</Text>
+            <Text className="text-title2">{a}</Text>
           </Pressable>
         ))}
       </View>
@@ -534,16 +548,16 @@ export function RecLiveScreen() {
       style={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 24 }}
     >
       <Pressable accessibilityLabel="닫기" onPress={() => router.back()} hitSlop={10}>
-        <X size={26} color="#fff" />
+        <X size={ICON.lg} color="#fff" />
       </Pressable>
       <View className="mt-24 self-center rounded-full border border-white/50 px-5 py-1">
-        <Text className="font-mono text-[24px] text-white">{t}</Text>
+        <Text className="tabular-nums text-title1 text-white">{t}</Text>
       </View>
       <View className="mt-4 h-20 flex-row items-center justify-center gap-1 rounded-lg bg-black/30">
         {bars.map((h, i) => (
           <View
             key={i}
-            className="w-1.5 rounded-full bg-[#f08a2e]"
+            className="w-1.5 rounded-full bg-orange"
             style={{ height: st.isRecording ? h : 6 }}
           />
         ))}
@@ -559,7 +573,7 @@ export function RecLiveScreen() {
           />
         </Pressable>
         <Pressable onPress={finish} className="rounded-full bg-white/20 px-4 py-1.5">
-          <Text className="text-[13px] font-semibold text-white">변환 시작</Text>
+          <Text className="text-footnote font-semibold text-white">변환 시작</Text>
         </Pressable>
       </View>
     </View>
@@ -591,13 +605,13 @@ export function PickedFileScreen() {
       {f ? (
         <View className="flex-row items-center gap-3 rounded-2xl bg-cream p-3">
           <View className="h-11 w-11 items-center justify-center rounded-lg bg-mint">
-            <FileText size={18} color={C.sub} />
+            <FileText size={ICON.md} color={C.sub} />
           </View>
           <View className="flex-1">
-            <Text className="text-[14px] font-semibold text-ink" numberOfLines={1}>
+            <Text className="text-subhead font-semibold text-ink" numberOfLines={1}>
               {f.name}
             </Text>
-            <Text className={cx('text-[11px]', ok?.ok ? 'text-sub' : 'text-danger')}>
+            <Text className={cx('text-caption2', ok?.ok ? 'text-sub' : 'text-danger')}>
               {ok?.ok
                 ? `${((f.size ?? 0) / 1024 / 1024).toFixed(1)}MB · ${f.name.endsWith('.pdf') ? 'PDF 문서' : '이미지'}`
                 : !ok?.ok && 'reason' in ok!
@@ -610,7 +624,7 @@ export function PickedFileScreen() {
             onPress={() => set({ files: [] })}
             className="h-7 w-7 items-center justify-center rounded-full bg-white"
           >
-            <X size={14} color={C.ink} />
+            <X size={ICON.xs} color={C.ink} />
           </Pressable>
         </View>
       ) : (
@@ -618,7 +632,7 @@ export function PickedFileScreen() {
           onPress={pickAgain}
           className="h-14 items-center justify-center rounded-2xl border border-dashed border-brand/40"
         >
-          <Text className="text-[14px] text-sub">+ 파일 다시 선택</Text>
+          <Text className="text-subhead text-sub">+ 파일 다시 선택</Text>
         </Pressable>
       )}
       <Label>노트 제목</Label>
@@ -667,7 +681,7 @@ export function ScanCheckScreen() {
           >
             <Image source={{ uri: f.uri }} className="h-full w-full" />
             <View className="absolute top-1 left-1 h-4 w-4 items-center justify-center rounded-full bg-ink">
-              <Text className="text-[9px] text-white">{i + 1}</Text>
+              <Text className="text-caption2 text-white">{i + 1}</Text>
             </View>
           </Pressable>
         ))}
@@ -677,14 +691,17 @@ export function ScanCheckScreen() {
           }
           className="h-20 w-14 items-center justify-center rounded-lg border border-brand/40"
         >
-          <Text className="text-[11px] text-sub">+ 추가</Text>
+          <Text className="text-caption2 text-sub">+ 추가</Text>
         </Pressable>
       </View>
       <View className="mt-4 aspect-[4/3.6] items-center justify-center overflow-hidden rounded-2xl bg-cream">
         {files[cur] ? (
           <Image source={{ uri: files[cur].uri }} className="h-full w-full" resizeMode="contain" />
         ) : (
-          <Text className="text-[13px] text-sub">📄 {cur + 1}페이지 미리보기</Text>
+          <View className="flex-row items-center gap-1.5">
+            <FileText size={ICON.xs} color={C.sub} />
+            <Text className="text-footnote text-sub">{cur + 1}페이지 미리보기</Text>
+          </View>
         )}
       </View>
     </Screen>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text, TextInput } from '@/components/text';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Directory, File, Paths } from 'expo-file-system';
@@ -8,7 +9,9 @@ import {
   Bold,
   Check,
   FileText,
+  Folder,
   Heading1,
+  Image,
   ImageIcon,
   Link2,
   List,
@@ -16,6 +19,7 @@ import {
   Pencil,
   Share2,
   Trash2,
+  Users,
 } from 'lucide-react-native';
 import type { Material } from '@notelink/shared';
 import { api } from '@/lib/api';
@@ -39,7 +43,7 @@ import {
   Two,
   cx,
 } from '@/components/ui';
-import { C } from '@/theme';
+import { C, ICON } from '@/theme';
 import { DocSummary, NoteBody } from './convert';
 import { Player } from './player';
 import { seoul } from '@/lib/dates';
@@ -82,8 +86,8 @@ function FileOptions({ m, open, onClose }: { m: Material; open: boolean; onClose
             }}
             className="h-11 flex-row items-center gap-2 rounded-full border border-line px-4"
           >
-            <Pencil size={15} color={C.ink} />
-            <Text className="text-[14px] text-ink">편집하기</Text>
+            <Pencil size={ICON.sm} color={C.ink} />
+            <Text className="text-subhead text-ink">편집하기</Text>
           </Pressable>
           <Pressable
             onPress={() => {
@@ -92,8 +96,8 @@ function FileOptions({ m, open, onClose }: { m: Material; open: boolean; onClose
             }}
             className="h-11 flex-row items-center gap-2 rounded-full border border-line px-4"
           >
-            <Share2 size={15} color={C.ink} />
-            <Text className="text-[14px] text-ink">공유하기</Text>
+            <Share2 size={ICON.sm} color={C.ink} />
+            <Text className="text-subhead text-ink">공유하기</Text>
           </Pressable>
           <Pressable
             onPress={() => {
@@ -102,8 +106,8 @@ function FileOptions({ m, open, onClose }: { m: Material; open: boolean; onClose
             }}
             className="h-11 flex-row items-center gap-2 rounded-full border border-line px-4"
           >
-            <Trash2 size={15} color={C.danger} />
-            <Text className="text-[14px] text-danger">삭제하기</Text>
+            <Trash2 size={ICON.sm} color={C.danger} />
+            <Text className="text-subhead text-danger">삭제하기</Text>
           </Pressable>
         </View>
         <Btn kind="cream" className="mt-5" onPress={onClose}>
@@ -111,8 +115,8 @@ function FileOptions({ m, open, onClose }: { m: Material; open: boolean; onClose
         </Btn>
       </Sheet>
       <Dialog open={stage === 'confirm'} onClose={() => setStage(null)}>
-        <Text className="text-[16px] font-bold text-ink">삭제하시겠습니까?</Text>
-        <Text className="mt-1 text-[12px] text-sub">삭제한 자료는 복구할 수 없어요</Text>
+        <Text className="text-body font-bold text-ink">삭제하시겠습니까?</Text>
+        <Text className="mt-1 text-caption text-sub">삭제한 자료는 복구할 수 없어요</Text>
         <View className="mt-5 w-full">
           <Two>
             <Btn small kind="outline" onPress={() => setStage(null)}>
@@ -126,15 +130,15 @@ function FileOptions({ m, open, onClose }: { m: Material; open: boolean; onClose
       </Dialog>
       <Dialog open={stage === 'deleting'}>
         <Pie value={70} size={44} color={C.danger} />
-        <Text className="mt-3 text-[15px] font-bold text-ink">삭제하고 있어요...</Text>
-        <Text className="text-[12px] text-sub">잠시만 기다려주세요</Text>
+        <Text className="mt-3 text-callout font-bold text-ink">삭제하고 있어요...</Text>
+        <Text className="text-caption text-sub">잠시만 기다려주세요</Text>
       </Dialog>
       <Dialog open={stage === 'done'}>
         <View className="h-12 w-12 items-center justify-center rounded-full bg-mint">
-          <Text className="text-[22px] text-brand">✓</Text>
+          <Check size={ICON.lg} color={C.brand} />
         </View>
-        <Text className="mt-3 text-[15px] font-bold text-ink">삭제가 완료됐어요</Text>
-        <Text className="text-[12px] text-sub">{m.title} 파일이 삭제됐어요</Text>
+        <Text className="mt-3 text-callout font-bold text-ink">삭제가 완료됐어요</Text>
+        <Text className="text-caption text-sub">{m.title} 파일이 삭제됐어요</Text>
         <Btn small className="mt-4 w-full" onPress={finish}>
           확인
         </Btn>
@@ -149,7 +153,7 @@ const More = ({ onPress }: { onPress: () => void }) => (
     onPress={onPress}
     className="h-9 w-9 items-center justify-center rounded-full border border-line"
   >
-    <MoreHorizontal size={18} color={C.ink} />
+    <MoreHorizontal size={ICON.md} color={C.ink} />
   </Pressable>
 );
 const dateLabel = (m: Material, kind: string) =>
@@ -190,13 +194,13 @@ export function HandDetailScreen() {
             <NoteBody sections={m.summary?.sections ?? []} />
           ) : (
             <View className="rounded-2xl bg-cream p-3">
-              <View className="aspect-[4/3] items-center justify-center rounded-xl bg-[#dcdcd6]">
-                <Text className="text-[34px]">🖼</Text>
+              <View className="aspect-[4/3] items-center justify-center rounded-xl bg-cream-2">
+                <Image size={ICON.xl} color={C.brand} />
               </View>
-              <Text className="mt-2 text-[13px] font-semibold text-ink">
+              <Text className="mt-2 text-footnote font-semibold text-ink">
                 {m.title.replace(' ', '_')}
               </Text>
-              <Text className="text-[11px] text-sub">1600 × 2133 · 3.1MB</Text>
+              <Text className="text-caption2 text-sub">1600 × 2133 · 3.1MB</Text>
             </View>
           )}
         </View>
@@ -211,7 +215,7 @@ export function HandDetailScreen() {
 const Toolbar = () => (
   <View className="flex-row items-center justify-center gap-6 rounded-xl border border-line py-2.5">
     {[Bold, Heading1, List, ImageIcon, Link2].map((I, i) => (
-      <I key={i} size={16} color={C.ink} />
+      <I key={i} size={ICON.sm} color={C.ink} />
     ))}
   </View>
 );
@@ -286,7 +290,7 @@ export function EditScreen() {
             )}
           >
             <Text
-              className={cx('text-[13px] font-semibold', editing ? 'text-white' : 'text-brand')}
+              className={cx('text-footnote font-semibold', editing ? 'text-white' : 'text-brand')}
             >
               저장
             </Text>
@@ -294,12 +298,12 @@ export function EditScreen() {
         }
       />
       <View className="-mt-2 mb-3 flex-row items-center gap-1">
-        <Text className="text-[11px] text-sub">필기 · 업로드 · 수정 중</Text>
+        <Text className="text-caption2 text-sub">필기 · 업로드 · 수정 중</Text>
         {editing && <Badge tone="danger">● 편집 중</Badge>}
       </View>
       <View className="relative rounded-2xl border-2 border-brand/30 bg-cream p-4">
         <View className="absolute top-3 right-3 h-6 w-6 items-center justify-center rounded-full bg-blue">
-          <Pencil size={12} color="#fff" />
+          <Pencil size={ICON.xs} color="#fff" />
         </View>
         <TextInput
           accessibilityLabel="노트 내용"
@@ -308,7 +312,7 @@ export function EditScreen() {
           onChangeText={setText}
           onFocus={() => setEditing(true)}
           onBlur={() => setEditing(false)}
-          className="min-h-56 text-[13px] leading-5 text-ink"
+          className="min-h-56 text-footnote leading-5 text-ink"
           style={{ textAlignVertical: 'top' }}
         />
       </View>
@@ -316,7 +320,7 @@ export function EditScreen() {
         onPress={() => setText((s) => `${s}\n\n4. 새 섹션\n내용을 입력하세요`)}
         className="mt-3 self-start rounded-full border border-brand/40 px-3 py-1"
       >
-        <Text className="text-[12px] text-brand">+ 섹션 추가</Text>
+        <Text className="text-caption text-brand">+ 섹션 추가</Text>
       </Pressable>
       <Label>과목</Label>
       <View className="flex-row items-center gap-2">
@@ -355,7 +359,7 @@ export function RecDetailScreen() {
         />
         <View className="-mt-2 mb-3 flex-row items-center gap-2">
           <Badge>화학</Badge>
-          <Text className="text-[12px] text-sub">이온화 에너지와 원자 반지름</Text>
+          <Text className="text-caption text-sub">이온화 에너지와 원자 반지름</Text>
         </View>
         <Player
           materialId={id}
@@ -421,12 +425,12 @@ export function DocDetailScreen() {
           </>
         ) : (
           <>
-            <Text className="mt-3 text-[12px] text-sub">{page + 1} / 3 페이지</Text>
+            <Text className="mt-3 text-caption text-sub">{page + 1} / 3 페이지</Text>
             <Pressable
               onPress={() => setPage((p) => (p + 1) % 3)}
               className="mt-2 rounded-xl border border-line p-4"
             >
-              <Text className="text-[13px] font-bold text-ink">
+              <Text className="text-footnote font-bold text-ink">
                 {['이차방정식 연습문제', '연습문제 풀이', '정답과 해설'][page]}
               </Text>
               {[90, 70, 85, 50, 0, 95, 80, 60, 85, 40, 0, 90, 70].map((w, i) =>
@@ -469,11 +473,14 @@ export function DownloadedScreen() {
         card={
           <Card className="flex-row items-center gap-3 p-3">
             <View className="h-10 w-10 items-center justify-center rounded-lg bg-mint">
-              <FileText size={16} color={C.sub} />
+              <FileText size={ICON.sm} color={C.sub} />
             </View>
             <View>
-              <Text className="text-[14px] font-semibold text-ink">{name}</Text>
-              <Text className="text-[11px] text-sub">📁 다운로드 폴더에 저장됨</Text>
+              <Text className="text-subhead font-semibold text-ink">{name}</Text>
+              <View className="flex-row items-center gap-1.5">
+                <Folder size={ICON.xs} color={C.sub} />
+                <Text className="text-caption2 text-sub">다운로드 폴더에 저장됨</Text>
+              </View>
             </View>
           </Card>
         }
@@ -549,7 +556,9 @@ export function ShareScreen() {
       <Segment items={Object.keys(TABS) as (keyof typeof TABS)[]} value={tab} onChange={setTab} />
       <View className="mt-3 gap-2">
         {list.length === 0 && (
-          <Text className="py-6 text-center text-[13px] text-sub">공유할 {tab} 자료가 없어요</Text>
+          <Text className="py-6 text-center text-footnote text-sub">
+            공유할 {tab} 자료가 없어요
+          </Text>
         )}
         {list.map((m) => {
           const on = sel.includes(m._id);
@@ -565,9 +574,9 @@ export function ShareScreen() {
                   on ? 'border-brand bg-brand' : 'border-cream-2 bg-white',
                 )}
               >
-                {on && <Check size={12} color="#fff" />}
+                {on && <Check size={ICON.xs} color="#fff" />}
               </View>
-              <Text className="text-[14px] text-ink">{m.title}</Text>
+              <Text className="text-subhead text-ink">{m.title}</Text>
             </Pressable>
           );
         })}
@@ -577,7 +586,10 @@ export function ShareScreen() {
         onPress={() => setPick(true)}
         className="h-10 flex-row items-center self-start rounded-full border border-line px-4"
       >
-        <Text className="text-[13px] text-ink">👥 {to?.name ?? '공유 대상을 선택해주세요'} ⌄</Text>
+        <View className="flex-row items-center gap-1.5">
+          <Users size={ICON.xs} color={C.brand} />
+          <Text className="text-footnote text-ink">{to?.name ?? '공유 대상을 선택해주세요'} ⌄</Text>
+        </View>
       </Pressable>
       <Sheet open={pick} onClose={() => setPick(false)} title="공유 대상">
         <Group>
@@ -588,7 +600,9 @@ export function ShareScreen() {
                 setTo(x);
                 setPick(false);
               }}
-              right={to?.id === x.id && to?.type === x.type && <Check size={16} color={C.brand} />}
+              right={
+                to?.id === x.id && to?.type === x.type && <Check size={ICON.sm} color={C.brand} />
+              }
             >
               {x.name}
             </Row>
@@ -611,7 +625,7 @@ export function SharedScreen() {
       footer={
         <>
           <Pressable onPress={() => toast('공유 내역: 오늘 3건')} className="mb-2">
-            <Text className="text-center text-[12px] text-sub underline">공유 내역 보기</Text>
+            <Text className="text-center text-caption text-sub underline">공유 내역 보기</Text>
           </Pressable>
           <Btn onPress={() => router.back()}>확인</Btn>
         </>
@@ -623,11 +637,14 @@ export function SharedScreen() {
         card={
           <Card className="flex-row items-center gap-3 p-3">
             <View className="h-10 w-10 items-center justify-center rounded-lg bg-mint">
-              <FileText size={16} color={C.sub} />
+              <FileText size={ICON.sm} color={C.sub} />
             </View>
             <View>
-              <Text className="text-[14px] font-semibold text-ink">{name}</Text>
-              <Text className="text-[11px] text-sub">👥 {to}으로 전송됨</Text>
+              <Text className="text-subhead font-semibold text-ink">{name}</Text>
+              <View className="flex-row items-center gap-1.5">
+                <Users size={ICON.xs} color={C.sub} />
+                <Text className="text-caption2 text-sub">{to}으로 전송됨</Text>
+              </View>
             </View>
           </Card>
         }

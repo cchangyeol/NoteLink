@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
+import { Text } from '@/components/text';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -10,11 +11,11 @@ import Animated, {
 import { useQuery } from '@tanstack/react-query';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
-import { Bookmark, Pause, Play, Repeat } from 'lucide-react-native';
+import { Bookmark, Pause, Play, Repeat, Sparkles } from 'lucide-react-native';
 import { api } from '@/lib/api';
 import { toast } from '@/stores/toast';
 import { Chip, Sheet, cx } from '@/components/ui';
-import { C } from '@/theme';
+import { C, ICON } from '@/theme';
 
 // p.66 #22 · p.69 녹음 요약 재생 · 아바타 립싱크 · 북마크 · 원문 텍스트
 
@@ -138,16 +139,16 @@ export function Player({
         {view === 'summary' ? (
           <>
             <View className="relative rounded-2xl bg-white/5 p-4">
-              <Text className="text-[11px] text-white/50">
+              <Text className="text-caption2 text-white/50">
                 슬라이드 {(slide?.index ?? 2) + 1} / {rec.data?.slides.length ?? 8}
               </Text>
-              <Text className="mt-1 text-[15px] font-bold text-white">
+              <Text className="mt-1 text-callout font-bold text-white">
                 {slide?.title ?? '이온화 에너지 주기적 경향성'}
               </Text>
               <View className="mt-2 flex-row items-end justify-between">
                 <View className="gap-0.5">
                   {(slide?.bullets ?? []).map((b) => (
-                    <Text key={b} className="text-[11px] text-white/60">
+                    <Text key={b} className="text-caption2 text-white/60">
                       • {b}
                     </Text>
                   ))}
@@ -161,8 +162,13 @@ export function Player({
               <LipSyncAvatar playing={p.playing} />
             </View>
             <View className="mt-8 rounded-lg border border-white/10 p-3">
-              <Text className="text-[11px] font-semibold text-white">🎭 아바타 립싱크 재생 중</Text>
-              <Text className="mt-1 text-[12px] leading-5 text-white/50">
+              <View className="flex-row items-center gap-1.5">
+                <Sparkles size={ICON.xs} color={'#fff'} />
+                <Text className="text-caption2 font-semibold text-white">
+                  아바타 립싱크 재생 중
+                </Text>
+              </View>
+              <Text className="mt-1 text-caption leading-5 text-white/50">
                 {segs.map((s, i) => (
                   <Text key={i} className={cx(i === cap && 'font-bold text-white')}>
                     {s.text}{' '}
@@ -173,8 +179,8 @@ export function Player({
           </>
         ) : (
           <ScrollView className="max-h-64 p-3" nestedScrollEnabled>
-            <Text className="text-[13px] font-bold text-white">전체 대본</Text>
-            <Text className="mt-2 text-[12px] leading-5 text-white/80">
+            <Text className="text-footnote font-bold text-white">전체 대본</Text>
+            <Text className="mt-2 text-caption leading-5 text-white/80">
               {rec.data?.transcript.text}
             </Text>
           </ScrollView>
@@ -204,14 +210,14 @@ export function Player({
           />
         </Pressable>
         <View className="flex-row items-center justify-between px-1">
-          <Text className="font-mono text-[11px] text-white/60">
+          <Text className="tabular-nums text-caption2 text-white/60">
             {mmss(p.pos)} / {mmss(duration)}
           </Text>
           <Pressable
             onPress={() => p.setRate(SPEEDS[(SPEEDS.indexOf(p.rate) + 1) % SPEEDS.length] ?? 1)}
             className="rounded-full bg-white/15 px-2 py-0.5"
           >
-            <Text className="text-[11px] font-semibold text-white">{p.rate}x 배속</Text>
+            <Text className="text-caption2 font-semibold text-white">{p.rate}x 배속</Text>
           </Pressable>
         </View>
         <View className="mt-2 flex-row items-center justify-center gap-3 pb-1">
@@ -220,28 +226,32 @@ export function Player({
             onPress={addMark}
             className="h-10 w-10 items-center justify-center rounded-full bg-white"
           >
-            <Bookmark size={16} color={C.danger} />
+            <Bookmark size={ICON.sm} color={C.danger} />
           </Pressable>
           <Pressable
             accessibilityLabel="5초 뒤로"
             onPress={() => p.seek(p.pos - 5)}
             className="h-10 w-10 items-center justify-center rounded-full bg-white/10"
           >
-            <Text className="text-[11px] font-bold text-white">◀5</Text>
+            <Text className="text-caption2 font-bold text-white">◀5</Text>
           </Pressable>
           <Pressable
             accessibilityLabel={p.playing ? '일시정지' : '재생'}
             onPress={p.toggle}
             className="h-14 w-14 items-center justify-center rounded-full bg-white"
           >
-            {p.playing ? <Pause size={22} color={C.ink} /> : <Play size={22} color={C.ink} />}
+            {p.playing ? (
+              <Pause size={ICON.lg} color={C.ink} />
+            ) : (
+              <Play size={ICON.lg} color={C.ink} />
+            )}
           </Pressable>
           <Pressable
             accessibilityLabel="5초 앞으로"
             onPress={() => p.seek(p.pos + 5)}
             className="h-10 w-10 items-center justify-center rounded-full bg-white/10"
           >
-            <Text className="text-[11px] font-bold text-white">5▶</Text>
+            <Text className="text-caption2 font-bold text-white">5▶</Text>
           </Pressable>
           <Pressable
             accessibilityLabel="구간 반복"
@@ -251,15 +261,15 @@ export function Player({
               p.loop ? 'bg-sun' : 'bg-brand',
             )}
           >
-            <Repeat size={16} color={p.loop ? C.ink : '#fff'} />
+            <Repeat size={ICON.sm} color={p.loop ? C.ink : '#fff'} />
           </Pressable>
         </View>
       </View>
       <View className="mt-3 flex-row gap-2">
         <Chip small onPress={() => setView((v) => (v === 'summary' ? 'text' : 'summary'))}>
-          {view === 'summary' ? '📝 원문 텍스트 보기' : '요약 보기'}
+          {view === 'summary' ? '원문 텍스트 보기' : '요약 보기'}
         </Chip>
-        <Chip small onPress={() => setSheet(true)}>{`🔖 북마크 모음 (${marks.length})`}</Chip>
+        <Chip small onPress={() => setSheet(true)}>{`북마크 모음 (${marks.length})`}</Chip>
       </View>
       <Sheet open={sheet} onClose={() => setSheet(false)} title="북마크 모음">
         <View className="gap-2">
@@ -273,8 +283,8 @@ export function Player({
               className="flex-row items-center gap-3 rounded-xl border border-line px-4 py-3"
             >
               <View className="h-3 w-3 rounded-sm bg-brand" />
-              <Text className="flex-1 font-mono text-[13px] text-ink">{hhmmss(m)}</Text>
-              <Text className="text-[11px] text-sub">구간 {i + 1}</Text>
+              <Text className="flex-1 tabular-nums text-footnote text-ink">{hhmmss(m)}</Text>
+              <Text className="text-caption2 text-sub">구간 {i + 1}</Text>
             </Pressable>
           ))}
         </View>

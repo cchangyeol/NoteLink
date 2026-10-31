@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -253,15 +253,29 @@ export function QuizGenScreen() {
   const [job, setJob] = useState<AiJob | null>(null);
   const [setId, setSetId] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
+  const canceled = useRef(false);
+  const activeJob = useRef<string | null>(null);
   useEffect(() => {
+    let disposed = false;
+    canceled.current = false;
     api.quiz
       .createSet(materialId)
       .then((r) => {
+        if (disposed || canceled.current) {
+          api.ai.cancel(r.job._id).catch(() => toast('생성 취소를 확인하지 못했어요'));
+          return;
+        }
+        activeJob.current = r.job._id;
         setJob(r.job);
         setSetId(r.quizSet._id);
         socket.emit('ai:subscribe', { jobId: r.job._id });
       })
-      .catch((e) => setFailed(e instanceof ApiError ? e.code : 'NETWORK'));
+      .catch((e) => {
+        if (!disposed && !canceled.current) setFailed(e instanceof ApiError ? e.code : 'NETWORK');
+      });
+    return () => {
+      disposed = true;
+    };
   }, [materialId]);
   useSocket(
     'ai:progress',
@@ -271,7 +285,7 @@ export function QuizGenScreen() {
   useSocket(
     'ai:done',
     ({ jobId, job: done }) => {
-      if (jobId !== job?._id) return;
+      if (canceled.current || jobId !== job?._id) return;
       qc.invalidateQueries({ queryKey: ['quiz-sets'] });
       if (done.status === 'succeeded')
         router.replace({ pathname: '/play/ready', params: { setId: setId!, title } });
@@ -287,7 +301,11 @@ export function QuizGenScreen() {
         <View className="items-end pt-3">
           <Pressable
             onPress={() => {
-              if (job) api.ai.cancel(job._id);
+              canceled.current = true;
+              if (activeJob.current)
+                api.ai
+                  .cancel(activeJob.current)
+                  .catch(() => toast('생성 취소를 확인하지 못했어요'));
               router.back();
             }}
             className="rounded-full border border-danger/30 px-3 py-1"
@@ -377,6 +395,10 @@ export function QuizSolveScreen() {
     queryFn: () => api.quiz.set(setId ?? ''),
   });
   const [attemptId, setAttemptId] = useState<string | null>(null);
+  const [startError, setStartError] = useState(false);
+  const [answerText, setAnswerText] = useState('');
+  const answering = useRef(false);
+  const [startRound, setStartRound] = useState(0);
   const [i, setI] = useState(0);
   const [pick, setPick] = useState<string | null>(null);
   const [right, setRight] = useState<boolean | null>(null);
@@ -403,8 +425,20 @@ export function QuizSolveScreen() {
     },
   });
   useEffect(() => {
-    if (set.data) api.quiz.startAttempt(set.data._id).then((a) => setAttemptId(a._id));
-  }, [set.data?._id]); // eslint-disable-line react-hooks/exhaustive-deps
+    let active = true;
+    if (set.data)
+      api.quiz
+        .startAttempt(set.data._id)
+        .then((a) => {
+          if (active) setAttemptId(a._id);
+        })
+        .catch(() => {
+          if (active) setStartError(true);
+        });
+    return () => {
+      active = false;
+    };
+  }, [set.data?._id, startRound]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(
     () => () => {
       Speech.stop();
@@ -428,7 +462,8 @@ export function QuizSolveScreen() {
     });
   };
   const choose = async (c: string) => {
-    if (pick || !attemptId) return;
+    if (answering.current || pick || !attemptId || !c.trim()) return;
+    answering.current = true;
     setPick(c);
     try {
       const r = await api.quiz.answer(attemptId, q._id, c);
@@ -444,6 +479,9 @@ export function QuizSolveScreen() {
       if (e instanceof ApiError && e.code === ERROR_CODES.TOKEN_EXPIRED)
         useAuth.getState().setExpired(true);
       setPick(null);
+      toast('답안을 저장하지 못했어요. 다시 시도해주세요');
+    } finally {
+      answering.current = false;
     }
   };
   const next = () => {
@@ -455,6 +493,7 @@ export function QuizSolveScreen() {
       return;
     }
     setI((x) => x + 1);
+    setAnswerText('');
     setPick(null);
     setRight(null);
   };
@@ -489,6 +528,19 @@ export function QuizSolveScreen() {
           )
         }
       >
+        {startError && (
+          <View className="gap-2 py-3">
+            <Text>퀴즈를 시작하지 못했어요</Text>
+            <Btn
+              onPress={() => {
+                setStartError(false);
+                setStartRound((n) => n + 1);
+              }}
+            >
+              다시 시작
+            </Btn>
+          </View>
+        )}
         {from === 'room' && (
           <Pressable onPress={() => router.back()} className="mt-3 flex-row items-center gap-2">
             <ArrowLeft size={16} color={C.ink} />
@@ -505,6 +557,23 @@ export function QuizSolveScreen() {
           <Animated.View entering={FadeIn}>
             <Text className="mt-5 text-[15px] leading-6 font-bold text-ink">{q.prompt}</Text>
             <View className="mt-4 gap-2.5">
+              {(!q.choices || q.choices.length === 0) && (
+                <>
+                  <TextInput
+                    value={answerText}
+                    onChangeText={setAnswerText}
+                    placeholder="답을 입력해주세요"
+                    editable={!!attemptId && pick === null}
+                    className="rounded-xl border border-line p-3"
+                  />
+                  <Btn
+                    disabled={!attemptId || !answerText.trim() || pick !== null}
+                    onPress={() => choose(answerText.trim())}
+                  >
+                    답 제출
+                  </Btn>
+                </>
+              )}
               {(q.choices ?? []).map((c, n) => (
                 <Pressable
                   key={c}
@@ -714,10 +783,17 @@ export function QuizSimilarScreen() {
   });
   const [open, setOpen] = useState<string[]>([]);
   const [saved, setSaved] = useState<string[]>([]);
+  const saving = useRef(new Set<string>());
+  const [pendingIds, setPendingIds] = useState<string[]>([]);
   const qc = useQueryClient();
   const save = useMutation({
     mutationFn: (q: Question) =>
       api.quiz.saveFlashcard({ front: q.prompt, back: q.answer, sourceQuestionId: q._id }),
+    onError: () => toast('카드를 저장하지 못했어요. 다시 시도해주세요'),
+    onSettled: (_, __, q) => {
+      saving.current.delete(q._id);
+      setPendingIds([...saving.current]);
+    },
     onSuccess: (_, q) => {
       setSaved((p) => [...p, q._id]);
       // 플래시 카드 화면을 다시 열면 새 카드가 보이게
@@ -759,8 +835,13 @@ export function QuizSimilarScreen() {
                 </Pressable>
               )}
               <Pressable
-                disabled={saved.includes(q._id)}
-                onPress={() => save.mutate(q)}
+                disabled={saved.includes(q._id) || pendingIds.includes(q._id)}
+                onPress={() => {
+                  if (saving.current.has(q._id) || saved.includes(q._id)) return;
+                  saving.current.add(q._id);
+                  setPendingIds([...saving.current]);
+                  save.mutate(q);
+                }}
                 className="rounded-full bg-mint px-2.5 py-1"
               >
                 <Text className="text-[11px] text-brand">
@@ -778,10 +859,17 @@ export function QuizSimilarScreen() {
 export function FlashScreen() {
   const { i: start } = useLocalSearchParams<{ i?: string }>();
   const cards = useQuery({ queryKey: ['flashcards'], queryFn: api.quiz.flashcards });
-  const [i, setI] = useState(Number(start ?? 0));
+  const [i, setI] = useState(() =>
+    Math.max(0, Number.isFinite(Number(start)) ? Math.floor(Number(start)) : 0),
+  );
   const [back, setBack] = useState(true);
   const list = cards.data ?? [];
-  const c = list[i];
+  const index = Math.max(0, Math.min(i, list.length - 1));
+  if (cards.isSuccess && i !== index) {
+    setI(index);
+    setBack(true);
+  }
+  const c = list[index];
   return (
     <Screen footer={<Btn onPress={() => router.push('/play/cards')}>펼쳐보기</Btn>}>
       <Pressable
@@ -791,6 +879,7 @@ export function FlashScreen() {
         <ArrowLeft size={16} color={C.ink} />
         <Text className="text-[13px] text-ink">뒤로 가기</Text>
       </Pressable>
+      {cards.isSuccess && list.length === 0 && <Text>저장한 플래시카드가 없어요</Text>}
       {c && (
         <View className="-mx-5 mt-10 bg-mint/70 px-8 py-1">
           <Pressable
@@ -820,7 +909,7 @@ export function FlashScreen() {
           <Text className="text-[13px] text-sub">‹ 이전</Text>
         </Pressable>
         <Text className="text-[13px] text-sub">
-          {i + 1} / {list.length}
+          {list.length ? i + 1 : 0} / {list.length}
         </Text>
         <Pressable
           disabled={i >= list.length - 1}

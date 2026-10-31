@@ -126,6 +126,7 @@ def test_same_item() -> None:
         ("위상역전", True),
         ("산소 없이 증식한다", False),  # 한국어 문장
         ("She is clearing the table now", False),  # 다섯 낱말 이상
+        ("", False),  # 빈 글은 답이 아님
     ],
 )
 def test_short_answer(answer: str, expected: bool) -> None:
@@ -153,6 +154,26 @@ def test_tidy_does_not_change_the_input() -> None:
     d = draft(passage="a ( ) b")
     tidy(d)
     assert d["passage"] == "a ( ) b"
+
+
+def test_tidy_keeps_species_names_that_look_like_labels() -> None:
+    opts = ["B. anthracis", "E. coli", "C. difficile", "S. aureus", "N. gonorrhoeae"]
+    assert tidy(draft(options=opts))["options"] == opts
+    labelled = ["A. a1", "B. b1", "(C) c1", "D: d1", "e) e1"]
+    assert tidy(draft(options=labelled))["options"] == ["a1", "b1", "c1", "d1", "e1"]
+
+
+def test_place_with_fewer_options_spreads_over_real_positions() -> None:
+    opts = ["a", "정답", "c", "d"]
+    assert [place(opts, 1, slot)[1] for slot in range(4)] == [0, 1, 2, 3]
+    assert place(opts, 1, 4) == (["정답", "a", "c", "d"], 0)  # D에 몰리지 않음
+
+
+def test_tidy_strips_labels_even_when_one_has_no_space() -> None:
+    opts = ["A. stack", "B. stock", "C.stuck", "D. stick", "E. stark"]
+    assert tidy(draft(options=opts))["options"] == ["stack", "stock", "stuck", "stick", "stark"]
+    # 정답이 기호 붙은 보기를 그대로 옮겼으면 정답의 기호도 뗌
+    assert tidy(draft(options=opts, answer="C.stuck"))["answer"] == "stuck"
 
 
 def test_place_moves_answer_to_slot_position() -> None:

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Image, Pressable, Text, View } from 'react-native';
+import { Image, Pressable, View } from 'react-native';
+import { Text } from '@/components/text';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AiJob } from '@notelink/shared';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, ChevronRight, ImageIcon, Info } from 'lucide-react-native';
+import { Camera, Check, ChevronRight, ImageIcon, Info } from 'lucide-react-native';
 import { api } from '@/lib/api';
 import { uploadToBlob } from '@/lib/upload';
 import { socket } from '@/lib/socket';
@@ -27,7 +28,7 @@ import {
   Sheet,
   cx,
 } from '@/components/ui';
-import { C } from '@/theme';
+import { C, ICON } from '@/theme';
 
 // p.82 프로필 변경 (사진 → AI 서버 아바타 생성) / p.83 아바타 설정
 
@@ -59,25 +60,25 @@ export function PhotoScreen() {
         right={<Avatar name="형" size={28} tone="mint" />}
       />
       <View className="aspect-square items-center justify-center rounded-2xl bg-night">
-        <Text className="absolute top-3 text-[12px] text-white/50">1/2</Text>
+        <Text className="absolute top-3 text-caption text-white/50">1/2</Text>
         <Camera size={40} color="rgba(255,255,255,.5)" />
       </View>
       <View className="mt-4 gap-2">
         <Card tone="mint" onPress={() => go(true)} className="flex-row items-center gap-3 p-4">
-          <Camera size={20} color={C.brand} />
+          <Camera size={ICON.md} color={C.brand} />
           <View className="flex-1">
-            <Text className="text-[14px] font-semibold text-ink">카메라로 프로필 만들기</Text>
-            <Text className="text-[12px] text-sub">카메라로 바로 찍어서 프로필 만들기</Text>
+            <Text className="text-subhead font-semibold text-ink">카메라로 프로필 만들기</Text>
+            <Text className="text-caption text-sub">카메라로 바로 찍어서 프로필 만들기</Text>
           </View>
-          <ChevronRight size={18} color={C.sub} />
+          <ChevronRight size={ICON.md} color={C.sub} />
         </Card>
         <Card tone="mint" onPress={() => go(false)} className="flex-row items-center gap-3 p-4">
-          <ImageIcon size={20} color={C.brand} />
+          <ImageIcon size={ICON.md} color={C.brand} />
           <View className="flex-1">
-            <Text className="text-[14px] font-semibold text-ink">첨부사진으로 프로필 만들기</Text>
-            <Text className="text-[12px] text-sub">첨부사진을 추가하여 프로필 만들기</Text>
+            <Text className="text-subhead font-semibold text-ink">첨부사진으로 프로필 만들기</Text>
+            <Text className="text-caption text-sub">첨부사진을 추가하여 프로필 만들기</Text>
           </View>
-          <ChevronRight size={18} color={C.sub} />
+          <ChevronRight size={ICON.md} color={C.sub} />
         </Card>
       </View>
     </Screen>
@@ -130,13 +131,13 @@ export function PhotoStyleScreen() {
           <Image source={{ uri }} className="h-24 w-24 rounded-full" />
         ) : (
           <View className="h-14 w-14 items-center justify-center rounded-full bg-white/10">
-            <Camera size={24} color="#fff" />
+            <Camera size={ICON.lg} color="#fff" />
           </View>
         )}
-        <Text className="mt-3 text-[14px] font-semibold text-white">
+        <Text className="mt-3 text-subhead font-semibold text-white">
           {uri ? '사진이 준비됐어요' : '첨부 또는 카메라로 찍은 사진'}
         </Text>
-        <Text className="text-[12px] text-white/60">
+        <Text className="text-caption text-white/60">
           {uri ? '눌러서 사진을 바꿀 수 있어요' : '얼굴이 선명하게 보이는 사진을 선택해 주세요'}
         </Text>
       </Card>
@@ -149,22 +150,22 @@ export function PhotoStyleScreen() {
       <Label>생성 프롬프트</Label>
       <Card tone="mint" onPress={() => setOpen(true)} className="flex-row items-center p-4">
         <View className="flex-1">
-          <Text className="text-[14px] font-semibold text-ink">프로필 스타일 선택</Text>
-          <Text className="text-[12px] text-sub">
+          <Text className="text-subhead font-semibold text-ink">프로필 스타일 선택</Text>
+          <Text className="text-caption text-sub">
             {style ?? '원하는 스타일을 추가하여 프로필 만들기'}
           </Text>
         </View>
-        <ChevronRight size={18} color={C.sub} />
+        <ChevronRight size={ICON.md} color={C.sub} />
       </Card>
       <Card tone="white" className="mt-3 p-4">
         <View className="mb-1 flex-row items-center gap-1">
-          <Info size={14} color={C.ink} />
-          <Text className="text-[12px] font-semibold text-ink">생성 안내</Text>
+          <Info size={ICON.xs} color={C.ink} />
+          <Text className="text-caption font-semibold text-ink">생성 안내</Text>
         </View>
-        <Text className="text-[12px] text-sub">
+        <Text className="text-caption text-sub">
           • 사진이 더 선명할수록 프로필 품질이 높아집니다
         </Text>
-        <Text className="text-[12px] text-sub">
+        <Text className="text-caption text-sub">
           • 프롬프트를 자세히 입력하면 원하는 스타일을 더 잘 반영합니다
         </Text>
       </Card>
@@ -177,7 +178,7 @@ export function PhotoStyleScreen() {
                 setStyle(x);
                 setOpen(false);
               }}
-              right={style === x && <Text className="text-brand">✓</Text>}
+              right={style === x && <Check size={ICON.md} color={C.brand} />}
             >
               {x}
             </Row>
@@ -245,14 +246,14 @@ export function PhotoGenScreen() {
             <Avatar name="나" size={64} />
           </View>
         </Ring>
-        <Text className="mt-6 text-[18px] font-bold text-ink">프로필을 만들고 있어요</Text>
-        <Text className="mt-2 text-center text-[13px] text-sub">
+        <Text className="mt-6 text-headline font-bold text-ink">프로필을 만들고 있어요</Text>
+        <Text className="mt-2 text-center text-footnote text-sub">
           잠시만 기다려 주세요.{'\n'}나만의 학습 공간을 준비하고 있어요.
         </Text>
         <View className="mt-4 rounded-full bg-mint px-3 py-1">
-          <Text className="text-[12px] text-brand">● 프로필 정보 설정 중 · {pct}%</Text>
+          <Text className="text-caption text-brand">● 프로필 정보 설정 중 · {pct}%</Text>
         </View>
-        <Text className="mt-16 text-[12px] text-sub">완료되면 자동으로 이동해요</Text>
+        <Text className="mt-16 text-caption text-sub">완료되면 자동으로 이동해요</Text>
       </View>
     </Screen>
   );
@@ -279,17 +280,17 @@ export function AvatarStyleScreen() {
           >
             다음
           </Btn>
-          <Text className="mt-2 text-[11px] text-sub">오늘 남은 생성 횟수 2회</Text>
+          <Text className="mt-2 text-caption2 text-sub">오늘 남은 생성 횟수 2회</Text>
         </>
       }
     >
       <Header
         title="아바타 스타일 선택"
         large={false}
-        right={<Badge tone="gray">🙂 원본 사진</Badge>}
+        right={<Badge tone="gray">원본 사진</Badge>}
       />
       <View className="flex-row items-center justify-between">
-        <Text className="text-[13px] font-semibold text-ink">스타일 비교</Text>
+        <Text className="text-footnote font-semibold text-ink">스타일 비교</Text>
         <Badge>3가지 미리보기</Badge>
       </View>
       <View className="mt-2 gap-3">
@@ -303,11 +304,11 @@ export function AvatarStyleScreen() {
             )}
           >
             <View className="h-28 items-center justify-center" style={{ backgroundColor: s.bg }}>
-              <Text className="text-[64px]">{s.face}</Text>
+              <Text className="text-display-lg">{s.face}</Text>
             </View>
             <View className="px-3 py-2">
-              <Text className="text-[13px] font-semibold text-ink">{s.name}</Text>
-              <Text className="text-[11px] text-sub">{s.sub}</Text>
+              <Text className="text-footnote font-semibold text-ink">{s.name}</Text>
+              <Text className="text-caption2 text-sub">{s.sub}</Text>
             </View>
           </Pressable>
         ))}
@@ -343,14 +344,14 @@ export function AvatarCustomScreen() {
       <Header
         title="아바타 커스터마이징"
         large={false}
-        right={<Badge tone="gray">🙂 원본 사진</Badge>}
+        right={<Badge tone="gray">원본 사진</Badge>}
       />
       <Segment items={['남자', '여자'] as const} value={g} onChange={setG} />
       <View
         className="mt-4 aspect-square items-center justify-center rounded-2xl border border-line"
         style={{ backgroundColor: `${c}22` }}
       >
-        <Text className="text-[120px]">{g === '여자' ? '👩🏽' : '👨🏽'}</Text>
+        <Text className="text-timer-xl">{g === '여자' ? '👩🏽' : '👨🏽'}</Text>
       </View>
       <View className="mt-4 flex-row gap-2 rounded-2xl bg-cream p-2">
         {COLORS.map((x) => (

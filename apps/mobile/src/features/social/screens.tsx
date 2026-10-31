@@ -110,6 +110,7 @@ export function RequestsScreen() {
       qc.invalidateQueries({ queryKey: ['friends'] });
       if (v.ok) toast(`${v.name}님과 친구가 됐어요`);
     },
+    onError: () => toast('친구 요청 처리에 실패했어요. 다시 시도해주세요'),
   });
   return (
     <Screen>
@@ -168,22 +169,24 @@ export function ChatScreen() {
   const room = useQuery({ queryKey: ['dm', id], queryFn: () => api.social.openDirect(id) });
   const history = useQuery({
     queryKey: ['messages', room.data?._id],
-    queryFn: () => api.social.messages(room.data!._id),
+    queryFn: async () => {
+      const roomId = room.data!._id;
+      const fetched = await api.social.messages(roomId);
+      const cached = qc.getQueryData<Message[]>(['messages', roomId]) ?? [];
+      return [...new Map([...fetched, ...cached].map((m) => [m._id, m])).values()];
+    },
     enabled: !!room.data,
   });
-  const [msgs, setMsgs] = useState<Message[]>([]);
   const [v, setV] = useState('');
   const [menu, setMenu] = useState(false);
   const [del, setDel] = useState(false);
   const list = useRef<FlatList<Message>>(null);
-  // 대화 기록을 불러오면 목록을 채운다 (렌더 중 상태 조정)
-  const [loaded, setLoaded] = useState<typeof history.data>();
-  if (history.data && history.data !== loaded) {
-    setLoaded(history.data);
-    setMsgs(history.data);
-  }
-  const receiveMessage = (m: Message) =>
-    setMsgs((p) => (p.some((x) => x._id === m._id) ? p : [...p, m]));
+  const receiveMessage = (m: Message) => {
+    if (m.chatRoomId !== room.data?._id) return;
+    qc.setQueryData<Message[]>(['messages', m.chatRoomId], (previous = []) =>
+      previous.some((x) => x._id === m._id) ? previous : [...previous, m],
+    );
+  };
   useSocket('chat:message', (m) => m.chatRoomId === room.data?._id && receiveMessage(m), [
     room.data?._id,
   ]);
@@ -205,6 +208,7 @@ export function ChatScreen() {
       router.back();
       toast(`${name}님을 친구에서 삭제했어요`);
     },
+    onError: () => toast('친구 삭제에 실패했어요. 다시 시도해주세요'),
   });
 
   return (
@@ -243,7 +247,7 @@ export function ChatScreen() {
       </View>
       <FlatList
         ref={list}
-        data={msgs}
+        data={history.data ?? []}
         keyExtractor={(m) => m._id}
         onContentSizeChange={() => list.current?.scrollToEnd({ animated: true })}
         contentContainerClassName="gap-3 pb-4"
@@ -267,14 +271,7 @@ export function ChatScreen() {
       />
       <Sheet open={menu} onClose={() => setMenu(false)}>
         <Group>
-          <Row
-            onPress={() => {
-              setMenu(false);
-              toast('알림을 껐어요');
-            }}
-          >
-            알림 끄기
-          </Row>
+          <Row>알림 설정 준비 중</Row>
           <Row
             danger
             onPress={() => {

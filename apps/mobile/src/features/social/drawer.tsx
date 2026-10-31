@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, Pressable, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import Animated, { SlideInRight } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -9,6 +9,7 @@ import type { User } from '@notelink/shared';
 import { api } from '@/lib/api';
 import { Avatar, Btn, Sheet, cx } from '@/components/ui';
 import { C } from '@/theme';
+import { toast } from '@/stores/toast';
 
 // p.53 #18 소셜 드로어 / p.55 #24 내 상태 변경
 
@@ -91,7 +92,7 @@ export function SocialDrawer({ open, onClose }: { open: boolean; onClose: () => 
             <ChevronRight size={16} color={C.sub} />
           </Pressable>
           <Text className="mt-4 mb-2 text-[12px] text-sub">친구 {friends.data?.length ?? 0}</Text>
-          <View className="gap-2">
+          <ScrollView className="flex-1" contentContainerClassName="gap-2 pb-6">
             {friends.data?.map((f) => (
               <Pressable
                 key={f._id}
@@ -111,7 +112,7 @@ export function SocialDrawer({ open, onClose }: { open: boolean; onClose: () => 
                 <MoreHorizontal size={16} color={C.sub} />
               </Pressable>
             ))}
-          </View>
+          </ScrollView>
         </Animated.View>
         <StatusSheet
           open={statusOpen}
@@ -139,6 +140,7 @@ function StatusSheet({
       qc.invalidateQueries({ queryKey: ['me'] });
       onClose();
     },
+    onError: () => toast('상태 변경에 실패했어요. 다시 시도해주세요'),
   });
   return (
     <Sheet open={open} onClose={onClose} title="상태 변경">

@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { RepeatGoalScreen, validYmd } from '../features/progress/goals';
 import { TimetableScreen } from '../features/calendar/screens';
 import { api } from '../lib/api';
@@ -61,5 +61,18 @@ describe('시간표 공유', () => {
         expect.objectContaining({ friendIds: [friends[0]!.userId] }),
       ),
     );
+  });
+});
+
+describe('시간표 시간 검증', () => {
+  it('존재하지 않는 시각이면 수업을 저장하지 않는다', async () => {
+    const add = jest.spyOn(api.timetable, 'addClass');
+    await renderScreen(<TimetableScreen />);
+    await fireEvent.press(await screen.findByText('+ 수업 추가'));
+    await fireEvent.changeText(screen.getByDisplayValue('10:00'), '25:70');
+    await fireEvent.changeText(screen.getByDisplayValue('11:30'), '99:99');
+    await fireEvent.press(screen.getByText('추가하기'));
+    await act(async () => {});
+    expect(add).not.toHaveBeenCalled();
   });
 });

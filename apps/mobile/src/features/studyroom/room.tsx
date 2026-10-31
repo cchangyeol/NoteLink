@@ -302,7 +302,8 @@ export function RoomScreen() {
   const [chat, setChat] = useState(false);
   const [conn, setConn] = useState<'ok' | 'lost' | 'back' | 'kicked'>('ok');
   const [v, setV] = useState('');
-  const pending = useRef<string[]>([]);
+  const pending = useRef<{ clientId: string; text: string }[]>([]);
+  const messageSeq = useRef(0);
   const list = useRef<FlatList<Message>>(null);
 
   // 방 정보 · 대화 기록을 불러오면 목록을 채운다 (렌더 중 상태 조정)
@@ -317,13 +318,22 @@ export function RoomScreen() {
   const [loadedMsgs, setLoadedMsgs] = useState<typeof history.data>();
   if (history.data && history.data !== loadedMsgs) {
     setLoadedMsgs(history.data);
-    setMsgs(history.data);
+    setMsgs((current) => [
+      ...new Map([...history.data!, ...current].map((m) => [m._id, m])).values(),
+    ]);
   }
+  const receiveMessage = (m: Message, clientId?: string) =>
+    setMsgs((messages) => {
+      const confirmed = clientId ? messages.filter((x) => x._id !== clientId) : messages;
+      return confirmed.some((x) => x._id === m._id) ? confirmed : [...confirmed, m];
+    });
   useEffect(() => {
     socket.emit(
       'room:join',
       { roomId: id },
-      (r) => r.missed && setMsgs((p) => [...p, ...r.missed!]),
+      (r) =>
+        r.missed &&
+        setMsgs((p) => [...new Map([...p, ...r.missed!].map((m) => [m._id, m])).values()]),
     );
     return () => socket.emit('room:leave', { roomId: id });
   }, [id]);
@@ -339,13 +349,9 @@ export function RoomScreen() {
       ),
     [id],
   );
-  useSocket(
-    'chat:message',
-    (m) =>
-      m.chatRoomId === chatId.data &&
-      setMsgs((p) => (p.some((x) => x._id === m._id) ? p : [...p, m])),
-    [chatId.data],
-  );
+  useSocket('chat:message', (m) => m.chatRoomId === chatId.data && receiveMessage(m), [
+    chatId.data,
+  ]);
 
   // p.100 연결 끊김 시나리오: 끊김 → (재연결 | 5분 넘으면 자동 퇴장). 목업에서는 설정 > 예외 시나리오로 켠다
   // 실제 소켓이 끊기면 useNet이 'unstable' · 'offline'이 된다. 목업 스위치도 같은 경로로 들어온다
@@ -364,11 +370,17 @@ export function RoomScreen() {
   // 다시 연결되면 끊긴 동안 쓴 메시지를 보내고 잠시 뒤 안내를 닫는다
   useEffect(() => {
     if (conn !== 'back') return;
+    socket.emit('room:join', { roomId: id }, (r) => {
+      if (r.missed)
+        setMsgs((p) => [...new Map([...p, ...r.missed!].map((m) => [m._id, m])).values()]);
+    });
+    room.refetch();
+    history.refetch();
     const roomId = chatId.data;
     if (roomId)
-      pending.current.forEach((t) =>
-        socket.emit('chat:send', { chatRoomId: roomId, text: t, clientId: `c${Date.now()}` }, (m) =>
-          setMsgs((p) => [...p, m]),
+      pending.current.forEach(({ clientId, text }) =>
+        socket.emit('chat:send', { chatRoomId: roomId, text, clientId }, (m) =>
+          receiveMessage(m, clientId),
         ),
       );
     pending.current = [];
@@ -390,12 +402,13 @@ export function RoomScreen() {
 
   const send = () => {
     if (!v.trim() || !chatId.data) return;
+    const clientId = `c${Date.now()}-${++messageSeq.current}`;
     if (conn === 'lost') {
-      pending.current.push(v.trim());
+      pending.current.push({ clientId, text: v.trim() });
       setMsgs((p) => [
         ...p,
         {
-          _id: `p${Date.now()}`,
+          _id: clientId,
           chatRoomId: chatId.data!,
           senderId: myId ?? '',
           type: 'text',
@@ -405,10 +418,8 @@ export function RoomScreen() {
         },
       ]);
     } else
-      socket.emit(
-        'chat:send',
-        { chatRoomId: chatId.data, text: v.trim(), clientId: `c${Date.now()}` },
-        (m) => setMsgs((p) => [...p, m]),
+      socket.emit('chat:send', { chatRoomId: chatId.data, text: v.trim(), clientId }, (m) =>
+        receiveMessage(m),
       );
     setV('');
   };
@@ -433,7 +444,9 @@ export function RoomScreen() {
       {conn === 'back' && (
         <View className="mx-4 mt-2 rounded-xl bg-ink px-4 py-2.5">
           <Text className="text-caption font-bold text-white">다시 연결됐어요</Text>
-          <Text className="text-caption text-white/60">멤버 상태를 최신으로 맞췄어요</Text>
+          <Text className="text-caption text-white/60">
+            멤버와 대화 기록을 다시 확인하고 있어요
+          </Text>
         </View>
       )}
       {!chat && (

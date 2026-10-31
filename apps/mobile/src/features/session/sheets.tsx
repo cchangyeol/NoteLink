@@ -135,6 +135,10 @@ export function WeekGoalSheet({ open, onClose }: { open: boolean; onClose: () =>
   const qc = useQueryClient();
   const goal = useQuery({ queryKey: ['goal', 'weekly'], queryFn: api.study.weeklyGoal });
   const [h, setH] = useState(21);
+  const [manual, setManual] = useState(false);
+  const [inputH, setInputH] = useState('21');
+  const hours = manual ? Number(inputH) : h;
+  const valid = Number.isFinite(hours) && hours >= 1 && hours <= 168 && Number.isInteger(hours * 2);
   const [alarm, setAlarm] = useState(true);
   // 저장된 목표를 처음 불러왔을 때만 입력값을 채운다 — 재조회가 입력을 덮어쓰지 않게 (렌더 중 상태 조정)
   const [loaded, setLoaded] = useState(false);
@@ -144,11 +148,15 @@ export function WeekGoalSheet({ open, onClose }: { open: boolean; onClose: () =>
     setAlarm(goal.data.notify80);
   }
   const save = useMutation({
-    mutationFn: () => api.study.setWeeklyGoal({ targetMin: h * 60, notify80: alarm }),
+    mutationFn: () => {
+      if (!valid) throw new Error('목표 범위를 확인해주세요');
+      return api.study.setWeeklyGoal({ targetMin: hours * 60, notify80: alarm });
+    },
+    onError: () => toast('목표를 저장하지 못했어요. 다시 시도해주세요'),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['goal'] });
       onClose();
-      toast(`이번주 목표를 ${h}시간으로 정했어요`);
+      toast(`이번주 목표를 ${hours}시간으로 정했어요`);
     },
   });
   return (
@@ -156,9 +164,23 @@ export function WeekGoalSheet({ open, onClose }: { open: boolean; onClose: () =>
       <Text className="text-headline font-bold text-ink">이번주 목표 시간</Text>
       <Text className="text-caption text-sub">월요일마다 새로 시작돼요</Text>
       <View className="mt-4 flex-row items-center rounded-2xl border border-brand/40 p-2">
-        <Step label="줄이기" d={-0.5} onPress={() => setH((x) => Math.max(1, x - 0.5))} />
+        <Step
+          label="줄이기"
+          d={-0.5}
+          onPress={() => {
+            setManual(false);
+            setH((x) => Math.max(1, x - 0.5));
+          }}
+        />
         <Text className="flex-1 text-center text-title1 font-bold text-ink">{h}시간</Text>
-        <Step label="늘리기" d={0.5} onPress={() => setH((x) => x + 0.5)} />
+        <Step
+          label="늘리기"
+          d={0.5}
+          onPress={() => {
+            setManual(false);
+            setH((x) => Math.min(168, x + 0.5));
+          }}
+        />
       </View>
       <Text className="mt-2 text-caption text-sub">
         30분 단위로 조절돼요 · 하루 평균 {Math.round((h / 7) * 10) / 10}시간
@@ -167,13 +189,35 @@ export function WeekGoalSheet({ open, onClose }: { open: boolean; onClose: () =>
       <View className="flex-row gap-2">
         {[14, 21, 28].map((x) => (
           <View key={x} className="flex-1">
-            <Chip on={h === x} onPress={() => setH(x)}>{`${x}시간`}</Chip>
+            <Chip
+              on={!manual && h === x}
+              onPress={() => {
+                setManual(false);
+                setH(x);
+              }}
+            >{`${x}시간`}</Chip>
           </View>
         ))}
         <View className="flex-1">
-          <Chip onPress={() => setH(18.5)}>직접 입력</Chip>
+          <Chip
+            onPress={() => {
+              setInputH(String(h));
+              setManual(true);
+            }}
+          >
+            직접 입력
+          </Chip>
         </View>
       </View>
+      {manual && (
+        <Input
+          placeholder="목표 시간"
+          value={inputH}
+          onChangeText={setInputH}
+          keyboardType="decimal-pad"
+        />
+      )}
+      {!valid && <Text>1~168시간을 30분 단위로 입력해주세요</Text>}
       <View className="mt-4 rounded-xl bg-sun/15 px-3 py-2.5">
         <View className="flex-row items-center gap-1.5">
           <TrendingUp size={ICON.xs} color={C.brand} />
@@ -189,7 +233,12 @@ export function WeekGoalSheet({ open, onClose }: { open: boolean; onClose: () =>
         </View>
         <Toggle label="목표 달성 알림" on={alarm} onChange={setAlarm} />
       </Card>
-      <Btn className="mt-5" loading={save.isPending} onPress={() => save.mutate()}>
+      <Btn
+        className="mt-5"
+        disabled={!valid}
+        loading={save.isPending}
+        onPress={() => save.mutate()}
+      >
         저장하기
       </Btn>
     </Sheet>

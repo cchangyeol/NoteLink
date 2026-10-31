@@ -7,7 +7,7 @@ import { Accelerometer } from 'expo-sensors';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { Mic, PartyPopper, PenLine, X } from 'lucide-react-native';
 import { api } from '@/lib/api';
-import { diffLabel, goalLabel, hm, hms } from '@/lib/dates';
+import { diffLabel, goalLabel, hm, hms, today as seoulToday } from '@/lib/dates';
 import { useNow } from '@/hooks';
 import { useSession } from '@/stores/session';
 import { toast } from '@/stores/toast';
@@ -18,10 +18,16 @@ import { C, ICON } from '@/theme';
 
 export function SummaryScreen() {
   const { sec, points } = useLocalSearchParams<{ sec?: string; points?: string }>();
-  const today = useQuery({ queryKey: ['study', 'today'], queryFn: api.study.today });
-  const weekly = useQuery({ queryKey: ['study', 'weekly'], queryFn: api.study.weekly });
+  const today = useQuery({ queryKey: ['study', 'today', seoulToday()], queryFn: api.study.today });
+  const weekly = useQuery({
+    queryKey: ['study', 'weekly', seoulToday()],
+    queryFn: api.study.weekly,
+  });
+  const goal = useQuery({
+    queryKey: ['goal', 'weekly', seoulToday()],
+    queryFn: api.study.weeklyGoal,
+  });
   const me = useQuery({ queryKey: ['me'], queryFn: api.me.get });
-  const goal = useQuery({ queryKey: ['goal', 'weekly'], queryFn: api.study.weeklyGoal });
   const items = today.data?.items ?? [];
   const total = items.reduce((a, i) => a + i.accumulatedSec, 0);
   const done = items.filter((i) => i.goalMin && i.accumulatedSec >= i.goalMin * 60).length;
@@ -127,7 +133,7 @@ export function SummaryScreen() {
 /** p.49 #8 가로로 돌리면 자동 측정 — 세로로 세우면 측정을 멈추고 돌아간다 */
 export function LandscapeScreen() {
   const s = useSession();
-  const today = useQuery({ queryKey: ['study', 'today'], queryFn: api.study.today });
+  const today = useQuery({ queryKey: ['study', 'today', seoulToday()], queryFn: api.study.today });
   const now = useNow();
   const active = today.data?.items.find((i) => i._id === s.itemId);
   const total =

@@ -8,7 +8,7 @@ import { Accelerometer } from 'expo-sensors';
 import * as Haptics from 'expo-haptics';
 import { Pause, Play, Square, Target, Users } from 'lucide-react-native';
 import { api } from '@/lib/api';
-import { dLabel, goalLabel, hm, hms } from '@/lib/dates';
+import { dLabel, goalLabel, hm, hms, seoul, ymd } from '@/lib/dates';
 import { useNow } from '@/hooks';
 import { AUTO_END_MS, useSession } from '@/stores/session';
 import { Badge, Btn, Card, Dashed, Screen, cx } from '@/components/ui';
@@ -21,14 +21,15 @@ import { NetBanner } from '@/components/NetBanner';
 
 export function HomeScreen() {
   const qc = useQueryClient();
-  const today = useQuery({ queryKey: ['study', 'today'], queryFn: api.study.today });
-  const weekly = useQuery({ queryKey: ['study', 'weekly'], queryFn: api.study.weekly });
-  const goal = useQuery({ queryKey: ['goal', 'weekly'], queryFn: api.study.weeklyGoal });
+  const now = useNow();
+  const day = ymd(seoul(now));
+  const today = useQuery({ queryKey: ['study', 'today', day], queryFn: api.study.today });
+  const weekly = useQuery({ queryKey: ['study', 'weekly', day], queryFn: api.study.weekly });
+  const goal = useQuery({ queryKey: ['goal', 'weekly', day], queryFn: api.study.weeklyGoal });
   const ddays = useQuery({ queryKey: ['ddays'], queryFn: api.calendar.ddays });
   const me = useQuery({ queryKey: ['me'], queryFn: api.me.get });
   const s = useSession();
   const running = !!s.since;
-  const now = useNow(!!s.itemId);
   const [sheet, setSheet] = useState<null | 'add' | 'goal'>(null);
   const [drawer, setDrawer] = useState(false);
 
@@ -50,13 +51,20 @@ export function HomeScreen() {
     await s.start(id);
     if (switching) await qc.invalidateQueries({ queryKey: ['study'] });
   };
+  const ending = useRef(false);
   const finish = async (reason = 'manual') => {
-    const r = await s.end(reason);
-    await qc.invalidateQueries({ queryKey: ['study'] });
-    router.push({
-      pathname: '/summary',
-      params: { sec: String(r.sec), points: String(r.pointsEarned) },
-    });
+    if (ending.current) return;
+    ending.current = true;
+    try {
+      const r = await s.end(reason);
+      await qc.invalidateQueries({ queryKey: ['study'] });
+      router.push({
+        pathname: '/summary',
+        params: { sec: String(r.sec), points: String(r.pointsEarned) },
+      });
+    } finally {
+      ending.current = false;
+    }
   };
 
   // 쉬는 중 10분이 지나면 자동 종료 (p.48)
@@ -67,7 +75,7 @@ export function HomeScreen() {
   return (
     <View className="flex-1 bg-white">
       {running && <KeepAwake />}
-      {running && <TiltWatcher />}
+      {s.itemId && <TiltWatcher />}
       <Screen>
         <NetBanner />
         <View className="flex-row items-start justify-between pt-4">
@@ -261,7 +269,7 @@ export function HomeScreen() {
           </Text>
           <Text className="text-caption text-sub">
             {has
-              ? `지난주보다 ${hm(weekly.data?.diffFromLastWeekSec ?? 0).replace('0시간 ', '')} 늘었어요`
+              ? `지난주보다 ${hm(Math.abs(weekly.data?.diffFromLastWeekSec ?? 0)).replace('0시간 ', '')} ${(weekly.data?.diffFromLastWeekSec ?? 0) < 0 ? '줄었어요' : '늘었어요'}`
               : '학습 기록이 쌓이면 스트릭이 시작돼요'}
           </Text>
         </Card>

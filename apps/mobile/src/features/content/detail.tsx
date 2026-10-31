@@ -233,8 +233,9 @@ export function EditScreen() {
     setText((m.summary?.sections ?? []).map((s) => `${s.heading}\n${s.body}`).join('\n\n'));
   }
   const save = useMutation({
-    mutationFn: () =>
-      api.content.updateSummary(
+    mutationFn: () => {
+      if (!m || loaded !== id) throw new Error('자료를 먼저 불러와 주세요');
+      return api.content.updateSummary(
         id,
         text
           .split(/\n\s*\n/)
@@ -243,7 +244,9 @@ export function EditScreen() {
             return { heading: (heading ?? '').trim(), body: rest.join(' ').trim() };
           })
           .filter((s) => s.heading),
-      ),
+      );
+    },
+    onError: () => toast('노트를 저장하지 못했어요. 다시 시도해주세요'),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['material', id] });
       router.back();
@@ -261,7 +264,11 @@ export function EditScreen() {
                 <Btn kind="outline" onPress={() => router.back()}>
                   취소
                 </Btn>
-                <Btn loading={save.isPending} onPress={() => save.mutate()}>
+                <Btn
+                  disabled={!m || loaded !== id}
+                  loading={save.isPending}
+                  onPress={() => save.mutate()}
+                >
                   저장
                 </Btn>
               </Two>
@@ -275,6 +282,7 @@ export function EditScreen() {
         large={false}
         right={
           <Pressable
+            disabled={!m || loaded !== id || save.isPending}
             onPress={() => save.mutate()}
             className={cx(
               'rounded-full px-3 py-1',
@@ -484,9 +492,14 @@ export function DownloadedScreen() {
 const TABS = { 필기: 'handwriting', 학습자료: 'document', 녹음본: 'recording' } as const;
 
 export function ShareScreen() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, folderId } = useLocalSearchParams<{ id?: string; folderId?: string }>();
+  const material = useQuery({
+    queryKey: ['material', id],
+    queryFn: () => api.content.material(id!),
+    enabled: !!id,
+  });
   const folders = useQuery({ queryKey: ['folders'], queryFn: api.content.folders });
-  const fid = folders.data?.[0]?._id;
+  const fid = folderId ?? material.data?.folderId ?? (!id ? folders.data?.[0]?._id : undefined);
   const mats = useQuery({
     queryKey: ['materials', fid],
     queryFn: () => api.content.materials(fid!),
@@ -496,20 +509,21 @@ export function ShareScreen() {
   const friends = useQuery({ queryKey: ['friends'], queryFn: api.social.friends });
   const [tab, setTab] = useState<keyof typeof TABS>('필기');
   const [sel, setSel] = useState<string[]>(id ? [id] : []);
-  const [to, setTo] = useState<{ type: 'room' | 'friend'; id: string; name: string }>({
-    type: 'room',
-    id: 'room-1',
-    name: '화학 스터디룸',
-  });
+  const [to, setTo] = useState<{ type: 'room' | 'friend'; id: string; name: string } | null>(null);
   const [pick, setPick] = useState(false);
   const list = (mats.data ?? []).filter((m) => m.kind === TABS[tab]);
   const share = useMutation({
-    mutationFn: () => api.content.share({ materialIds: sel, target: { type: to.type, id: to.id } }),
+    mutationFn: () => {
+      if (!to || !targets.some((t) => t.type === to.type && t.id === to.id) || !sel.length)
+        throw new Error('공유 대상을 선택해주세요');
+      return api.content.share({ materialIds: sel, target: { type: to.type, id: to.id } });
+    },
+    onError: () => toast('공유하지 못했어요. 대상과 연결을 확인해주세요'),
     onSuccess: () =>
       router.replace({
         pathname: '/note-shared',
         params: {
-          to: to.name,
+          to: to!.name,
           n: String(sel.length),
           tab,
           name: mats.data?.find((m) => m._id === sel[0])?.title,
@@ -518,7 +532,6 @@ export function ShareScreen() {
   });
   const targets = [
     ...(rooms.data ?? []).map((r) => ({ type: 'room' as const, id: r._id, name: r.title })),
-    { type: 'room' as const, id: 'room-1', name: '화학 스터디룸' },
     ...(friends.data ?? []).map((f) => ({
       type: 'friend' as const,
       id: f.userId,
@@ -528,7 +541,13 @@ export function ShareScreen() {
   return (
     <Screen
       footer={
-        <Btn disabled={!sel.length} loading={share.isPending} onPress={() => share.mutate()}>
+        <Btn
+          disabled={
+            !sel.length || !to || !targets.some((t) => t.type === to.type && t.id === to.id)
+          }
+          loading={share.isPending}
+          onPress={() => share.mutate()}
+        >
           공유하기
         </Btn>
       }
@@ -569,7 +588,7 @@ export function ShareScreen() {
       >
         <View className="flex-row items-center gap-1.5">
           <Users size={ICON.xs} color={C.brand} />
-          <Text className="text-footnote text-ink">{to.name} ⌄</Text>
+          <Text className="text-footnote text-ink">{to?.name ?? '공유 대상을 선택해주세요'} ⌄</Text>
         </View>
       </Pressable>
       <Sheet open={pick} onClose={() => setPick(false)} title="공유 대상">
@@ -581,7 +600,9 @@ export function ShareScreen() {
                 setTo(x);
                 setPick(false);
               }}
-              right={to.name === x.name && <Check size={ICON.sm} color={C.brand} />}
+              right={
+                to?.id === x.id && to?.type === x.type && <Check size={ICON.sm} color={C.brand} />
+              }
             >
               {x.name}
             </Row>

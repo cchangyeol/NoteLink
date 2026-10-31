@@ -464,7 +464,7 @@ export function FolderScreen() {
             icon={Share2}
             onPress={() => {
               setSheet(null);
-              router.push('/note-share');
+              router.push({ pathname: '/note-share', params: { folderId: id } });
             }}
           >
             폴더 자료 공유하기

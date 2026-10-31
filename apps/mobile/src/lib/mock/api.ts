@@ -13,7 +13,7 @@ import {
 } from '@notelink/shared';
 import { ApiError, NetworkError } from '../api/http';
 import type { Api, MonthDay } from '../api/types';
-import { addDays, daysBetween, parse, today, ymd } from '../dates';
+import { addDays, daysBetween, parse, seoul, today, ymd } from '../dates';
 import { mockServer } from '../socket';
 import { useNet } from '@/stores/net';
 import { useMockFlags } from './flags';
@@ -39,7 +39,7 @@ const db = {
   todos: S.seedTodos(),
   manualDdays: S.seedManualDdays(),
   hiddenHolidays: new Set<string>(['10-09']),
-  customHolidays: [{ _id: 'ch1', name: '가족 여행일', date: ymd(addDays(new Date(), 9)) }],
+  customHolidays: [{ _id: 'ch1', name: '가족 여행일', date: ymd(addDays(seoul(), 9)) }],
   shares: S.seedShares(),
   classes: S.seedClasses(),
   friends: S.seedFriends(),
@@ -334,7 +334,7 @@ export const mockApi: Api = {
         longestStreak: 12,
         peakHour: 21,
         heatmap: Array.from({ length: 126 }, (_, i) => ({
-          studyDate: ymd(addDays(new Date(), i - 125)),
+          studyDate: ymd(addDays(seoul(), i - 125)),
           level:
             (i * 37 + (i % 5) * 11) % 9 > 6
               ? 3

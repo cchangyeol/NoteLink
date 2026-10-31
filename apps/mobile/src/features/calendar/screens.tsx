@@ -427,8 +427,8 @@ function AddClassSheet({ open, onClose }: { open: boolean; onClose: () => void }
     },
   });
   const valid =
-    /^\d{2}:\d{2}$/.test(start) &&
-    /^\d{2}:\d{2}$/.test(end) &&
+    /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(start) &&
+    /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(end) &&
     start < end &&
     days.length > 0 &&
     name.trim();

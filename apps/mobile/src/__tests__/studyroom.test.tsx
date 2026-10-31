@@ -55,10 +55,13 @@ describe('실제 연결 끊김', () => {
     const emit = jest.spyOn(socket, 'emit');
     await renderScreen(<RoomScreen />);
     await screen.findByText(room!.title);
+    const input = screen.getByPlaceholderText('채팅을 입력하는 중입');
+    await fireEvent(input, 'focus');
+    // 기록 조회가 늦게 도착해 대기 메시지를 덮어쓰는 경쟁과 구분한다.
+    await screen.findByText('다들 얼마정도 푸셨나요?');
     await act(async () => useNet.getState().set('unstable'));
     expect(await screen.findByText('● 연결이 끊겼어요 · 다시 연결 중…')).toBeTruthy();
     // 끊긴 동안 보낸 메시지는 대기열에 둔다
-    const input = screen.getByPlaceholderText('채팅을 입력하는 중입');
     await fireEvent.changeText(input, '끊긴 동안 쓴 말');
     await fireEvent(input, 'submitEditing');
     expect(emit.mock.calls.some((c) => c[0] === 'chat:send')).toBe(false);
@@ -71,5 +74,8 @@ describe('실제 연결 끊김', () => {
         expect.any(Function),
       ),
     );
+    // 서버 확인 응답이 도착하면 대기 말풍선을 바꿔야 하며, 같은 말을 추가하면 안 된다.
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 250)));
+    expect(screen.getAllByText('끊긴 동안 쓴 말')).toHaveLength(1);
   }, 20000);
 });

@@ -198,7 +198,7 @@ export function PhotoGenScreen() {
   const handled = useRef(false);
   // 끝난 작업은 한 번만 처리한다 (소켓 완료 이벤트 · 상태 재조회 중 먼저 온 쪽)
   const finish = (status: AiJob['status']) => {
-    if (handled.current || (status !== 'succeeded' && status !== 'failed')) return;
+    if (handled.current || !['succeeded', 'failed', 'canceled'].includes(status)) return;
     handled.current = true;
     qc.invalidateQueries({ queryKey: ['me'] });
     router.dismissTo('/(tabs)/profile');
@@ -218,7 +218,12 @@ export function PhotoGenScreen() {
   const job = useQuery({
     queryKey: ['ai-job', jobId],
     queryFn: () => api.ai.job(jobId),
-    refetchInterval: 5000,
+    retry: false,
+    refetchInterval: (query) =>
+      query.state.error ||
+      ['succeeded', 'failed', 'canceled'].includes(query.state.data?.status ?? '')
+        ? false
+        : 5000,
   });
   useEffect(() => {
     if (job.data) finish(job.data.status);
@@ -226,6 +231,15 @@ export function PhotoGenScreen() {
   return (
     <Screen>
       <Header title="프로필 생성" back={false} />
+      {job.isError && (
+        <View className="gap-3 py-4">
+          <Text>작업 상태를 확인하지 못했어요</Text>
+          <Btn onPress={() => job.refetch()}>다시 시도</Btn>
+          <Btn kind="outline" onPress={() => router.dismissTo('/(tabs)/profile')}>
+            돌아가기
+          </Btn>
+        </View>
+      )}
       <View className="items-center pt-10">
         <Ring value={pct}>
           <View className="h-40 w-40 items-center justify-center rounded-full bg-white">
@@ -314,9 +328,10 @@ export function AvatarCustomScreen() {
     mutationFn: () =>
       api.me.saveAvatar({ style, gender: g === '남자' ? 'male' : 'female', color: c }),
     onSuccess: () => {
-      router.dismissTo('/(tabs)/profile/account');
+      router.dismissTo('/(tabs)/profile');
       toast('아바타를 저장했어요');
     },
+    onError: () => toast('아바타를 저장하지 못했어요. 다시 시도해 주세요'),
   });
   return (
     <Screen

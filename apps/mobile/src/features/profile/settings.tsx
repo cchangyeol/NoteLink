@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Linking, Pressable, ScrollView, View } from 'react-native';
 import { Text } from '@/components/text';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useSitemap, type SitemapType } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   CalendarDays,
   Check,
   ChevronRight,
+  CircleAlert,
   ExternalLink,
   FlaskConical,
   Gift,
@@ -37,6 +38,7 @@ import {
   Title,
   Toggle,
   cx,
+  Empty,
 } from '@/components/ui';
 import { C, ICON } from '@/theme';
 import Constants from 'expo-constants';
@@ -50,8 +52,26 @@ const gb = (b: number) =>
 
 /** 앱 버전은 app.config.ts의 version을 읽는다 */
 const APP_VERSION = Constants.expoConfig?.version ?? '-';
+type FeaturePath = '/record' | '/shop' | '/(tabs)/profile/photo' | '/(tabs)/profile/avatar-style';
+
+// 기능 PR이 합쳐지면 실제 화면으로 이동하고, 아직 없는 화면은 준비 중으로 안내한다.
+function useFeatureNavigation() {
+  const sitemap = useSitemap();
+  return (path: FeaturePath) => {
+    const normalized = (p: string) => p.replace(/\/\([^/]+\)/g, '').replace(/\/$/, '');
+    const exists = (node: SitemapType | null): boolean =>
+      !!node &&
+      ((!node.isInternal &&
+        typeof node.href === 'string' &&
+        normalized(node.href) === normalized(path)) ||
+        node.children.some(exists));
+    if (exists(sitemap)) router.push(path);
+    else toast('이 기능은 준비 중이에요');
+  };
+}
 
 export function SettingsScreen() {
+  const openFeature = useFeatureNavigation();
   const qc = useQueryClient();
   const me = useQuery({ queryKey: ['me'], queryFn: api.me.get });
   const [sheet, setSheet] = useState<null | 'lang' | 'page' | 'help' | 'biz'>(null);
@@ -69,15 +89,38 @@ export function SettingsScreen() {
       qc.setQueryData(['me'], (u: typeof me.data) =>
         u ? { ...u, settings: { ...u.settings, ...s } } : u,
       ),
+    onError: () => toast('설정을 저장하지 못했어요. 다시 시도해 주세요'),
     onSettled: () => qc.invalidateQueries({ queryKey: ['me'] }),
   });
   const signOut = async (withdraw: boolean) => {
-    if (withdraw) await api.me.withdraw();
-    else await api.auth.logout().catch(() => {});
-    clearAccountState(qc);
-    await useAuth.getState().signOut();
-    router.replace('/(auth)/login');
+    let failure = '회원 탈퇴를 완료하지 못했어요. 다시 시도해 주세요';
+    try {
+      if (withdraw) await api.me.withdraw();
+      else await api.auth.logout().catch(() => {});
+      clearAccountState(qc);
+      failure = '기기의 로그인 정보를 지우지 못했어요. 다시 시도해 주세요';
+      await useAuth.getState().signOut();
+      router.replace('/(auth)/login');
+    } catch {
+      toast(failure);
+    }
   };
+  // 내 정보를 못 불러와도 다시 시도 · 로그아웃은 할 수 있게 한다
+  if (me.isError)
+    return (
+      <Screen>
+        <Title>설정</Title>
+        <Empty
+          icon={<CircleAlert size={32} color={C.danger} />}
+          title="내 정보를 불러오지 못했어요"
+        >
+          <Btn onPress={() => me.refetch()}>다시 시도</Btn>
+          <Btn kind="cream" className="mt-2" onPress={() => signOut(false)}>
+            로그아웃
+          </Btn>
+        </Empty>
+      </Screen>
+    );
   if (!me.data) return <Loading />;
   const u = me.data;
   const s = u.settings;
@@ -91,7 +134,7 @@ export function SettingsScreen() {
           <View className="flex-row items-center gap-3">
             <Pressable
               accessibilityLabel="프로필 사진 변경"
-              onPress={() => router.push('/(tabs)/profile/photo')}
+              onPress={() => openFeature('/(tabs)/profile/photo')}
             >
               <Avatar name={u.nickname.slice(1)} size={48} />
             </Pressable>
@@ -151,13 +194,13 @@ export function SettingsScreen() {
 
         <Label>학습</Label>
         <Group>
-          <Row icon={CalendarDays} chevron onPress={() => router.navigate('/record')}>
+          <Row icon={CalendarDays} chevron onPress={() => openFeature('/record')}>
             캘린더 바로가기
           </Row>
         </Group>
         <Label>상점</Label>
         <Group>
-          <Row icon={Gift} chevron onPress={() => router.push('/shop')}>
+          <Row icon={Gift} chevron onPress={() => openFeature('/shop')}>
             상점 바로가기
           </Row>
         </Group>
@@ -370,6 +413,7 @@ export function SettingsScreen() {
 }
 
 export function AccountScreen() {
+  const openFeature = useFeatureNavigation();
   const me = useQuery({ queryKey: ['me'], queryFn: api.me.get });
   const u = me.data;
   const rows: [string, string | undefined, (() => void) | null][] = [
@@ -383,7 +427,7 @@ export function AccountScreen() {
     <Screen>
       <Header title="계정 정보" />
       <Card
-        onPress={() => router.push('/(tabs)/profile/avatar-style')}
+        onPress={() => openFeature('/(tabs)/profile/avatar-style')}
         className="flex-row items-center px-4 py-3"
       >
         <View className="flex-1">
